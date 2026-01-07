@@ -1,0 +1,3 @@
+Imtihon cardinign ustiga bosganda exam detail shaiasi ochilsin. Unda imtihon ma'lumotlari va 2 ta tugma. Imtihonning kalitlarini belgilash va yechilgan imtihonni skaner qilib tekshirish tugmasi.  kalitlarni belgilash tugmasi bosilganda exam-keys sahiasi chilsin. Unda Unda o'sha imtihondagi to'g'ri kalitlarni belgilash kerak. 1 tadan ortiq kalitni beliglash mukmin bo'lsin. Ma'lumotlar mongoDB da saqlansin va shu imtihonning to'g'ri javoblari deb qabul qilinsin. 
+
+Skaner tugmasi bosilganda exam-scaner sahifasiga o'tishi, unda o'quvchi bu imtihonni yechgan bo'ladi, faqat tekshirish kerak. kaltilarda belgilangan javoblarga qarab tekshirib berilishi kerak.

@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+
+<html class="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Admin Dashboard</title>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            colors: {
+              "primary": "#2b8cee",
+              "background-light": "#f6f7f8",
+              "background-dark": "#101922",
+              "surface-light": "#ffffff",
+              "surface-dark": "#1e2936",
+            },
+            fontFamily: {
+              "display": ["Inter", "sans-serif"]
+            },
+            borderRadius: {"DEFAULT": "0.25rem", "lg": "0.5rem", "xl": "0.75rem", "full": "9999px"},
+          },
+        },
+      }
+    </script>
+<style>
+        /* Hide scrollbar for Chrome, Safari and Opera */
+        .no-scrollbar::-webkit-scrollbar {
+            display: none;
+        }
+        /* Hide scrollbar for IE, Edge and Firefox */
+        .no-scrollbar {
+            -ms-overflow-style: none;  /* IE and Edge */
+            scrollbar-width: none;  /* Firefox */
+        }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="font-display bg-background-light dark:bg-background-dark text-slate-900 dark:text-white antialiased transition-colors duration-200">
+<div class="relative flex h-full min-h-screen w-full flex-col pb-24 overflow-x-hidden">
+<!-- Header / Top Bar -->
+<header class="sticky top-0 z-20 flex items-center justify-between px-4 py-3 bg-background-light/95 dark:bg-background-dark/95 backdrop-blur-sm">
+<div class="flex items-center gap-3">
+<div class="relative">
+<div class="bg-center bg-no-repeat bg-cover rounded-full size-10 border-2 border-white dark:border-slate-700 shadow-sm" data-alt="User profile picture showing a professional headshot" style='background-image: url("https://lh3.googleusercontent.com/aida-public/AB6AXuA94U697wToZmrmBb82sHacOY7RKuQYGB8CALrxdtziv9D9OwJyB9yxZ-Ct7V2qAMuXvrb54z3Js7rGPFG93YHFrc2T5Pv7daZJ-WI5gdPPLwqNm9ct3vlpkj3BTx8MZ_H3MNRrjRFxEina0hqKPXlz1pTikI2Tq7rRFFhQMnZidIIPLZFwHrLdx-TkAr_Uu4Q0CCmzY5XKD3z_IltwD-ZJ81Fhg2bwst4rPbeJ0lQx40fMipe3uORBGrklY11ySWo4QViEZNjtfl_o");'>
+</div>
+<div class="absolute bottom-0 right-0 size-3 bg-green-500 rounded-full border-2 border-white dark:border-slate-800"></div>
+</div>
+<div class="flex flex-col">
+<span class="text-xs font-medium text-slate-500 dark:text-slate-400">Welcome back,</span>
+<span class="text-sm font-bold text-slate-900 dark:text-white leading-tight">Principal Skinner</span>
+</div>
+</div>
+<button class="relative flex items-center justify-center size-10 rounded-full bg-white dark:bg-surface-dark shadow-sm border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors">
+<span class="material-symbols-outlined">notifications</span>
+<span class="absolute top-2 right-2.5 size-2 bg-red-500 rounded-full border border-white dark:border-slate-800"></span>
+</button>
+</header>
+<!-- Stats Carousel -->
+<section class="mt-4 px-4 w-full">
+<div class="flex gap-4 overflow-x-auto no-scrollbar pb-2 w-full snap-x snap-mandatory">
+<!-- Card 1 -->
+<div class="snap-start shrink-0 min-w-[200px] w-[60%] flex flex-col gap-3 rounded-xl p-5 bg-gradient-to-br from-primary to-blue-600 text-white shadow-lg shadow-blue-500/20">
+<div class="flex items-center justify-between">
+<div class="p-2 bg-white/20 rounded-lg backdrop-blur-md">
+<span class="material-symbols-outlined text-[20px]">school</span>
+</div>
+<span class="text-xs font-medium bg-white/20 px-2 py-0.5 rounded-full text-white/90">+12%</span>
+</div>
+<div>
+<p class="text-3xl font-bold tracking-tight">1,240</p>
+<p class="text-sm font-medium text-blue-100">Total Students</p>
+</div>
+</div>
+<!-- Card 2 -->
+<div class="snap-start shrink-0 min-w-[200px] w-[60%] flex flex-col gap-3 rounded-xl p-5 bg-surface-light dark:bg-surface-dark border border-slate-200 dark:border-slate-800 shadow-sm">
+<div class="flex items-center justify-between">
+<div class="p-2 bg-purple-100 dark:bg-purple-900/30 rounded-lg">
+<span class="material-symbols-outlined text-[20px] text-purple-600 dark:text-purple-400">assignment_turned_in</span>
+</div>
+<span class="text-xs font-medium text-slate-500 dark:text-slate-400">Today</span>
+</div>
+<div>
+<p class="text-3xl font-bold tracking-tight text-slate-900 dark:text-white">45</p>
+<p class="text-sm font-medium text-slate-500 dark:text-slate-400">Exams Completed</p>
+</div>
+</div>
+<!-- Card 3 -->
+<div class="snap-start shrink-0 min-w-[200px] w-[60%] flex flex-col gap-3 rounded-xl p-5 bg-surface-light dark:bg-surface-dark border border-slate-200 dark:border-slate-800 shadow-sm">
+<div class="flex items-center justify-between">
+<div class="p-2 bg-orange-100 dark:bg-orange-900/30 rounded-lg">
+<span class="material-symbols-outlined text-[20px] text-orange-600 dark:text-orange-400">pending_actions</span>
+</div>
+<span class="text-xs font-medium text-red-500">Action Needed</span>
+</div>
+<div>
+<p class="text-3xl font-bold tracking-tight text-slate-900 dark:text-white">12</p>
+<p class="text-sm font-medium text-slate-500 dark:text-slate-400">Pending Eval</p>
+</div>
+</div>
+</div>
+</section>
+<!-- Quick Actions -->
+<section class="mt-6 px-4">
+<h3 class="text-slate-900 dark:text-white text-lg font-bold leading-tight mb-3">Quick Actions</h3>
+<div class="grid grid-cols-2 gap-3">
+<button class="flex flex-col items-center justify-center gap-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-surface-light dark:bg-surface-dark p-6 shadow-sm hover:border-primary/50 hover:bg-slate-50 dark:hover:bg-slate-800 transition-all active:scale-[0.98]">
+<div class="flex items-center justify-center size-12 rounded-full bg-primary/10 text-primary mb-1">
+<span class="material-symbols-outlined text-3xl">add_circle</span>
+</div>
+<h2 class="text-slate-900 dark:text-white text-sm font-bold">Create Exam</h2>
+</button>
+<button class="flex flex-col items-center justify-center gap-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-surface-light dark:bg-surface-dark p-6 shadow-sm hover:border-primary/50 hover:bg-slate-50 dark:hover:bg-slate-800 transition-all active:scale-[0.98]">
+<div class="flex items-center justify-center size-12 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 mb-1">
+<span class="material-symbols-outlined text-3xl">groups</span>
+</div>
+<h2 class="text-slate-900 dark:text-white text-sm font-bold">Manage Class</h2>
+</button>
+<button class="flex flex-col items-center justify-center gap-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-surface-light dark:bg-surface-dark p-6 shadow-sm hover:border-primary/50 hover:bg-slate-50 dark:hover:bg-slate-800 transition-all active:scale-[0.98]">
+<div class="flex items-center justify-center size-12 rounded-full bg-purple-500/10 text-purple-600 dark:text-purple-400 mb-1">
+<span class="material-symbols-outlined text-3xl">bar_chart</span>
+</div>
+<h2 class="text-slate-900 dark:text-white text-sm font-bold">View Reports</h2>
+</button>
+<button class="flex flex-col items-center justify-center gap-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-surface-light dark:bg-surface-dark p-6 shadow-sm hover:border-primary/50 hover:bg-slate-50 dark:hover:bg-slate-800 transition-all active:scale-[0.98]">
+<div class="flex items-center justify-center size-12 rounded-full bg-orange-500/10 text-orange-600 dark:text-orange-400 mb-1">
+<span class="material-symbols-outlined text-3xl">document_scanner</span>
+</div>
+<h2 class="text-slate-900 dark:text-white text-sm font-bold">Scan OMR</h2>
+</button>
+</div>
+</section>
+<!-- Recent Activity Feed -->
+<section class="mt-8 px-4 mb-4">
+<div class="flex items-center justify-between mb-4">
+<h3 class="text-slate-900 dark:text-white text-lg font-bold leading-tight">Recent Activity</h3>
+<button class="text-primary text-sm font-medium">View All</button>
+</div>
+<div class="flex flex-col gap-0 bg-surface-light dark:bg-surface-dark rounded-xl border border-slate-200 dark:border-slate-700 overflow-hidden shadow-sm">
+<!-- Item 1 -->
+<div class="flex items-start gap-3 p-4 border-b border-slate-100 dark:border-slate-800 last:border-0 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors cursor-pointer">
+<div class="mt-0.5 flex-shrink-0 size-8 rounded-full bg-green-100 dark:bg-green-900/30 flex items-center justify-center text-green-600 dark:text-green-400">
+<span class="material-symbols-outlined text-lg">check_circle</span>
+</div>
+<div class="flex-1 min-w-0">
+<p class="text-sm font-semibold text-slate-900 dark:text-white truncate">Math 101 Results Published</p>
+<p class="text-xs text-slate-500 dark:text-slate-400 mt-0.5">Evaluation complete for 45 students.</p>
+</div>
+<span class="text-xs font-medium text-slate-400 whitespace-nowrap">2m ago</span>
+</div>
+<!-- Item 2 -->
+<div class="flex items-start gap-3 p-4 border-b border-slate-100 dark:border-slate-800 last:border-0 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors cursor-pointer">
+<div class="mt-0.5 flex-shrink-0 size-8 rounded-full bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center text-blue-600 dark:text-blue-400">
+<span class="material-symbols-outlined text-lg">person_add</span>
+</div>
+<div class="flex-1 min-w-0">
+<p class="text-sm font-semibold text-slate-900 dark:text-white truncate">New Student Batch Imported</p>
+<p class="text-xs text-slate-500 dark:text-slate-400 mt-0.5">25 students added to Grade 10 Biology.</p>
+</div>
+<span class="text-xs font-medium text-slate-400 whitespace-nowrap">1h ago</span>
+</div>
+<!-- Item 3 -->
+<div class="flex items-start gap-3 p-4 border-b border-slate-100 dark:border-slate-800 last:border-0 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors cursor-pointer">
+<div class="mt-0.5 flex-shrink-0 size-8 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-slate-600 dark:text-slate-400">
+<span class="material-symbols-outlined text-lg">scanner</span>
+</div>
+<div class="flex-1 min-w-0">
+<p class="text-sm font-semibold text-slate-900 dark:text-white truncate">Scanner Connected</p>
+<p class="text-xs text-slate-500 dark:text-slate-400 mt-0.5">Device ready for batch processing.</p>
+</div>
+<span class="text-xs font-medium text-slate-400 whitespace-nowrap">3h ago</span>
+</div>
+</div>
+</section>
+<!-- Bottom Navigation Bar -->
+<nav class="fixed bottom-0 left-0 w-full bg-surface-light dark:bg-surface-dark border-t border-slate-200 dark:border-slate-800 pb-safe pt-2 px-4 z-30">
+<div class="flex justify-between items-center max-w-md mx-auto">
+<button class="flex flex-col items-center gap-1 p-2 text-primary w-16">
+<span class="material-symbols-outlined text-2xl filled">home</span>
+<span class="text-[10px] font-medium">Home</span>
+</button>
+<button class="flex flex-col items-center gap-1 p-2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 w-16">
+<span class="material-symbols-outlined text-2xl">description</span>
+<span class="text-[10px] font-medium">Exams</span>
+</button>
+<button class="flex flex-col items-center gap-1 p-2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 w-16">
+<span class="material-symbols-outlined text-2xl">school</span>
+<span class="text-[10px] font-medium">Students</span>
+</button>
+<button class="flex flex-col items-center gap-1 p-2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 w-16">
+<span class="material-symbols-outlined text-2xl">analytics</span>
+<span class="text-[10px] font-medium">Reports</span>
+</button>
+<button class="flex flex-col items-center gap-1 p-2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 w-16">
+<span class="material-symbols-outlined text-2xl">settings</span>
+<span class="text-[10px] font-medium">Settings</span>
+</button>
+</div>
+<!-- Safe Area Spacer for iOS Home Indicator -->
+<div class="h-6 w-full"></div>
+</nav>
+</div>
+<script>
+        // Simple dark mode toggle logic for demonstration
+        // In a real app, this would be handled by system preference or user settings
+        // To test dark mode, add class="dark" to the html tag
+    </script>
+</body></html>

@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+
+<html class="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Exam Creation</title>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "primary": "#2b8cee",
+                        "background-light": "#f6f7f8",
+                        "background-dark": "#101922",
+                    },
+                    fontFamily: {
+                        "display": ["Inter", "sans-serif"]
+                    },
+                    borderRadius: {"DEFAULT": "0.25rem", "lg": "0.5rem", "xl": "0.75rem", "full": "9999px"},
+                },
+            },
+        }
+    </script>
+<style>
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+        /* Custom scrollbar hiding for clean mobile look */
+        .no-scrollbar::-webkit-scrollbar {
+            display: none;
+        }
+        .no-scrollbar {
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+        }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="bg-background-light dark:bg-background-dark min-h-screen text-[#0d141b] dark:text-white font-display overflow-x-hidden">
+<!-- Top App Bar -->
+<div class="sticky top-0 z-50 bg-background-light/95 dark:bg-background-dark/95 backdrop-blur-sm border-b border-gray-200 dark:border-gray-800 transition-colors duration-200">
+<div class="flex items-center justify-between px-4 py-3">
+<button class="flex items-center justify-center p-2 -ml-2 text-[#4c739a] hover:text-primary dark:text-gray-400 dark:hover:text-white transition-colors">
+<span class="text-base font-medium">Cancel</span>
+</button>
+<h2 class="text-[#0d141b] dark:text-white text-lg font-bold leading-tight tracking-[-0.015em]">Create Exam</h2>
+<button class="flex items-center justify-center p-2 -mr-2 text-primary hover:text-blue-600 transition-colors">
+<span class="text-base font-bold">Save</span>
+</button>
+</div>
+</div>
+<div class="max-w-md mx-auto pb-24">
+<!-- Section: Basic Details -->
+<div class="pt-6">
+<h3 class="px-4 pb-2 text-sm font-semibold text-gray-500 uppercase tracking-wider dark:text-gray-400">Exam Details</h3>
+<div class="bg-white dark:bg-[#1a2632] shadow-sm border-y border-gray-200 dark:border-gray-800 sm:rounded-lg sm:border-x sm:mx-4">
+<!-- Exam Name -->
+<div class="flex flex-col px-4 py-3 border-b border-gray-100 dark:border-gray-700 last:border-0">
+<label class="text-sm font-medium text-[#0d141b] dark:text-gray-200 mb-1.5">Exam Name</label>
+<input class="w-full bg-transparent border-0 p-0 text-base text-[#0d141b] dark:text-white placeholder:text-gray-400 focus:ring-0" placeholder="e.g. Physics Midterm 2024" type="text"/>
+</div>
+<!-- Date Selection -->
+<div class="flex items-center justify-between px-4 py-3 hover:bg-gray-50 dark:hover:bg-[#23303d] active:bg-gray-100 transition-colors cursor-pointer">
+<span class="text-base font-medium text-[#0d141b] dark:text-gray-200">Date</span>
+<div class="flex items-center gap-2">
+<span class="text-primary dark:text-blue-400 text-base">Oct 24, 2023</span>
+<span class="material-symbols-outlined text-gray-400 text-xl">calendar_today</span>
+</div>
+</div>
+</div>
+</div>
+<!-- Section: Structure & Rules -->
+<div class="pt-6">
+<h3 class="px-4 pb-2 text-sm font-semibold text-gray-500 uppercase tracking-wider dark:text-gray-400">Structure &amp; Scoring</h3>
+<div class="bg-white dark:bg-[#1a2632] shadow-sm border-y border-gray-200 dark:border-gray-800 sm:rounded-lg sm:border-x sm:mx-4">
+<!-- Question Count Stepper -->
+<div class="flex items-center justify-between px-4 py-3 border-b border-gray-100 dark:border-gray-700">
+<div class="flex flex-col">
+<span class="text-base font-medium text-[#0d141b] dark:text-gray-200">Total Questions</span>
+<span class="text-xs text-gray-500 dark:text-gray-400">Max 100 questions</span>
+</div>
+<div class="flex items-center gap-3 bg-gray-100 dark:bg-gray-800 rounded-lg p-1">
+<button class="w-8 h-8 flex items-center justify-center bg-white dark:bg-[#1a2632] rounded shadow-sm text-gray-600 dark:text-gray-300 hover:text-primary active:scale-95 transition-all">
+<span class="material-symbols-outlined text-lg">remove</span>
+</button>
+<span class="text-base font-semibold w-6 text-center text-[#0d141b] dark:text-white">40</span>
+<button class="w-8 h-8 flex items-center justify-center bg-white dark:bg-[#1a2632] rounded shadow-sm text-gray-600 dark:text-gray-300 hover:text-primary active:scale-95 transition-all">
+<span class="material-symbols-outlined text-lg">add</span>
+</button>
+</div>
+</div>
+<!-- Option Pattern Segmented Control -->
+<div class="flex flex-col px-4 py-4 border-b border-gray-100 dark:border-gray-700">
+<span class="text-base font-medium text-[#0d141b] dark:text-gray-200 mb-3">Answer Pattern</span>
+<div class="flex bg-gray-100 dark:bg-gray-800 p-1 rounded-lg">
+<button class="flex-1 py-1.5 px-3 rounded-md bg-white dark:bg-[#2b8cee] shadow-sm text-sm font-semibold text-primary dark:text-white transition-all">
+                            A - B - C - D
+                        </button>
+<button class="flex-1 py-1.5 px-3 rounded-md text-sm font-medium text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 transition-all">
+                            A - B - C - D - E
+                        </button>
+</div>
+</div>
+<!-- Scoring Rules Grid -->
+<div class="grid grid-cols-3 divide-x divide-gray-100 dark:divide-gray-700 border-b border-gray-100 dark:border-gray-700 last:border-0">
+<div class="p-3 flex flex-col items-center text-center">
+<span class="text-xs text-gray-500 dark:text-gray-400 mb-1">Correct</span>
+<input class="w-full text-center bg-transparent border-0 p-0 font-bold text-green-600 dark:text-green-400 focus:ring-0" type="number" value="1.0"/>
+</div>
+<div class="p-3 flex flex-col items-center text-center">
+<span class="text-xs text-gray-500 dark:text-gray-400 mb-1">Wrong</span>
+<input class="w-full text-center bg-transparent border-0 p-0 font-bold text-red-500 dark:text-red-400 focus:ring-0" type="number" value="-0.25"/>
+</div>
+<div class="p-3 flex flex-col items-center text-center">
+<span class="text-xs text-gray-500 dark:text-gray-400 mb-1">Blank</span>
+<input class="w-full text-center bg-transparent border-0 p-0 font-bold text-gray-600 dark:text-gray-300 focus:ring-0" type="number" value="0"/>
+</div>
+</div>
+</div>
+</div>
+<!-- Section: Answer Key -->
+<div class="pt-6">
+<div class="flex items-center justify-between px-4 pb-2">
+<h3 class="text-sm font-semibold text-gray-500 uppercase tracking-wider dark:text-gray-400">Answer Key</h3>
+<button class="text-xs font-medium text-primary hover:text-blue-600">Clear All</button>
+</div>
+<div class="bg-white dark:bg-[#1a2632] shadow-sm border-y border-gray-200 dark:border-gray-800 sm:rounded-lg sm:border-x sm:mx-4 divide-y divide-gray-100 dark:divide-gray-700">
+<!-- Question 1 -->
+<div class="flex items-center px-4 py-3">
+<span class="w-8 text-sm font-bold text-gray-400 dark:text-gray-500">1.</span>
+<div class="flex-1 flex justify-between gap-2 max-w-[280px]">
+<button class="w-10 h-10 rounded-full bg-primary text-white font-semibold text-sm shadow-sm ring-2 ring-primary/20 transition-all transform scale-105">A</button>
+<button class="w-10 h-10 rounded-full bg-gray-50 dark:bg-gray-700 text-gray-500 dark:text-gray-300 font-medium text-sm hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors">B</button>
+<button class="w-10 h-10 rounded-full bg-gray-50 dark:bg-gray-700 text-gray-500 dark:text-gray-300 font-medium text-sm hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors">C</button>
+<button class="w-10 h-10 rounded-full bg-gray-50 dark:bg-gray-700 text-gray-500 dark:text-gray-300 font-medium text-sm hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors">D</button>
+</div>
+</div>
+<!-- Question 2 -->
+<div class="flex items-center px-4 py-3">
+<span class="w-8 text-sm font-bold text-gray-400 dark:text-gray-500">2.</span>
+<div class="flex-1 flex justify-between gap-2 max-w-[280px]">
+<button class="w-10 h-10 rounded-full bg-gray-50 dark:bg-gray-700 text-gray-500 dark:text-gray-300 font-medium text-sm hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors">A</button>
+<button class="w-10 h-10 rounded-full bg-primary text-white font-semibold text-sm shadow-sm ring-2 ring-primary/20 transition-all transform scale-105">B</button>
+<button class="w-10 h-10 rounded-full bg-gray-50 dark:bg-gray-700 text-gray-500 dark:text-gray-300 font-medium text-sm hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors">C</button>
+<button class="w-10 h-10 rounded-full bg-gray-50 dark:bg-gray-700 text-gray-500 dark:text-gray-300 font-medium text-sm hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors">D</button>
+</div>
+</div>
+<!-- Question 3 -->
+<div class="flex items-center px-4 py-3">
+<span class="w-8 text-sm font-bold text-gray-400 dark:text-gray-500">3.</span>
+<div class="flex-1 flex justify-between gap-2 max-w-[280px]">
+<button class="w-10 h-10 rounded-full bg-gray-50 dark:bg-gray-700 text-gray-500 dark:text-gray-300 font-medium text-sm hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors">A</button>
+<button class="w-10 h-10 rounded-full bg-gray-50 dark:bg-gray-700 text-gray-500 dark:text-gray-300 font-medium text-sm hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors">B</button>
+<button class="w-10 h-10 rounded-full bg-gray-50 dark:bg-gray-700 text-gray-500 dark:text-gray-300 font-medium text-sm hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors">C</button>
+<button class="w-10 h-10 rounded-full bg-gray-50 dark:bg-gray-700 text-gray-500 dark:text-gray-300 font-medium text-sm hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors">D</button>
+</div>
+</div>
+<!-- Question 4 -->
+<div class="flex items-center px-4 py-3">
+<span class="w-8 text-sm font-bold text-gray-400 dark:text-gray-500">4.</span>
+<div class="flex-1 flex justify-between gap-2 max-w-[280px]">
+<button class="w-10 h-10 rounded-full bg-gray-50 dark:bg-gray-700 text-gray-500 dark:text-gray-300 font-medium text-sm hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors">A</button>
+<button class="w-10 h-10 rounded-full bg-gray-50 dark:bg-gray-700 text-gray-500 dark:text-gray-300 font-medium text-sm hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors">B</button>
+<button class="w-10 h-10 rounded-full bg-gray-50 dark:bg-gray-700 text-gray-500 dark:text-gray-300 font-medium text-sm hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors">C</button>
+<button class="w-10 h-10 rounded-full bg-primary text-white font-semibold text-sm shadow-sm ring-2 ring-primary/20 transition-all transform scale-105">D</button>
+</div>
+</div>
+<!-- Question 5 (Multi select example) -->
+<div class="flex items-center px-4 py-3 bg-blue-50/50 dark:bg-blue-900/10">
+<span class="w-8 text-sm font-bold text-gray-400 dark:text-gray-500">5.</span>
+<div class="flex-1 flex justify-between gap-2 max-w-[280px]">
+<button class="w-10 h-10 rounded-full bg-primary text-white font-semibold text-sm shadow-sm ring-2 ring-primary/20 transition-all">A</button>
+<button class="w-10 h-10 rounded-full bg-gray-50 dark:bg-gray-700 text-gray-500 dark:text-gray-300 font-medium text-sm hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors">B</button>
+<button class="w-10 h-10 rounded-full bg-primary text-white font-semibold text-sm shadow-sm ring-2 ring-primary/20 transition-all">C</button>
+<button class="w-10 h-10 rounded-full bg-gray-50 dark:bg-gray-700 text-gray-500 dark:text-gray-300 font-medium text-sm hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors">D</button>
+</div>
+</div>
+</div>
+<div class="mt-4 px-4 text-center">
+<p class="text-xs text-gray-400 dark:text-gray-500">Showing 5 of 40 questions</p>
+<button class="mt-2 text-primary font-medium text-sm">Load more</button>
+</div>
+</div>
+</div>
+</body></html>

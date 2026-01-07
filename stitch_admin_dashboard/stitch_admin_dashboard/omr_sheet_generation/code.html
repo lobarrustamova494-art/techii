@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+
+<html class="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>OMR Sheet Generation</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "primary": "#2b8cee",
+                        "background-light": "#f6f7f8",
+                        "background-dark": "#101922",
+                    },
+                    fontFamily: {
+                        "display": ["Inter", "sans-serif"]
+                    },
+                    borderRadius: {"DEFAULT": "0.25rem", "lg": "0.5rem", "xl": "0.75rem", "full": "9999px"},
+                },
+            },
+        }
+    </script>
+<style>
+        /* Custom scrollbar for webkit to keep it clean on desktop testing */
+        ::-webkit-scrollbar {
+            width: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        ::-webkit-scrollbar-thumb {
+            background-color: #cbd5e1;
+            border-radius: 20px;
+        }
+        .dark ::-webkit-scrollbar-thumb {
+            background-color: #334155;
+        }
+        
+        /* Toggle Switch CSS */
+        .toggle-checkbox:checked {
+            right: 0;
+            border-color: #2b8cee;
+        }
+        .toggle-checkbox:checked + .toggle-label {
+            background-color: #2b8cee;
+        }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="bg-background-light dark:bg-background-dark text-slate-900 dark:text-slate-100 font-display transition-colors duration-200">
+<div class="relative flex h-screen w-full flex-col overflow-hidden max-w-md mx-auto bg-background-light dark:bg-background-dark shadow-2xl">
+<!-- Top App Bar -->
+<header class="flex items-center bg-background-light dark:bg-background-dark p-4 pb-2 justify-between border-b border-slate-200 dark:border-slate-800 shrink-0 z-20">
+<button class="text-slate-900 dark:text-white flex size-10 shrink-0 items-center justify-center rounded-full hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors">
+<span class="material-symbols-outlined text-[24px]">arrow_back_ios_new</span>
+</button>
+<h2 class="text-slate-900 dark:text-white text-lg font-bold leading-tight tracking-[-0.015em] flex-1 text-center">Generate Sheet</h2>
+<button class="flex size-10 items-center justify-center rounded-full hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors">
+<span class="material-symbols-outlined text-primary text-[24px]">help</span>
+</button>
+</header>
+<!-- Main Scrollable Content -->
+<main class="flex-1 overflow-y-auto pb-24">
+<!-- Exam Selection Section -->
+<div class="pt-6 pb-2">
+<h3 class="text-slate-900 dark:text-white tracking-tight text-xl font-bold leading-tight px-4 text-left pb-4">Exam Details</h3>
+<div class="px-4">
+<label class="flex flex-col w-full relative group">
+<span class="text-slate-700 dark:text-slate-300 text-sm font-medium leading-normal pb-2">Select Exam</span>
+<div class="relative">
+<select class="form-select flex w-full appearance-none rounded-xl border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-slate-900 dark:text-white h-14 pl-4 pr-10 text-base font-normal leading-normal focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition-all shadow-sm">
+<option disabled="" selected="" value="">Choose an exam...</option>
+<option value="midterm_physics">Physics 101: Mid-Term</option>
+<option value="final_math">Math 202: Final Exam</option>
+<option value="history_quiz">History: Chapter 5 Quiz</option>
+</select>
+<div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-3 text-slate-500 dark:text-slate-400">
+<span class="material-symbols-outlined">expand_more</span>
+</div>
+</div>
+</label>
+<!-- Exam Info Chips -->
+<div class="flex gap-2 mt-3">
+<div class="inline-flex items-center px-3 py-1 rounded-full bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 text-xs font-medium">
+<span class="material-symbols-outlined text-[16px] mr-1">quiz</span>
+                            50 Questions
+                        </div>
+<div class="inline-flex items-center px-3 py-1 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 text-xs font-medium">
+<span class="material-symbols-outlined text-[16px] mr-1">schedule</span>
+                            90 Mins
+                        </div>
+</div>
+</div>
+</div>
+<div class="h-1 w-full bg-slate-100 dark:bg-slate-800 my-4"></div>
+<!-- Configuration Section -->
+<div class="pb-2">
+<h3 class="text-slate-900 dark:text-white tracking-tight text-xl font-bold leading-tight px-4 text-left pb-4 pt-2">Configuration</h3>
+<!-- Paper Size Segmented Button -->
+<div class="px-4 mb-6">
+<span class="text-slate-700 dark:text-slate-300 text-sm font-medium leading-normal pb-2 block">Paper Size</span>
+<div class="flex p-1 bg-slate-200 dark:bg-slate-800 rounded-xl">
+<label class="flex-1 cursor-pointer">
+<input checked="" class="peer sr-only" name="paper_size" type="radio" value="a4"/>
+<div class="flex items-center justify-center py-2 rounded-lg text-sm font-medium transition-all text-slate-500 dark:text-slate-400 peer-checked:bg-white dark:peer-checked:bg-slate-700 peer-checked:text-primary peer-checked:shadow-sm">
+                                A4 Paper
+                            </div>
+</label>
+<label class="flex-1 cursor-pointer">
+<input class="peer sr-only" name="paper_size" type="radio" value="letter"/>
+<div class="flex items-center justify-center py-2 rounded-lg text-sm font-medium transition-all text-slate-500 dark:text-slate-400 peer-checked:bg-white dark:peer-checked:bg-slate-700 peer-checked:text-primary peer-checked:shadow-sm">
+                                Letter Paper
+                            </div>
+</label>
+</div>
+</div>
+<!-- Toggles List -->
+<div class="px-4 space-y-5">
+<!-- Branding Toggle -->
+<div class="flex items-center justify-between group cursor-pointer">
+<div class="flex flex-col">
+<span class="text-slate-900 dark:text-white text-base font-medium">Include Logo</span>
+<span class="text-slate-500 dark:text-slate-400 text-xs">Add school branding to header</span>
+</div>
+<label class="relative inline-flex items-center cursor-pointer">
+<input checked="" class="sr-only peer" type="checkbox" value=""/>
+<div class="w-11 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer dark:bg-slate-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-gray-600 peer-checked:bg-primary"></div>
+</label>
+</div>
+<!-- Student ID Toggle -->
+<div class="flex items-center justify-between group cursor-pointer">
+<div class="flex flex-col">
+<span class="text-slate-900 dark:text-white text-base font-medium">Pre-fill Student ID</span>
+<span class="text-slate-500 dark:text-slate-400 text-xs">Generate unique sheets per student</span>
+</div>
+<label class="relative inline-flex items-center cursor-pointer">
+<input class="sr-only peer" type="checkbox" value=""/>
+<div class="w-11 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer dark:bg-slate-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-gray-600 peer-checked:bg-primary"></div>
+</label>
+</div>
+<!-- Layout Toggle -->
+<div class="flex items-center justify-between group cursor-pointer">
+<div class="flex flex-col">
+<span class="text-slate-900 dark:text-white text-base font-medium">Compact Layout</span>
+<span class="text-slate-500 dark:text-slate-400 text-xs">Fit more questions per page</span>
+</div>
+<label class="relative inline-flex items-center cursor-pointer">
+<input class="sr-only peer" type="checkbox" value=""/>
+<div class="w-11 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer dark:bg-slate-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-gray-600 peer-checked:bg-primary"></div>
+</label>
+</div>
+</div>
+</div>
+<div class="h-1 w-full bg-slate-100 dark:bg-slate-800 my-4"></div>
+<!-- Live Preview Section -->
+<div class="px-4 pb-6">
+<h3 class="text-slate-900 dark:text-white tracking-tight text-xl font-bold leading-tight text-left pb-4 pt-2">Preview</h3>
+<div class="w-full bg-slate-200 dark:bg-slate-800 rounded-xl p-4 flex justify-center overflow-hidden relative">
+<!-- OMR Sheet Representation -->
+<div class="relative bg-white aspect-[1/1.414] w-3/4 shadow-lg rounded-sm border border-slate-100 dark:border-none overflow-hidden flex flex-col p-4 transform transition-transform hover:scale-[1.02] duration-300 cursor-zoom-in">
+<!-- Header -->
+<div class="flex justify-between items-start mb-4">
+<div class="w-12 h-12 bg-slate-100 rounded-md flex items-center justify-center">
+<span class="material-symbols-outlined text-slate-300 text-2xl">school</span>
+</div>
+<div class="flex-1 ml-3 space-y-2">
+<div class="h-2 bg-slate-200 w-3/4 rounded"></div>
+<div class="h-2 bg-slate-100 w-1/2 rounded"></div>
+</div>
+<div class="w-16 h-16 border border-slate-200 rounded-sm bg-slate-50"></div>
+</div>
+<!-- Grid -->
+<div class="flex-1 grid grid-cols-2 gap-4">
+<!-- Col 1 -->
+<div class="space-y-2">
+<div class="flex items-center gap-1"><div class="w-3 h-3 bg-slate-200 rounded-full"></div><div class="h-1 bg-slate-100 flex-1 rounded"></div></div>
+<div class="flex items-center gap-1"><div class="w-3 h-3 bg-slate-200 rounded-full"></div><div class="h-1 bg-slate-100 flex-1 rounded"></div></div>
+<div class="flex items-center gap-1"><div class="w-3 h-3 bg-slate-200 rounded-full"></div><div class="h-1 bg-slate-100 flex-1 rounded"></div></div>
+<div class="flex items-center gap-1"><div class="w-3 h-3 bg-slate-200 rounded-full"></div><div class="h-1 bg-slate-100 flex-1 rounded"></div></div>
+<div class="flex items-center gap-1"><div class="w-3 h-3 bg-slate-200 rounded-full"></div><div class="h-1 bg-slate-100 flex-1 rounded"></div></div>
+</div>
+<!-- Col 2 -->
+<div class="space-y-2">
+<div class="flex items-center gap-1"><div class="w-3 h-3 bg-slate-200 rounded-full"></div><div class="h-1 bg-slate-100 flex-1 rounded"></div></div>
+<div class="flex items-center gap-1"><div class="w-3 h-3 bg-slate-200 rounded-full"></div><div class="h-1 bg-slate-100 flex-1 rounded"></div></div>
+<div class="flex items-center gap-1"><div class="w-3 h-3 bg-slate-200 rounded-full"></div><div class="h-1 bg-slate-100 flex-1 rounded"></div></div>
+<div class="flex items-center gap-1"><div class="w-3 h-3 bg-slate-200 rounded-full"></div><div class="h-1 bg-slate-100 flex-1 rounded"></div></div>
+<div class="flex items-center gap-1"><div class="w-3 h-3 bg-slate-200 rounded-full"></div><div class="h-1 bg-slate-100 flex-1 rounded"></div></div>
+</div>
+</div>
+<!-- Footer Bar -->
+<div class="h-3 w-full bg-slate-800 mt-4 rounded-sm opacity-10"></div>
+<!-- Watermark -->
+<div class="absolute inset-0 flex items-center justify-center pointer-events-none">
+<span class="text-slate-300 text-3xl font-bold -rotate-45 opacity-30 tracking-widest border-2 border-slate-300 p-2 rounded">PREVIEW</span>
+</div>
+</div>
+</div>
+<p class="text-center text-xs text-slate-500 dark:text-slate-400 mt-2">Pinch to zoom preview</p>
+</div>
+</main>
+<!-- Fixed Footer Action -->
+<div class="absolute bottom-0 w-full bg-white dark:bg-slate-800 p-4 border-t border-slate-200 dark:border-slate-700 z-30 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)]">
+<button class="w-full bg-primary hover:bg-blue-600 text-white font-bold py-3.5 px-6 rounded-xl shadow-lg shadow-blue-500/30 flex items-center justify-center gap-2 transition-all active:scale-[0.98]">
+<span class="material-symbols-outlined">ios_share</span>
+                Generate &amp; Download PDF
+            </button>
+</div>
+</div>
+</body></html>

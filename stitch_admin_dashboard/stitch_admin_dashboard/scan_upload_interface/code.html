@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+
+<html class="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Scan Upload Interface</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "primary": "#2b8cee",
+                        "background-light": "#f6f7f8",
+                        "background-dark": "#101922",
+                    },
+                    fontFamily: {
+                        "display": ["Inter", "sans-serif"]
+                    },
+                    borderRadius: {"DEFAULT": "0.25rem", "lg": "0.5rem", "xl": "0.75rem", "full": "9999px"},
+                },
+            },
+        }
+    </script>
+<style>
+        /* Custom scrollbar hiding for the carousel */
+        .no-scrollbar::-webkit-scrollbar {
+            display: none;
+        }
+        .no-scrollbar {
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+        }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="bg-background-light dark:bg-background-dark text-slate-900 dark:text-slate-100 font-display transition-colors duration-200">
+<div class="relative flex min-h-screen w-full flex-col overflow-hidden pb-24">
+<!-- Header -->
+<header class="sticky top-0 z-10 bg-background-light/95 dark:bg-background-dark/95 backdrop-blur-sm border-b border-slate-200 dark:border-slate-800">
+<div class="flex items-center p-4 justify-between">
+<button class="text-slate-900 dark:text-white flex size-10 shrink-0 items-center justify-center rounded-full hover:bg-slate-200 dark:hover:bg-slate-800 transition-colors">
+<span class="material-symbols-outlined">arrow_back</span>
+</button>
+<h2 class="text-slate-900 dark:text-white text-lg font-bold leading-tight tracking-[-0.015em] flex-1 text-center pr-10">Upload Answer Sheets</h2>
+</div>
+</header>
+<main class="flex-1 flex flex-col p-4 gap-6">
+<!-- Upload Area / Drop Zone -->
+<section class="flex flex-col gap-4">
+<div class="flex flex-col items-center gap-6 rounded-xl border-2 border-dashed border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800/50 px-6 py-10 transition-colors hover:border-primary hover:bg-primary/5 dark:hover:bg-primary/10 cursor-pointer group">
+<div class="flex max-w-[480px] flex-col items-center gap-3">
+<div class="size-16 rounded-full bg-primary/10 flex items-center justify-center group-hover:scale-110 transition-transform duration-300">
+<span class="material-symbols-outlined text-primary text-3xl">cloud_upload</span>
+</div>
+<div class="text-center">
+<p class="text-slate-900 dark:text-white text-lg font-bold leading-tight">Upload Area</p>
+<p class="text-slate-500 dark:text-slate-400 text-sm font-normal leading-normal mt-1">Tap here to select answer sheets or drag and drop files.</p>
+</div>
+</div>
+</div>
+<!-- Action Buttons -->
+<div class="grid grid-cols-2 gap-3">
+<button class="flex items-center justify-center gap-2 rounded-lg h-12 px-4 bg-primary text-white text-sm font-bold shadow-md hover:bg-primary/90 active:scale-95 transition-all">
+<span class="material-symbols-outlined text-[20px]">photo_camera</span>
+<span>Take Photo</span>
+</button>
+<button class="flex items-center justify-center gap-2 rounded-lg h-12 px-4 bg-white dark:bg-slate-800 text-slate-900 dark:text-white border border-slate-200 dark:border-slate-700 text-sm font-bold shadow-sm hover:bg-slate-50 dark:hover:bg-slate-700 active:scale-95 transition-all">
+<span class="material-symbols-outlined text-[20px]">image</span>
+<span>Gallery</span>
+</button>
+</div>
+</section>
+<!-- Pending Uploads List -->
+<section class="flex flex-col gap-3">
+<div class="flex items-center justify-between">
+<h3 class="text-slate-900 dark:text-white text-lg font-bold leading-tight">Pending Uploads</h3>
+<span class="text-xs font-medium text-slate-500 dark:text-slate-400 bg-slate-200 dark:bg-slate-800 px-2 py-1 rounded-full">3 Files</span>
+</div>
+<div class="flex flex-col gap-3">
+<!-- Item 1: Ready -->
+<div class="flex items-center gap-3 bg-white dark:bg-slate-800 p-3 rounded-lg shadow-sm border border-slate-100 dark:border-slate-700">
+<div class="size-12 rounded bg-slate-200 dark:bg-slate-700 overflow-hidden shrink-0 relative">
+<!-- Placeholder for thumbnail -->
+<div class="absolute inset-0 flex items-center justify-center text-slate-400">
+<span class="material-symbols-outlined text-sm">description</span>
+</div>
+<img alt="" class="w-full h-full object-cover opacity-80" data-alt="Thumbnail of scanned exam sheet document" src="https://lh3.googleusercontent.com/aida-public/AB6AXuAQDQ5kPjvU7XRc0jrlNLv-xHXF2HhD3T1-V3EmIz1vNAFOIz9RHPhvcRLcmZcZrRIYipf5EOnCWNeelLh-4aH5SDNAUWMnKbUWMHE_W--Zq2p576fvDxkUXLDNYJaftZEM4Wb0hOXG4rh4M_m0ou8scA8d6vQQQW6Fa_LT0jDs7tdG9kcMPBL7eRHQkjV-SJuug4J6Piei3sBesCxmPwEVRC4_ipYyZaogT57xVGCSBECWXpxk1f_b9v68vQMT33L86wcuI1Jmophs"/>
+</div>
+<div class="flex-1 min-w-0">
+<p class="text-sm font-semibold text-slate-900 dark:text-white truncate">Math_Exam_Section_A_001.jpg</p>
+<p class="text-xs text-primary font-medium mt-0.5">Ready to upload • 2.4 MB</p>
+</div>
+<button class="p-2 text-slate-400 hover:text-red-500 transition-colors">
+<span class="material-symbols-outlined">delete</span>
+</button>
+</div>
+<!-- Item 2: Progress -->
+<div class="flex items-center gap-3 bg-white dark:bg-slate-800 p-3 rounded-lg shadow-sm border border-slate-100 dark:border-slate-700 relative overflow-hidden">
+<!-- Progress overlay background -->
+<div class="absolute bottom-0 left-0 h-1 bg-primary w-[65%]"></div>
+<div class="size-12 rounded bg-slate-200 dark:bg-slate-700 overflow-hidden shrink-0 relative">
+<div class="absolute inset-0 flex items-center justify-center text-slate-400">
+<span class="material-symbols-outlined text-sm">description</span>
+</div>
+<img alt="" class="w-full h-full object-cover opacity-80" data-alt="Thumbnail of student answer sheet" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCjIBvFfphicNicIXLkADuURGN4dmPF8qivNzbbSf1fvhPZXv_S9DUxoaw9ra35dhQ8AgriAOwawpkFCRb2y_CfurUktEyHmEQu3FQWX4DJVI-TNgaEZKUJs1LYbZsuqppgtop4crRqFziNWnb4zuB-xdHOFOB4webTy8csP0rSj0GoI1WUC1CSivqhfsDY413IqVnbtLjRgtYeLvizwsCmumO6oxnqyx0d-UnVBBZQMR5x17eOpLxrc2mf1XYRa-6pg9NqhmmgmzvY"/>
+</div>
+<div class="flex-1 min-w-0">
+<p class="text-sm font-semibold text-slate-900 dark:text-white truncate">Math_Exam_Section_A_002.jpg</p>
+<div class="flex items-center gap-2 mt-0.5">
+<span class="size-2 rounded-full bg-primary animate-pulse"></span>
+<p class="text-xs text-slate-500 dark:text-slate-400 font-medium">Uploading... 65%</p>
+</div>
+</div>
+<button class="p-2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-colors">
+<span class="material-symbols-outlined">close</span>
+</button>
+</div>
+<!-- Item 3: Error -->
+<div class="flex items-center gap-3 bg-white dark:bg-slate-800 p-3 rounded-lg shadow-sm border border-red-200 dark:border-red-900/30">
+<div class="size-12 rounded bg-red-50 dark:bg-red-900/20 overflow-hidden shrink-0 flex items-center justify-center text-red-500">
+<span class="material-symbols-outlined">broken_image</span>
+</div>
+<div class="flex-1 min-w-0">
+<p class="text-sm font-semibold text-slate-900 dark:text-white truncate">Math_Exam_Section_B_004.jpg</p>
+<p class="text-xs text-red-500 font-medium mt-0.5">Upload failed. Tap to retry.</p>
+</div>
+<button class="p-2 text-primary hover:text-primary/80 transition-colors">
+<span class="material-symbols-outlined">refresh</span>
+</button>
+</div>
+</div>
+</section>
+<!-- Quality Guidelines -->
+<section class="flex flex-col pb-6">
+<div class="flex items-center justify-between pb-3">
+<h3 class="text-slate-900 dark:text-white text-lg font-bold leading-tight">Optimal Quality Tips</h3>
+<button class="text-primary text-sm font-semibold">View All</button>
+</div>
+<div class="flex overflow-x-auto no-scrollbar gap-4 -mx-4 px-4 pb-2 snap-x">
+<!-- Tip 1 -->
+<div class="flex flex-col gap-3 min-w-[160px] w-[160px] snap-center">
+<div class="aspect-square w-full rounded-xl bg-slate-200 dark:bg-slate-700 relative overflow-hidden shadow-inner">
+<div class="absolute inset-0 bg-gradient-to-tr from-slate-300 to-slate-100 dark:from-slate-800 dark:to-slate-600 opacity-50"></div>
+<div class="absolute inset-0 flex items-center justify-center">
+<span class="material-symbols-outlined text-4xl text-slate-400 dark:text-slate-500">crop_free</span>
+</div>
+<!-- Assuming actual informative graphics would be here -->
+<img alt="" class="absolute inset-0 w-full h-full object-cover mix-blend-overlay opacity-60" data-alt="Paper lying flat on a desk surface" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCFg8_Dx9Dett1989X3_4EjwC8TzhpA5beb7CxAqSwjN_W0Ol8zCaFKStaugTLoFVebodZGnimCjKBox8ANASMBW4_wdR1hCmq5Dni_8gWtVivL45egq-0jdigwVFjlue6BiaA0wBPfWUM6i_E0xnqbsIfL0Dy3YLh89dcaJAdx5kMT6ACr1Zu5jcVGV-j4nXPJpnUwcrlJCJYp4LGhMkTw7E9_IiEy9sWhjmZWZqNYSYm9ftaan8qOvtTgpiMD1BkYMTrqeTGz4LJx"/>
+</div>
+<div>
+<p class="text-slate-900 dark:text-white text-sm font-bold leading-tight">Flatten Paper</p>
+<p class="text-slate-500 dark:text-slate-400 text-xs font-normal leading-normal mt-1">Avoid folding corners for best OMR.</p>
+</div>
+</div>
+<!-- Tip 2 -->
+<div class="flex flex-col gap-3 min-w-[160px] w-[160px] snap-center">
+<div class="aspect-square w-full rounded-xl bg-slate-200 dark:bg-slate-700 relative overflow-hidden shadow-inner">
+<div class="absolute inset-0 bg-gradient-to-tr from-slate-300 to-slate-100 dark:from-slate-800 dark:to-slate-600 opacity-50"></div>
+<div class="absolute inset-0 flex items-center justify-center">
+<span class="material-symbols-outlined text-4xl text-slate-400 dark:text-slate-500">grid_on</span>
+</div>
+<img alt="" class="absolute inset-0 w-full h-full object-cover mix-blend-overlay opacity-60" data-alt="Grid pattern overlay representing alignment" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDlKqUQGHwJ_spipKwuzTT7mFxpmZ9UeYfB9Mb9lz-7OLqJRT8gRkVIeOHR9tRpNe_wJs-voRp9SXMpGT9TAQux36oZ1spSZtvUhUk78ALXceHoGIz9_YOs5Q5__tU8sFW_Wk3J8XxESwsTOBbw5y4NF_4W2Tqi7RvxNn-UJWOS_jd1Uxctpq59bBfq45B_LtqYYdHaXPB3c4uPClLbBOJt6YLwLBPs1F_uD3t73eJxJlvZOyE2kgjKbs4yIqhtuck4Rqo11KIjV7iI"/>
+</div>
+<div>
+<p class="text-slate-900 dark:text-white text-sm font-bold leading-tight">Parallel Angles</p>
+<p class="text-slate-500 dark:text-slate-400 text-xs font-normal leading-normal mt-1">Hold phone directly above sheet.</p>
+</div>
+</div>
+<!-- Tip 3 -->
+<div class="flex flex-col gap-3 min-w-[160px] w-[160px] snap-center">
+<div class="aspect-square w-full rounded-xl bg-slate-200 dark:bg-slate-700 relative overflow-hidden shadow-inner">
+<div class="absolute inset-0 bg-gradient-to-tr from-slate-300 to-slate-100 dark:from-slate-800 dark:to-slate-600 opacity-50"></div>
+<div class="absolute inset-0 flex items-center justify-center">
+<span class="material-symbols-outlined text-4xl text-slate-400 dark:text-slate-500">wb_sunny</span>
+</div>
+<img alt="" class="absolute inset-0 w-full h-full object-cover mix-blend-overlay opacity-60" data-alt="Bright natural light falling on a desk" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDvZ3jnoDCuR8wl6gXOPNoqPBF3ybwZ5B7IiuvscNnFCAof7C-UXLgMHQCChFNXsfAY9jUDFgxOkmAeeQGODeV38nUE7cE5XPY8vTmtlQyoXkMdQvPkfAA2YHthyZW4RBrIzxmz739Gk1eCUiaGNmc7o94Pj_Sk0TntCvh3lTaX5LR7sREd8t1olmK0h0va-ueRUuJvYKbFjQ_y37l7S683PAHmPBAjOd-DBvKrz5iLY12al8UrJSQULCiZj3b442MVMRnc8EWYRH95"/>
+</div>
+<div>
+<p class="text-slate-900 dark:text-white text-sm font-bold leading-tight">Good Lighting</p>
+<p class="text-slate-500 dark:text-slate-400 text-xs font-normal leading-normal mt-1">Ensure no dark shadows cover marks.</p>
+</div>
+</div>
+</div>
+</section>
+</main>
+<!-- Sticky Bottom Bar -->
+<div class="fixed bottom-0 w-full bg-white dark:bg-background-dark border-t border-slate-200 dark:border-slate-800 p-4 pb-6 z-20">
+<button class="flex w-full cursor-pointer items-center justify-center gap-2 overflow-hidden rounded-lg h-12 px-5 bg-primary text-white text-base font-bold shadow-lg hover:bg-primary/90 active:scale-[0.98] transition-all">
+<span>Start Upload (3)</span>
+<span class="material-symbols-outlined text-[20px]">arrow_upward</span>
+</button>
+</div>
+</div>
+</body></html>
