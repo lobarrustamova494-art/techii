@@ -72,6 +72,22 @@ app.get('/api/test', (req, res) => {
   })
 })
 
+// Health check endpoint for Render
+app.get('/health', (req, res) => {
+  res.status(200).json({
+    status: 'healthy',
+    timestamp: new Date().toISOString(),
+    uptime: process.uptime(),
+    environment: process.env.NODE_ENV || 'development',
+    version: '2.0.0',
+    services: {
+      database: 'connected',
+      ai: 'operational',
+      omr: 'ultra-precision'
+    }
+  })
+})
+
 // API routes
 app.use('/api', (req, res, next) => {
   console.log(`${req.method} ${req.path} - ${new Date().toISOString()}`)

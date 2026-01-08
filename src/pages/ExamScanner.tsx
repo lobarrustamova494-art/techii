@@ -207,7 +207,7 @@ const ExamScanner: React.FC = () => {
         blankAnswers: aiResult.blankAnswers,
         confidence: aiResult.confidence,
         processingTime,
-        scannedImage: scannedImage,
+        scannedImage: scannedImage || undefined,
         aiAnalysis: aiResult,
         detailedResults: aiResult.detailedResults
       }
@@ -315,7 +315,7 @@ const ExamScanner: React.FC = () => {
         return base64Image
       }
 
-      return new Promise((resolve, reject) => {
+      return new Promise((resolve) => {
         try {
           const img = document.createElement('img')
           
@@ -962,7 +962,7 @@ const ExamScanner: React.FC = () => {
                 onClick={() => processWithAI(scannedImage)}
                 loading={aiAnalyzing}
                 loadingText="AI tahlil qilinmoqda..."
-                variant="default"
+                variant="primary"
                 icon={<Brain size={20} />}
                 className="w-full md:w-auto"
               >

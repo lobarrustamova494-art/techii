@@ -1,25 +1,33 @@
 services:
-  # Frontend - Static Site
+  # Frontend - Static Site (Ultra-Precision OMR Interface)
   - type: web
-    name: stitch-omr-frontend
+    name: ultra-precision-omr-frontend
     env: static
     buildCommand: npm install && npm run build
     staticPublishPath: ./dist
     headers:
       - key: Cache-Control
         value: public, max-age=0, must-revalidate
+      - key: X-Content-Type-Options
+        value: nosniff
+      - key: X-Frame-Options
+        value: DENY
+      - key: X-XSS-Protection
+        value: 1; mode=block
     routes:
       - type: rewrite
         source: /*
         destination: /index.html
 
-  # Backend - Web Service
+  # Backend - Ultra-Precision OMR API Server
   - type: web
-    name: stitch-omr-backend
+    name: ultra-precision-omr-backend
     env: node
-    plan: free
+    plan: starter # Upgraded for better performance
+    region: oregon # Choose optimal region
     buildCommand: cd server && npm install && npm run build
-    startCommand: cd server && node dist/server.js
+    startCommand: cd server && npm start
+    healthCheckPath: /health
     envVars:
       - key: NODE_ENV
         value: production
@@ -27,16 +35,29 @@ services:
         value: 10000
       - key: MONGODB_URI
         fromDatabase:
-          name: stitch-omr-db
+          name: ultra-omr-db
           property: connectionString
       - key: JWT_SECRET
         generateValue: true
       - key: JWT_EXPIRES_IN
         value: 7d
       - key: FRONTEND_URL
-        value: https://stitch-omr-frontend.onrender.com
+        value: https://ultra-precision-omr-frontend.onrender.com
+      # AI Service Configuration
+      - key: GROQ_API_KEY
+        sync: false # Set manually in Render dashboard
+      - key: OPENAI_API_KEY
+        sync: false # Set manually in Render dashboard
+      # Performance Settings
+      - key: MAX_FILE_SIZE
+        value: 10485760 # 10MB
+      - key: UPLOAD_TIMEOUT
+        value: 30000 # 30 seconds
+      - key: AI_TIMEOUT
+        value: 60000 # 60 seconds
 
 databases:
-  - name: stitch-omr-db
-    databaseName: omr_system
-    user: omr_user
+  - name: ultra-omr-db
+    databaseName: ultra_precision_omr
+    user: omr_admin
+    plan: free

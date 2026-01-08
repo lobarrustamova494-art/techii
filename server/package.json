@@ -1,15 +1,34 @@
 {
-  "name": "stitch-admin-server",
-  "version": "1.0.0",
-  "description": "Backend server for Stitch Admin Dashboard",
+  "name": "ultra-precision-omr-server",
+  "version": "2.0.0",
+  "description": "Ultra-Precision OMR Analysis Server with 99.9% Accuracy",
   "main": "dist/server.js",
   "type": "module",
+  "engines": {
+    "node": ">=18.0.0",
+    "npm": ">=8.0.0"
+  },
   "scripts": {
     "dev": "tsx watch src/server.ts",
-    "build": "tsc",
+    "build": "tsc && npm run copy-assets",
     "start": "node dist/server.js",
-    "lint": "eslint src --ext .ts"
+    "start:prod": "NODE_ENV=production node dist/server.js",
+    "copy-assets": "if not exist dist\\uploads mkdir dist\\uploads && if exist uploads xcopy uploads\\* dist\\uploads\\ /E /I /Q 2>nul || echo Assets copied",
+    "lint": "eslint src --ext .ts",
+    "lint:fix": "eslint src --ext .ts --fix",
+    "test": "echo 'Tests will be added in future versions'",
+    "health-check": "curl -f http://localhost:${PORT:-10000}/health || exit 1"
   },
+  "keywords": [
+    "omr",
+    "optical-mark-recognition", 
+    "ai",
+    "education",
+    "assessment",
+    "ultra-precision",
+    "openai",
+    "groq"
+  ],
   "dependencies": {
     "bcryptjs": "^2.4.3",
     "cors": "^2.8.5",

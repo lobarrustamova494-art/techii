@@ -1,4 +1,18 @@
-const API_BASE_URL = (import.meta as any).env?.VITE_API_URL || 'http://localhost:5000/api'
+// Production-ready API configuration
+const getApiBaseUrl = () => {
+  // Check if we're in production
+  if (import.meta.env.PROD) {
+    // Production URL (will be set during deployment)
+    return import.meta.env.VITE_API_URL || 'https://ultra-precision-omr-backend.onrender.com/api'
+  }
+  
+  // Development URL
+  return import.meta.env.VITE_API_URL || 'http://localhost:5000/api'
+}
+
+const API_BASE_URL = getApiBaseUrl()
+
+console.log('🔗 API Base URL:', API_BASE_URL)
 
 interface ApiResponse<T = any> {
   success: boolean

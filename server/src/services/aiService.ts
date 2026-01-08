@@ -745,12 +745,12 @@ export class AIService {
     for (let i = 0; i < totalQuestions; i++) {
       if (i < observedPattern.length && observedPattern[i]) {
         // Use observed pattern for first 30 questions
-        answers.push(observedPattern[i])
+        answers.push(observedPattern[i]!)
       } else {
         // Generate realistic pattern for additional questions
         const options = ['A', 'B', 'C', 'D']
         const randomIndex = Math.floor(Math.random() * options.length)
-        answers.push(options[randomIndex])
+        answers.push(options[randomIndex]!)
       }
     }
     
