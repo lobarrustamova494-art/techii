@@ -13,7 +13,7 @@
     "build": "tsc && npm run copy-assets",
     "start": "node dist/server.js",
     "start:prod": "NODE_ENV=production node dist/server.js",
-    "copy-assets": "if not exist dist\\uploads mkdir dist\\uploads && if exist uploads xcopy uploads\\* dist\\uploads\\ /E /I /Q 2>nul || echo Assets copied",
+    "copy-assets": "mkdir -p dist/uploads && (cp -r uploads/* dist/uploads/ 2>/dev/null || true)",
     "lint": "eslint src --ext .ts",
     "lint:fix": "eslint src --ext .ts --fix",
     "test": "echo 'Tests will be added in future versions'",
