@@ -25,7 +25,7 @@ interface AlignmentStatus {
   paperDetected: boolean
   withinFrame: boolean
   alignment: number
-  corners: { x: number, y: number, detected?: boolean }[]
+  corners: { x: number, y: number, detected?: boolean, name?: string }[]
 }
 
 const EvalBeeCameraScanner: React.FC<EvalBeeCameraScannerProps> = ({
@@ -205,15 +205,15 @@ const EvalBeeCameraScanner: React.FC<EvalBeeCameraScannerProps> = ({
     
     setAlignmentStatus(alignment)
     
-    // EvalBee Logic: Strict requirements for capture based on markers
+    // EvalBee Logic: Strict requirements for capture based on 4 corner markers
     const detectedMarkers = alignment.corners.filter(c => c.detected).length
     const canCaptureNow = (
       focus >= 0.7 &&           // Good focus required
       brightness >= 0.3 &&      // Adequate lighting
       brightness <= 0.8 &&      
       alignment.paperDetected && // Paper must be detected
-      detectedMarkers >= 10 &&   // At least 10 out of 12 markers detected
-      alignment.alignment >= 0.8 // Good alignment required (80%+ markers)
+      detectedMarkers >= 3 &&    // At least 3 out of 4 corners detected
+      alignment.alignment >= 0.75 // Good alignment required (75%+ corners)
     )
     
     setCanCapture(canCaptureNow)
@@ -271,28 +271,23 @@ const EvalBeeCameraScanner: React.FC<EvalBeeCameraScannerProps> = ({
     return (sum / count) / 255
   }
 
-  // EvalBee Core: Paper alignment detection with side markers
+  // EvalBee Core: Paper alignment detection with 4 corner markers
   const detectPaperAlignment = (grayscale: number[], width: number, height: number): AlignmentStatus => {
-    // Define alignment markers positions (6 on each side)
-    const markerSize = 20
-    const markerSpacing = height / 7 // 6 markers + spacing
+    // Define 4 corner marker positions
+    const markerSize = 30
+    const margin = 80 // Distance from edges
     
-    const leftMarkers = []
-    const rightMarkers = []
+    const cornerMarkers = [
+      { x: margin, y: margin, name: 'TL', detected: false }, // Top-left
+      { x: width - margin, y: margin, name: 'TR', detected: false }, // Top-right
+      { x: margin, y: height - margin, name: 'BL', detected: false }, // Bottom-left
+      { x: width - margin, y: height - margin, name: 'BR', detected: false } // Bottom-right
+    ]
     
-    // Generate marker positions
-    for (let i = 1; i <= 6; i++) {
-      const y = markerSpacing * i
-      leftMarkers.push({ x: 50, y, detected: false })
-      rightMarkers.push({ x: width - 50, y, detected: false })
-    }
-    
-    // Detect dark rectangular markers
+    // Detect dark rectangular markers in corners
     let detectedMarkers = 0
-    const totalMarkers = 12 // 6 left + 6 right
     
-    // Check left side markers
-    leftMarkers.forEach(marker => {
+    cornerMarkers.forEach(marker => {
       let darkPixels = 0
       let totalPixels = 0
       
@@ -318,41 +313,14 @@ const EvalBeeCameraScanner: React.FC<EvalBeeCameraScannerProps> = ({
       }
     })
     
-    // Check right side markers
-    rightMarkers.forEach(marker => {
-      let darkPixels = 0
-      let totalPixels = 0
-      
-      for (let dy = -markerSize/2; dy <= markerSize/2; dy++) {
-        for (let dx = -markerSize/2; dx <= markerSize/2; dx++) {
-          const x = Math.floor(marker.x + dx)
-          const y = Math.floor(marker.y + dy)
-          
-          if (x >= 0 && x < width && y >= 0 && y < height) {
-            const idx = y * width + x
-            const pixel = grayscale[idx]
-            
-            if (pixel < 100) darkPixels++
-            totalPixels++
-          }
-        }
-      }
-      
-      const darkRatio = totalPixels > 0 ? darkPixels / totalPixels : 0
-      if (darkRatio > 0.6) {
-        marker.detected = true
-        detectedMarkers++
-      }
-    })
-    
     // Calculate alignment quality
-    const markerDetectionRatio = detectedMarkers / totalMarkers
-    const paperDetected = detectedMarkers >= 8 // At least 8 out of 12 markers
+    const markerDetectionRatio = detectedMarkers / 4
+    const paperDetected = detectedMarkers >= 3 // At least 3 out of 4 corners
     const withinFrame = true
     const alignment = markerDetectionRatio
     
     // Store marker positions for overlay
-    const corners = [...leftMarkers, ...rightMarkers].map(m => ({ x: m.x, y: m.y, detected: m.detected }))
+    const corners = cornerMarkers.map(m => ({ x: m.x, y: m.y, detected: m.detected, name: m.name }))
     
     return {
       paperDetected,
@@ -386,7 +354,7 @@ const EvalBeeCameraScanner: React.FC<EvalBeeCameraScannerProps> = ({
     return recommendations
   }
 
-  // EvalBee Overlay: Guide user to perfect positioning with alignment markers
+  // EvalBee Overlay: Simple 4-corner alignment markers
   const drawEvalBeeOverlay = (alignment: AlignmentStatus, _focus: number, _brightness: number) => {
     if (!overlayCanvasRef.current) return
     
@@ -397,14 +365,14 @@ const EvalBeeCameraScanner: React.FC<EvalBeeCameraScannerProps> = ({
     ctx.clearRect(0, 0, canvas.width, canvas.height)
     
     // EvalBee Frame: Main guide rectangle
-    const margin = 0.15
+    const margin = 0.12
     const frameX = canvas.width * margin
     const frameY = canvas.height * margin
     const frameWidth = canvas.width * (1 - 2 * margin)
     const frameHeight = canvas.height * (1 - 2 * margin)
     
     // Frame color based on alignment
-    const frameColor = alignment.paperDetected && alignment.alignment > 0.8 
+    const frameColor = alignment.paperDetected && alignment.alignment >= 0.75 
       ? '#10B981' // Green - good
       : alignment.paperDetected 
         ? '#F59E0B' // Yellow - needs adjustment
@@ -416,136 +384,80 @@ const EvalBeeCameraScanner: React.FC<EvalBeeCameraScannerProps> = ({
     ctx.setLineDash([15, 8])
     ctx.strokeRect(frameX, frameY, frameWidth, frameHeight)
     
-    // Draw Alignment Markers (6 on each side)
-    const markerSize = 25
-    const markerSpacing = canvas.height / 7
+    // Draw 4 Corner Alignment Markers
+    const markerSize = 35
+    const markerMargin = 80
     
-    ctx.setLineDash([])
-    ctx.lineWidth = 2
-    
-    // Left side markers
-    for (let i = 1; i <= 6; i++) {
-      const x = 50
-      const y = markerSpacing * i
-      
-      // Find corresponding detected marker
-      const detectedMarker = alignment.corners.find(corner => 
-        Math.abs(corner.x - x) < 30 && Math.abs(corner.y - y) < 30
-      )
-      
-      const isDetected = detectedMarker?.detected || false
-      
-      // Marker background (always visible)
-      ctx.fillStyle = 'rgba(0, 0, 0, 0.8)'
-      ctx.fillRect(x - markerSize/2, y - markerSize/2, markerSize, markerSize)
-      
-      // Marker border color based on detection
-      ctx.strokeStyle = isDetected ? '#10B981' : '#EF4444'
-      ctx.lineWidth = 3
-      ctx.strokeRect(x - markerSize/2, y - markerSize/2, markerSize, markerSize)
-      
-      // Detection indicator
-      if (isDetected) {
-        ctx.fillStyle = '#10B981'
-        ctx.beginPath()
-        ctx.arc(x + markerSize/2 - 5, y - markerSize/2 + 5, 4, 0, 2 * Math.PI)
-        ctx.fill()
-      }
-      
-      // Marker number
-      ctx.fillStyle = 'white'
-      ctx.font = 'bold 10px sans-serif'
-      ctx.textAlign = 'center'
-      ctx.fillText(`L${i}`, x, y + 3)
-    }
-    
-    // Right side markers
-    for (let i = 1; i <= 6; i++) {
-      const x = canvas.width - 50
-      const y = markerSpacing * i
-      
-      // Find corresponding detected marker
-      const detectedMarker = alignment.corners.find(corner => 
-        Math.abs(corner.x - x) < 30 && Math.abs(corner.y - y) < 30
-      )
-      
-      const isDetected = detectedMarker?.detected || false
-      
-      // Marker background (always visible)
-      ctx.fillStyle = 'rgba(0, 0, 0, 0.8)'
-      ctx.fillRect(x - markerSize/2, y - markerSize/2, markerSize, markerSize)
-      
-      // Marker border color based on detection
-      ctx.strokeStyle = isDetected ? '#10B981' : '#EF4444'
-      ctx.lineWidth = 3
-      ctx.strokeRect(x - markerSize/2, y - markerSize/2, markerSize, markerSize)
-      
-      // Detection indicator
-      if (isDetected) {
-        ctx.fillStyle = '#10B981'
-        ctx.beginPath()
-        ctx.arc(x + markerSize/2 - 5, y - markerSize/2 + 5, 4, 0, 2 * Math.PI)
-        ctx.fill()
-      }
-      
-      // Marker number
-      ctx.fillStyle = 'white'
-      ctx.font = 'bold 10px sans-serif'
-      ctx.textAlign = 'center'
-      ctx.fillText(`R${i}`, x, y + 3)
-    }
-    
-    // Corner markers for main frame
-    const cornerSize = 25
-    ctx.lineWidth = 4
-    
-    const corners = [
-      [frameX, frameY], // Top-left
-      [frameX + frameWidth, frameY], // Top-right
-      [frameX, frameY + frameHeight], // Bottom-left
-      [frameX + frameWidth, frameY + frameHeight] // Bottom-right
+    const cornerPositions = [
+      { x: markerMargin, y: markerMargin, name: 'TL' }, // Top-left
+      { x: canvas.width - markerMargin, y: markerMargin, name: 'TR' }, // Top-right
+      { x: markerMargin, y: canvas.height - markerMargin, name: 'BL' }, // Bottom-left
+      { x: canvas.width - markerMargin, y: canvas.height - markerMargin, name: 'BR' } // Bottom-right
     ]
     
-    corners.forEach(([x, y]) => {
-      ctx.strokeStyle = frameColor
-      ctx.beginPath()
-      // L-shaped corner markers
-      ctx.moveTo(x - cornerSize/2, y)
-      ctx.lineTo(x - 8, y)
-      ctx.moveTo(x, y - cornerSize/2)
-      ctx.lineTo(x, y - 8)
-      ctx.stroke()
+    ctx.setLineDash([])
+    
+    cornerPositions.forEach(pos => {
+      // Find corresponding detected marker
+      const detectedMarker = alignment.corners.find(corner => 
+        Math.abs(corner.x - pos.x) < 50 && Math.abs(corner.y - pos.y) < 50
+      )
+      
+      const isDetected = detectedMarker?.detected || false
+      
+      // Marker background (always visible - black rectangle)
+      ctx.fillStyle = 'rgba(0, 0, 0, 0.9)'
+      ctx.fillRect(pos.x - markerSize/2, pos.y - markerSize/2, markerSize, markerSize)
+      
+      // Marker border color based on detection
+      ctx.strokeStyle = isDetected ? '#10B981' : '#EF4444'
+      ctx.lineWidth = 4
+      ctx.strokeRect(pos.x - markerSize/2, pos.y - markerSize/2, markerSize, markerSize)
+      
+      // Detection indicator (green dot)
+      if (isDetected) {
+        ctx.fillStyle = '#10B981'
+        ctx.beginPath()
+        ctx.arc(pos.x + markerSize/2 - 6, pos.y - markerSize/2 + 6, 5, 0, 2 * Math.PI)
+        ctx.fill()
+      }
+      
+      // Marker label
+      ctx.fillStyle = 'white'
+      ctx.font = 'bold 12px sans-serif'
+      ctx.textAlign = 'center'
+      ctx.fillText(pos.name, pos.x, pos.y + 4)
     })
     
     // Center instruction text
     if (!alignment.paperDetected) {
       ctx.fillStyle = 'rgba(0, 0, 0, 0.9)'
-      ctx.fillRect(canvas.width/2 - 180, canvas.height/2 - 40, 360, 80)
+      ctx.fillRect(canvas.width/2 - 160, canvas.height/2 - 35, 320, 70)
       
       ctx.fillStyle = 'white'
       ctx.font = 'bold 16px sans-serif'
       ctx.textAlign = 'center'
-      ctx.fillText('OMR varaqni qora markerlar bilan', canvas.width/2, canvas.height/2 - 10)
-      ctx.fillText('yon tomondagi qora to\'rtburchaklarga moslashtiring', canvas.width/2, canvas.height/2 + 15)
-    } else if (alignment.alignment < 0.8) {
+      ctx.fillText('OMR varaqni 4 ta burchakdagi', canvas.width/2, canvas.height/2 - 10)
+      ctx.fillText('qora to\'rtburchaklarga moslashtiring', canvas.width/2, canvas.height/2 + 15)
+    } else if (alignment.alignment < 0.75) {
       ctx.fillStyle = 'rgba(255, 193, 7, 0.9)'
       ctx.fillRect(canvas.width/2 - 120, canvas.height/2 - 25, 240, 50)
       
       ctx.fillStyle = 'black'
       ctx.font = 'bold 14px sans-serif'
       ctx.textAlign = 'center'
-      ctx.fillText('Markerlarni aniqroq joylashtiring', canvas.width/2, canvas.height/2 + 5)
+      ctx.fillText('Burchak markerlarni aniqroq joylashtiring', canvas.width/2, canvas.height/2 + 5)
     }
     
     // Marker detection status
     const detectedCount = alignment.corners.filter(c => c.detected).length
     ctx.fillStyle = 'rgba(0, 0, 0, 0.8)'
-    ctx.fillRect(canvas.width/2 - 80, 20, 160, 30)
+    ctx.fillRect(canvas.width/2 - 70, 20, 140, 30)
     
-    ctx.fillStyle = detectedCount >= 8 ? '#10B981' : '#EF4444'
+    ctx.fillStyle = detectedCount >= 3 ? '#10B981' : '#EF4444'
     ctx.font = 'bold 14px sans-serif'
     ctx.textAlign = 'center'
-    ctx.fillText(`Markerlar: ${detectedCount}/12`, canvas.width/2, 40)
+    ctx.fillText(`Burchaklar: ${detectedCount}/4`, canvas.width/2, 40)
   }
 
   const captureImage = async () => {
@@ -708,19 +620,19 @@ const EvalBeeCameraScanner: React.FC<EvalBeeCameraScannerProps> = ({
                 </div>
                 
                 <div className="flex items-center justify-between">
-                  <span>Markers:</span>
+                  <span>Burchaklar:</span>
                   <div className="flex items-center gap-1">
-                    {alignmentStatus.corners.filter(c => c.detected).length >= 10 ? 
+                    {alignmentStatus.corners.filter(c => c.detected).length >= 3 ? 
                       <CheckCircle size={16} className="text-green-500" /> : 
-                      alignmentStatus.corners.filter(c => c.detected).length >= 6 ?
+                      alignmentStatus.corners.filter(c => c.detected).length >= 2 ?
                       <AlertTriangle size={16} className="text-yellow-500" /> :
                       <X size={16} className="text-red-500" />
                     }
                     <span className={
-                      alignmentStatus.corners.filter(c => c.detected).length >= 10 ? 'text-green-500' :
-                      alignmentStatus.corners.filter(c => c.detected).length >= 6 ? 'text-yellow-500' : 'text-red-500'
+                      alignmentStatus.corners.filter(c => c.detected).length >= 3 ? 'text-green-500' :
+                      alignmentStatus.corners.filter(c => c.detected).length >= 2 ? 'text-yellow-500' : 'text-red-500'
                     }>
-                      {alignmentStatus.corners.filter(c => c.detected).length}/12
+                      {alignmentStatus.corners.filter(c => c.detected).length}/4
                     </span>
                   </div>
                 </div>
@@ -852,9 +764,9 @@ const EvalBeeCameraScanner: React.FC<EvalBeeCameraScannerProps> = ({
         {/* Status Text */}
         <div className="text-center mt-4">
           {!alignmentStatus.paperDetected ? (
-            <p className="text-red-400 text-sm">📄 OMR varaqni qora markerlar bilan joylashtiring</p>
-          ) : alignmentStatus.corners.filter(c => c.detected).length < 10 ? (
-            <p className="text-yellow-400 text-sm">🎯 Markerlarni aniqroq joylashtiring ({alignmentStatus.corners.filter(c => c.detected).length}/12)</p>
+            <p className="text-red-400 text-sm">📄 OMR varaqni 4 ta burchakdagi qora markerlar bilan joylashtiring</p>
+          ) : alignmentStatus.corners.filter(c => c.detected).length < 3 ? (
+            <p className="text-yellow-400 text-sm">🎯 Burchak markerlarni aniqroq joylashtiring ({alignmentStatus.corners.filter(c => c.detected).length}/4)</p>
           ) : !canCapture ? (
             <p className="text-yellow-400 text-sm">⚡ Sifatni yaxshilang</p>
           ) : qualityMetrics.overall >= 0.9 ? (
