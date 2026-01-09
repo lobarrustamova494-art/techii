@@ -13,7 +13,7 @@
     "build": "tsc && npm run copy-assets",
     "start": "node dist/server.js",
     "start:prod": "NODE_ENV=production node dist/server.js",
-    "copy-assets": "mkdir -p dist/uploads && (cp -r uploads/* dist/uploads/ 2>/dev/null || true)",
+    "copy-assets": "if not exist dist\\uploads mkdir dist\\uploads && if exist uploads (xcopy uploads\\* dist\\uploads\\ /E /I /Q 2>nul || echo No uploads to copy)",
     "lint": "eslint src --ext .ts",
     "lint:fix": "eslint src --ext .ts --fix",
     "test": "echo 'Tests will be added in future versions'",
@@ -21,7 +21,7 @@
   },
   "keywords": [
     "omr",
-    "optical-mark-recognition", 
+    "optical-mark-recognition",
     "ai",
     "education",
     "assessment",
@@ -37,11 +37,13 @@
     "express-rate-limit": "^7.1.5",
     "groq-sdk": "^0.37.0",
     "helmet": "^7.1.0",
+    "jimp": "^1.6.0",
     "joi": "^17.11.0",
     "jsonwebtoken": "^9.0.2",
     "mongoose": "^8.0.3",
     "multer": "^1.4.5-lts.1",
     "openai": "^6.15.0",
+    "sharp": "^0.34.5",
     "uuid": "^9.0.1"
   },
   "devDependencies": {

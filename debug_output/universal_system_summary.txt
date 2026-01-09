@@ -1,0 +1,25 @@
+
+=== UNIVERSAL OMR COORDINATE SYSTEM ===
+
+FORMAT ANALYSIS:
+- Image Size: 1920x2560
+- Columns Detected: 3
+- Total Questions: 48
+
+COLUMN DISTRIBUTION:
+- Column 1: 5 questions
+- Column 2: 22 questions
+- Column 3: 21 questions
+
+CALIBRATION SYSTEM:
+- Alignment Markers: 20
+- Calibration Points: 16
+- Bubble Coordinates: 240
+
+DETECTION RULES:
+- Marker Min Area: 500
+- Marker Max Area: 5000
+- Bubble Spacing: 40px
+- Options per Question: 5
+
+This system can be used as a template for processing any OMR image with similar format.

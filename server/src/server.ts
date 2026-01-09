@@ -14,6 +14,7 @@ import authRoutes from './routes/auth.js'
 import subjectRoutes from './routes/subjects.js'
 import examRoutes from './routes/exams.js'
 import aiRoutes from './routes/ai.js'
+import omrRoutes from './routes/omr.js'
 // import studentRoutes from './routes/students.js'
 
 const app = express()
@@ -99,6 +100,7 @@ app.use('/api/auth', authRoutes)
 app.use('/api/subjects', subjectRoutes)
 app.use('/api/exams', examRoutes)
 app.use('/api/ai', aiRoutes)
+app.use('/api/omr', omrRoutes)
 // app.use('/api/students', studentRoutes)
 
 // Error handling middleware

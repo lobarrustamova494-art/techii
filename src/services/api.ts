@@ -6,8 +6,8 @@ const getApiBaseUrl = () => {
     return import.meta.env.VITE_API_URL || 'https://ultra-precision-omr-backend.onrender.com/api'
   }
   
-  // Development URL
-  return import.meta.env.VITE_API_URL || 'http://localhost:5000/api'
+  // Development URL - Backend runs on port 10000
+  return import.meta.env.VITE_API_URL || 'http://localhost:10000/api'
 }
 
 const API_BASE_URL = getApiBaseUrl()
@@ -156,6 +156,119 @@ class ApiService {
   async deleteExam(id: string) {
     return this.request(`/exams/${id}`, {
       method: 'DELETE',
+    })
+  }
+
+  // AI methods (using OpenCV-based detection as primary, AI as secondary option)
+  async analyzeImage(imageBase64: string, prompt?: string) {
+    return this.request<any>('/ai/analyze-image', {
+      method: 'POST',
+      body: JSON.stringify({ image: imageBase64, prompt }),
+    })
+  }
+
+  async analyzeOMRSheet(
+    imageBase64: string, 
+    answerKey: string[], 
+    scoring: { correct: number; wrong: number; blank: number },
+    examId?: string
+  ) {
+    const requestBody: any = {
+      image: imageBase64,
+      answerKey,
+      scoring
+    }
+
+    // Include exam ID for format-aware analysis
+    if (examId) {
+      requestBody.examId = examId
+    }
+
+    return this.request<any>('/ai/analyze-omr', {
+      method: 'POST',
+      body: JSON.stringify(requestBody),
+    })
+  }
+
+  async uploadOMRImage(
+    file: File, 
+    answerKey: string[], 
+    scoring: { correct: number; wrong: number; blank: number },
+    examId?: string
+  ) {
+    const formData = new FormData()
+    formData.append('image', file)
+    formData.append('answerKey', JSON.stringify(answerKey))
+    formData.append('scoring', JSON.stringify(scoring))
+    
+    if (examId) {
+      formData.append('examId', examId)
+    }
+
+    return this.request<any>('/ai/upload-omr', {
+      method: 'POST',
+      body: formData,
+    })
+  }
+
+  async analyzeText(text: string, context?: string) {
+    return this.request<any>('/ai/analyze-text', {
+      method: 'POST',
+      body: JSON.stringify({ text, context }),
+    })
+  }
+
+  async analyzeQuestions(questions: string[]) {
+    return this.request<any>('/ai/analyze-questions', {
+      method: 'POST',
+      body: JSON.stringify({ questions }),
+    })
+  }
+
+  async getAIStatus() {
+    return this.request<any>('/ai/status')
+  }
+
+  // OpenCV-based OMR methods
+  // EvalBee-style OMR processing
+  async processOMRWithEvalBee(
+    file: File,
+    answerKey: string[],
+    scoring: { correct: number; wrong: number; blank: number },
+    examId?: string,
+    examData?: any
+  ) {
+    const formData = new FormData()
+    formData.append('image', file)
+    formData.append('answerKey', JSON.stringify(answerKey))
+    formData.append('scoring', JSON.stringify(scoring))
+    
+    if (examId) {
+      formData.append('examId', examId)
+    }
+    
+    if (examData) {
+      formData.append('examData', JSON.stringify({
+        ...examData,
+        processing_mode: 'evalbee_engine',
+        advanced_features: true,
+        quality_enhancement: true
+      }))
+    }
+
+    // EvalBee processing parameters
+    formData.append('evalbee', 'true')        // Use EvalBee engine
+    formData.append('ultra', 'true')          // Ultra precision
+    formData.append('universal', 'true')      // Universal coordinates
+    formData.append('quality_analysis', 'true') // Quality metrics
+    formData.append('advanced_detection', 'true') // Advanced bubble detection
+    formData.append('debug', 'true')
+
+    console.log('🚀 EvalBee OMR Engine processing with advanced features')
+
+    return this.request<any>('/omr/process', {
+      method: 'POST',
+      body: formData,
     })
   }
 }

@@ -1,0 +1,17 @@
+{
+  "name": "40 Savollik Test Imtihon",
+  "structure": "continuous",
+  "paperSize": "a4",
+  "subjects": [
+    {
+      "name": "Asosiy Fan",
+      "sections": [
+        {
+          "name": "Birinchi Bo'lim",
+          "questionCount": 40,
+          "questionType": "multiple_choice_5"
+        }
+      ]
+    }
+  ]
+}

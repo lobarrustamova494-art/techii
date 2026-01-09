@@ -75,6 +75,21 @@ router.post('/', authenticate, validate(schemas.createExam), async (req: AuthReq
 
     console.log('Exam created successfully:', exam._id)
 
+    // Create template for this exam
+    try {
+      console.log('Creating template for exam:', exam._id)
+      const { ExamTemplateService } = await import('../services/examTemplateService.js')
+      const template = await ExamTemplateService.createTemplateFromExam(exam)
+      
+      // Update exam with template reference
+      await Exam.findByIdAndUpdate(exam._id, { templateId: template._id })
+      
+      console.log('Template created and linked:', template._id)
+    } catch (templateError) {
+      console.error('Template creation error:', templateError)
+      // Don't fail exam creation if template creation fails
+    }
+
     res.status(201).json({
       success: true,
       message: 'Imtihon muvaffaqiyatli yaratildi',

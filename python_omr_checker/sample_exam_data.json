@@ -1,0 +1,61 @@
+{
+  "name": "Matematika va Fizika Test Imtihoni",
+  "date": "2024-01-15",
+  "structure": "continuous",
+  "paperSize": "a4",
+  "examSets": 1,
+  "subjects": [
+    {
+      "id": "math_001",
+      "name": "Matematika",
+      "sections": [
+        {
+          "id": "algebra_001",
+          "name": "Algebra",
+          "questionCount": 15,
+          "questionType": "multiple_choice_5",
+          "correctScore": 1,
+          "wrongScore": 0
+        },
+        {
+          "id": "geometry_001", 
+          "name": "Geometriya",
+          "questionCount": 10,
+          "questionType": "multiple_choice_4",
+          "correctScore": 1,
+          "wrongScore": 0
+        }
+      ]
+    },
+    {
+      "id": "physics_001",
+      "name": "Fizika", 
+      "sections": [
+        {
+          "id": "mechanics_001",
+          "name": "Mexanika",
+          "questionCount": 8,
+          "questionType": "multiple_choice_5",
+          "correctScore": 1,
+          "wrongScore": 0
+        },
+        {
+          "id": "thermodynamics_001",
+          "name": "Termodinamika", 
+          "questionCount": 7,
+          "questionType": "multiple_choice_5",
+          "correctScore": 1,
+          "wrongScore": 0
+        }
+      ]
+    }
+  ],
+  "totalQuestions": 40,
+  "duration": 120,
+  "answerPattern": "ABCDE",
+  "scoring": {
+    "correct": 1,
+    "wrong": 0,
+    "blank": 0
+  }
+}

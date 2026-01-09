@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { Calendar, Clock, FileText, Users, Key, ScanLine, Download, ChevronDown } from 'lucide-react'
+import { Calendar, Clock, FileText, Users, Key, ScanLine, Download, ChevronDown, Camera, Target } from 'lucide-react'
 import Header from '@/components/layout/Header'
 import Button from '@/components/ui/Button'
 import Card from '@/components/ui/Card'
@@ -92,6 +92,10 @@ const ExamDetail: React.FC = () => {
 
   const handleScanExam = () => {
     navigate(`/exam-scanner/${id}`)
+  }
+
+  const handleEvalBeeCamera = () => {
+    navigate(`/exam-scanner/${id}/evalbee-camera`)
   }
 
   const handleDownloadPDF = async () => {
@@ -358,7 +362,7 @@ const ExamDetail: React.FC = () => {
         </Card>
 
         {/* Asosiy tugmalar */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
           <Button
             onClick={handleSetKeys}
             className="flex items-center justify-center gap-3 h-16"
@@ -379,6 +383,17 @@ const ExamDetail: React.FC = () => {
             <div className="text-left">
               <div className="font-semibold">Imtihonni tekshirish</div>
               <div className="text-xs opacity-75">Javob varaqlarini skanerlash</div>
+            </div>
+          </Button>
+
+          <Button
+            onClick={handleEvalBeeCamera}
+            className="flex items-center justify-center gap-3 h-16 bg-gradient-to-r from-green-500 to-blue-600 hover:from-green-600 hover:to-blue-700"
+          >
+            <Camera size={24} />
+            <div className="text-left">
+              <div className="font-semibold">EvalBee Camera</div>
+              <div className="text-xs opacity-75">Real-time quality control</div>
             </div>
           </Button>
 

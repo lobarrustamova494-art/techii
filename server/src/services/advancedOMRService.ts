@@ -1,4 +1,7 @@
 import OpenAI from 'openai'
+import { OMRFormatService } from './omrFormatService.js'
+import { OMRFormatDescription } from '../types/omrFormat.js'
+import { IExam } from '../types/index.js'
 
 export interface PixelAnalysisResult {
   bubbleCoordinates: Array<{
@@ -49,22 +52,31 @@ export class AdvancedOMRService {
 
   /**
    * Ultra-accurate OMR analysis with 99.9% precision
+   * Format-aware analysis using exam structure metadata
    */
   static async analyzeOMRWithUltraPrecision(
     imageBase64: string,
     answerKey: string[],
-    scoring: { correct: number; wrong: number; blank: number }
+    scoring: { correct: number; wrong: number; blank: number },
+    exam?: IExam
   ): Promise<UltraAccurateOMRResult> {
     console.log('=== ULTRA-PRECISION OMR ANALYSIS STARTED ===')
     
     const totalQuestions = answerKey.length
     const multiPassResults: Array<{ method: string; answers: string[]; confidence: number }> = []
 
+    // Generate format description for AI
+    let formatDescription: OMRFormatDescription | null = null
+    if (exam) {
+      formatDescription = OMRFormatService.generateAIFormatDescription(exam)
+      console.log('Generated format description for AI:', formatDescription.description)
+    }
+
     // PASS 1: Pixel-level Grid Detection and Mapping
-    const pixelAnalysis = await this.performPixelLevelAnalysis(imageBase64, totalQuestions)
+    const pixelAnalysis = await this.performPixelLevelAnalysis(imageBase64, totalQuestions, formatDescription)
     
     // PASS 2: Professional OMR Scanner Simulation
-    const professionalResult = await this.simulateProfessionalOMRScanner(imageBase64, totalQuestions)
+    const professionalResult = await this.simulateProfessionalOMRScanner(imageBase64, totalQuestions, formatDescription)
     multiPassResults.push({
       method: 'Professional OMR Scanner Simulation',
       answers: professionalResult.answers,
@@ -72,7 +84,7 @@ export class AdvancedOMRService {
     })
 
     // PASS 3: Human-like Visual Analysis
-    const humanLikeResult = await this.performHumanLikeAnalysis(imageBase64, totalQuestions)
+    const humanLikeResult = await this.performHumanLikeAnalysis(imageBase64, totalQuestions, formatDescription)
     multiPassResults.push({
       method: 'Human-like Visual Analysis',
       answers: humanLikeResult.answers,
@@ -80,7 +92,7 @@ export class AdvancedOMRService {
     })
 
     // PASS 4: Mathematical Bubble Detection
-    const mathematicalResult = await this.performMathematicalBubbleDetection(imageBase64, totalQuestions)
+    const mathematicalResult = await this.performMathematicalBubbleDetection(imageBase64, totalQuestions, formatDescription)
     multiPassResults.push({
       method: 'Mathematical Bubble Detection',
       answers: mathematicalResult.answers,
@@ -107,35 +119,75 @@ export class AdvancedOMRService {
   }
 
   /**
-   * Pixel-level analysis for precise bubble detection
+   * Pixel-level analysis for precise bubble detection with format awareness
    */
   private static async performPixelLevelAnalysis(
     imageBase64: string,
-    totalQuestions: number
+    totalQuestions: number,
+    formatDescription?: OMRFormatDescription | null
   ): Promise<PixelAnalysisResult> {
     const openai = this.getOpenAIClient()
+
+    // Build format-aware prompt
+    let formatInstructions = ''
+    if (formatDescription) {
+      const layout = formatDescription.layout
+      formatInstructions = `
+EXACT OMR SHEET FORMAT INFORMATION:
+${formatDescription.aiInstructions.coordinateSystem}
+
+QUESTION LAYOUT DETAILS:
+- Structure: ${layout.structure}
+- Total Questions: ${layout.totalQuestions}
+- Paper Size: ${layout.paperSize}
+
+${formatDescription.aiInstructions.scanningOrder}
+
+BUBBLE SPECIFICATIONS:
+${formatDescription.aiInstructions.bubbleDetection}
+
+ALIGNMENT MARKS FOR CALIBRATION:
+${layout.alignmentMarks.map(mark => 
+  `- ${mark.position}: (${mark.coordinates.x}, ${mark.coordinates.y}) ${mark.coordinates.unit} - ${mark.size.width}x${mark.size.height} ${mark.size.unit} ${mark.shape}`
+).join('\n')}
+
+QUESTION MAPPING:
+${layout.answerGrid.questionMapping.slice(0, 10).map(q => 
+  `Q${q.questionNumber}: ${q.options.join(',')} at (${q.position.x}, ${q.position.y}) ${q.position.unit}`
+).join('\n')}
+${layout.answerGrid.questionMapping.length > 10 ? '... (pattern continues)' : ''}
+      `
+    }
 
     const prompt = `
       You are a COMPUTER VISION EXPERT performing PIXEL-LEVEL ANALYSIS of an OMR sheet.
 
       MISSION: Detect and map EXACT coordinates and fill percentages of ${totalQuestions} answer bubbles.
 
+      ${formatInstructions}
+
       PIXEL-LEVEL DETECTION PROTOCOL:
 
-      1. GRID STRUCTURE ANALYSIS:
-         - Identify the main answer grid boundaries
-         - Calculate exact pixel coordinates for each bubble
-         - Measure bubble dimensions (width, height)
-         - Detect grid alignment and rotation angle
+      1. CALIBRATION PHASE:
+         - First locate all 6 alignment marks (black squares at corners and middle edges)
+         - Calculate rotation angle and perspective correction
+         - Establish coordinate transformation matrix
 
-      2. BUBBLE COORDINATE MAPPING:
+      2. GRID STRUCTURE ANALYSIS:
+         - Use alignment marks to identify the main answer grid boundaries
+         - Calculate exact pixel coordinates for each bubble based on known layout
+         - Measure bubble dimensions (width, height)
+         - Verify grid alignment matches expected format
+
+      3. BUBBLE COORDINATE MAPPING:
          For each question (1 to ${totalQuestions}):
+         - Use format layout to predict bubble locations
          - Locate exact pixel coordinates (x, y)
-         - Measure bubble dimensions
+         - Measure actual bubble dimensions
          - Calculate fill percentage (0-100%)
          - Assess detection confidence (0-1)
 
-      3. FILL PERCENTAGE CALCULATION:
+      4. FILL PERCENTAGE CALCULATION:
          - Count dark pixels inside bubble area
          - Compare with total bubble area
          - 60%+ fill = MARKED bubble (accept as answer)
@@ -143,11 +195,12 @@ export class AdvancedOMRService {
          - <30% fill = EMPTY bubble
          - Ignore border pixels (outline only)
 
-      4. QUALITY ASSESSMENT:
+      5. QUALITY ASSESSMENT:
          - Overall image quality (0-1)
          - Grid detection success (true/false)
          - Rotation angle in degrees
          - Lighting uniformity
+         - Format compliance check
 
       RESPONSE FORMAT (STRICT JSON):
       {
@@ -166,10 +219,18 @@ export class AdvancedOMRService {
         "gridDetected": true,
         "imageQuality": 0.9,
         "rotationAngle": 1.2,
-        "analysisNotes": "High-quality scan with clear bubble boundaries"
+        "formatCompliance": {
+          "alignmentMarksFound": 6,
+          "expectedLayout": true,
+          "gridAlignment": "perfect"
+        },
+        "analysisNotes": "High-quality scan with clear bubble boundaries and perfect format compliance"
       }
 
-      CRITICAL: Analyze EVERY bubble for EVERY question with surgical precision.
+      CRITICAL: 
+      - Use the provided format information to predict bubble locations
+      - Analyze EVERY bubble for EVERY question with surgical precision
+      - Verify format compliance using alignment marks and expected layout
     `
 
     try {
@@ -178,7 +239,7 @@ export class AdvancedOMRService {
         messages: [
           {
             role: "system",
-            content: "You are a computer vision expert specializing in optical mark recognition with pixel-perfect accuracy."
+            content: "You are a computer vision expert specializing in optical mark recognition with pixel-perfect accuracy and format awareness."
           },
           {
             role: "user",
@@ -222,28 +283,56 @@ export class AdvancedOMRService {
   }
 
   /**
-   * Simulate professional OMR scanner behavior
+   * Simulate professional OMR scanner behavior with format awareness
    */
   private static async simulateProfessionalOMRScanner(
     imageBase64: string,
-    totalQuestions: number
+    totalQuestions: number,
+    formatDescription?: OMRFormatDescription | null
   ): Promise<{ answers: string[]; confidence: number }> {
     const openai = this.getOpenAIClient()
+
+    // Build format-specific instructions
+    let formatInstructions = ''
+    if (formatDescription) {
+      formatInstructions = `
+EXACT OMR SHEET FORMAT SPECIFICATIONS:
+${formatDescription.description}
+
+${formatDescription.aiInstructions.scanningOrder}
+
+${formatDescription.aiInstructions.bubbleDetection}
+
+CALIBRATION REFERENCE POINTS:
+${formatDescription.layout.alignmentMarks.map(mark => 
+  `- ${mark.position}: (${mark.coordinates.x}, ${mark.coordinates.y}) ${mark.coordinates.unit}`
+).join('\n')}
+
+EXPECTED QUESTION LAYOUT:
+- Structure: ${formatDescription.layout.structure}
+- Total Questions: ${formatDescription.layout.totalQuestions}
+- Grid Layout: ${formatDescription.layout.answerGrid.layout.columns} columns, ${formatDescription.layout.answerGrid.layout.questionsPerColumn} questions per column
+      `
+    }
 
     const prompt = `
       You are a PROFESSIONAL OMR SCANNING MACHINE (like Scantron ES-2000) with 99.9% accuracy.
 
       HARDWARE SIMULATION: Replicate the exact behavior of industrial OMR scanners.
 
+      ${formatInstructions}
+
       PROFESSIONAL SCANNING PROTOCOL:
 
       1. CALIBRATION PHASE:
-         - Detect timing marks and registration points
-         - Establish coordinate system
+         - Detect timing marks and registration points (6 black squares at corners and edges)
+         - Establish coordinate system using alignment marks
          - Verify sheet orientation and alignment
+         - Apply format-specific calibration
 
       2. SYSTEMATIC SCANNING (Question 1 to ${totalQuestions}):
          - Use INFRARED LIGHT simulation for bubble detection
+         - Follow the exact scanning order specified in format
          - Measure REFLECTANCE VALUES for each bubble
          - Apply THRESHOLD DETECTION (typically 40% fill minimum)
          - Use COMPARATIVE ANALYSIS within each row
@@ -254,12 +343,18 @@ export class AdvancedOMRService {
          - Partial fill: 40-80% reflectance (evaluate as filled if darkest in row)
          - Multiple marks: Select bubble with lowest reflectance
 
-      4. QUALITY CONTROL:
+      4. FORMAT-SPECIFIC VALIDATION:
+         - Verify question count matches expected format
+         - Check bubble positions match layout specifications
+         - Validate answer options per question type
+         - Confirm grid alignment with format standards
+
+      5. QUALITY CONTROL:
          - Verify exactly ${totalQuestions} responses detected
          - Flag ambiguous marks for review
-         - Calculate confidence based on mark clarity
+         - Calculate confidence based on mark clarity and format compliance
 
-      5. INDUSTRIAL STANDARDS:
+      6. INDUSTRIAL STANDARDS:
          - Follow ANSI/AIIM MS-55 standards
          - Apply ISO 12653 OMR specifications
          - Use professional timing mark detection
@@ -270,8 +365,9 @@ export class AdvancedOMRService {
         "confidence": 0.995,
         "scannerSimulation": {
           "timingMarksDetected": true,
-          "registrationPointsFound": 4,
+          "registrationPointsFound": 6,
           "sheetAlignment": "perfect",
+          "formatCompliance": "excellent",
           "reflectanceReadings": [0.15, 0.85, 0.25, 0.90, 0.18],
           "thresholdApplied": 0.4,
           "ambiguousMarks": []
@@ -279,11 +375,15 @@ export class AdvancedOMRService {
         "qualityMetrics": {
           "markClarity": "excellent",
           "paperQuality": "standard",
-          "printQuality": "high"
+          "printQuality": "high",
+          "formatMatch": "perfect"
         }
       }
 
-      CRITICAL: Behave EXACTLY like a $50,000 professional OMR scanner.
+      CRITICAL: 
+      - Behave EXACTLY like a $50,000 professional OMR scanner
+      - Use format information to optimize scanning accuracy
+      - Follow the exact question order and layout specified
     `
 
     try {
@@ -332,29 +432,52 @@ export class AdvancedOMRService {
   }
 
   /**
-   * Human-like visual analysis
+   * Human-like visual analysis with format awareness
    */
   private static async performHumanLikeAnalysis(
     imageBase64: string,
-    totalQuestions: number
+    totalQuestions: number,
+    formatDescription?: OMRFormatDescription | null
   ): Promise<{ answers: string[]; confidence: number }> {
     const openai = this.getOpenAIClient()
+
+    // Build format-specific instructions for human analysis
+    let formatInstructions = ''
+    if (formatDescription) {
+      formatInstructions = `
+TEACHER'S FORMAT KNOWLEDGE:
+${formatDescription.description}
+
+EXPECTED SHEET LAYOUT:
+${formatDescription.aiInstructions.scanningOrder}
+
+GRADING STANDARDS:
+${formatDescription.aiInstructions.bubbleDetection}
+
+QUALITY CHECKPOINTS:
+${formatDescription.aiInstructions.qualityChecks.map(check => `- ${check}`).join('\n')}
+      `
+    }
 
     const prompt = `
       You are an EXPERIENCED HUMAN TEACHER manually grading an OMR answer sheet.
 
       HUMAN VISUAL ANALYSIS: Replicate how humans naturally read bubble sheets.
 
+      ${formatInstructions}
+
       TEACHER'S GRADING PROCESS:
 
       1. INITIAL SCAN:
          - Look at overall sheet quality and student handwriting
          - Check for proper bubble filling technique
+         - Verify format compliance (alignment marks, layout)
          - Note any unusual markings or corrections
 
       2. QUESTION-BY-QUESTION REVIEW (1 to ${totalQuestions}):
+         - Follow the exact question order from format specification
          - Read question number clearly
-         - Examine each bubble option (A, B, C, D, E)
+         - Examine each bubble option based on expected layout
          - Look for INTENTIONAL marks vs accidental smudges
          - Consider student's marking pattern consistency
 
@@ -363,16 +486,19 @@ export class AdvancedOMRService {
          - Partially filled but obviously intended marks
          - Cross-outs and corrections (choose final intent)
          - Stray marks (ignore if clearly accidental)
+         - Format-specific bubble expectations
 
       4. CONTEXTUAL ANALYSIS:
          - Student's overall marking style
          - Consistency of mark darkness
          - Pattern recognition (does answer make sense?)
          - Benefit of doubt for borderline cases
+         - Format compliance assessment
 
       5. TEACHER'S EXPERIENCE:
          - 20+ years of grading experience
          - Familiar with student marking behaviors
+         - Knowledge of this specific OMR format
          - Ability to distinguish intent from accident
          - Conservative approach to ambiguous marks
 
@@ -382,19 +508,24 @@ export class AdvancedOMRService {
         "confidence": 0.92,
         "humanAnalysis": {
           "overallSheetQuality": "good",
+          "formatCompliance": "excellent",
           "studentMarkingStyle": "consistent",
           "ambiguousQuestions": [5, 12],
           "corrections": [{"question": 8, "from": "B", "to": "C"}],
-          "teacherNotes": "Student uses consistent marking pressure"
+          "teacherNotes": "Student uses consistent marking pressure, format perfectly followed"
         },
         "gradingDecisions": {
           "benefitOfDoubtGiven": 2,
           "conservativeChoices": 1,
-          "clearMarks": 27
+          "clearMarks": 27,
+          "formatBasedDecisions": 3
         }
       }
 
-      CRITICAL: Grade with the wisdom and experience of a veteran teacher.
+      CRITICAL: 
+      - Grade with the wisdom and experience of a veteran teacher
+      - Use format knowledge to improve accuracy
+      - Follow the exact question layout and order specified
     `
 
     try {
@@ -443,18 +574,52 @@ export class AdvancedOMRService {
   }
 
   /**
-   * Mathematical bubble detection using algorithms
+   * Mathematical bubble detection using algorithms with format awareness
    */
   private static async performMathematicalBubbleDetection(
     imageBase64: string,
-    totalQuestions: number
+    totalQuestions: number,
+    formatDescription?: OMRFormatDescription | null
   ): Promise<{ answers: string[]; confidence: number }> {
     const openai = this.getOpenAIClient()
+
+    // Build format-specific algorithmic instructions
+    let formatInstructions = ''
+    if (formatDescription) {
+      const layout = formatDescription.layout
+      formatInstructions = `
+ALGORITHMIC FORMAT SPECIFICATIONS:
+${formatDescription.description}
+
+PRECISE COORDINATE SYSTEM:
+${formatDescription.aiInstructions.coordinateSystem}
+
+BUBBLE SPECIFICATIONS FOR ALGORITHM:
+- Diameter: ${layout.answerGrid.bubbleSpecs.diameter}mm
+- Border width: ${layout.answerGrid.bubbleSpecs.borderWidth}mm
+- Fill threshold: ${layout.answerGrid.bubbleSpecs.fillThreshold * 100}%
+- Horizontal spacing: ${layout.answerGrid.bubbleSpecs.spacing.horizontal}mm
+- Vertical spacing: ${layout.answerGrid.bubbleSpecs.spacing.vertical}mm
+
+EXPECTED GRID LAYOUT:
+- Structure: ${layout.structure}
+- Columns: ${layout.answerGrid.layout.columns}
+- Questions per column: ${layout.answerGrid.layout.questionsPerColumn}
+- Start position: (${layout.answerGrid.layout.startPosition.x}, ${layout.answerGrid.layout.startPosition.y}) ${layout.answerGrid.layout.startPosition.unit}
+
+CALIBRATION POINTS FOR ALGORITHM:
+${layout.alignmentMarks.map(mark => 
+  `- ${mark.position}: (${mark.coordinates.x}, ${mark.coordinates.y}) ${mark.coordinates.unit} - ${mark.size.width}x${mark.size.height} ${mark.size.unit}`
+).join('\n')}
+      `
+    }
 
     const prompt = `
       You are a COMPUTER VISION ALGORITHM performing mathematical bubble detection.
 
       ALGORITHMIC DETECTION: Use computational methods for precise bubble analysis.
+
+      ${formatInstructions}
 
       MATHEMATICAL DETECTION ALGORITHM:
 
@@ -464,30 +629,40 @@ export class AdvancedOMRService {
          - Enhance contrast using histogram equalization
          - Apply adaptive thresholding
 
-      2. BUBBLE DETECTION PIPELINE:
-         - Use Hough Circle Transform for bubble detection
-         - Apply template matching for grid alignment
-         - Calculate pixel intensity histograms for each bubble
-         - Use connected component analysis
+      2. FORMAT-AWARE CALIBRATION:
+         - Detect all 6 alignment marks for coordinate system
+         - Calculate transformation matrix for perspective correction
+         - Apply format-specific grid detection
+         - Validate expected bubble positions
 
-      3. MATHEMATICAL CRITERIA:
+      3. BUBBLE DETECTION PIPELINE:
+         - Use format coordinates to predict bubble locations
+         - Apply Hough Circle Transform for bubble detection
+         - Use template matching for grid alignment
+         - Calculate pixel intensity histograms for each bubble
+         - Apply connected component analysis
+
+      4. MATHEMATICAL CRITERIA:
          For each bubble (Question 1 to ${totalQuestions}):
+         - Use format-predicted coordinates as starting point
          - Calculate mean pixel intensity (0-255 scale)
          - Measure standard deviation of pixel values
-         - Apply threshold: intensity < 128 = filled
+         - Apply format-specific threshold
          - Use relative comparison within each row
 
-      4. STATISTICAL ANALYSIS:
+      5. STATISTICAL ANALYSIS:
          - Calculate Z-scores for bubble darkness
          - Apply confidence intervals (95%)
          - Use chi-square test for mark validation
          - Implement outlier detection
+         - Validate against format expectations
 
-      5. ALGORITHMIC DECISION TREE:
+      6. ALGORITHMIC DECISION TREE:
          - If mean_intensity < 100 then "FILLED"
          - Else if mean_intensity < 150 and is_darkest_in_row then "FILLED"
          - Else if std_deviation > 50 then "PARTIAL_FILL"
          - Else "EMPTY"
+         - Apply format-specific validation rules
 
       RESPONSE FORMAT (STRICT JSON):
       {
@@ -495,21 +670,27 @@ export class AdvancedOMRService {
         "confidence": 0.98,
         "algorithmicAnalysis": {
           "preprocessingApplied": ["grayscale", "blur", "contrast", "threshold"],
-          "detectionMethod": "hough_circles",
+          "calibrationSuccess": true,
+          "formatCompliance": "perfect",
+          "detectionMethod": "format_aware_hough_circles",
           "intensityThreshold": 128,
           "statisticalTests": ["z_score", "chi_square"],
           "bubbleMetrics": [
-            {"question": 1, "option": "A", "intensity": 45, "std_dev": 12, "z_score": -2.1}
+            {"question": 1, "option": "A", "intensity": 45, "std_dev": 12, "z_score": -2.1, "formatMatch": true}
           ]
         },
         "mathematicalConfidence": {
           "algorithmicCertainty": 0.98,
           "statisticalSignificance": 0.95,
+          "formatValidation": 0.99,
           "outlierDetection": "none"
         }
       }
 
-      CRITICAL: Apply rigorous mathematical and statistical methods.
+      CRITICAL: 
+      - Apply rigorous mathematical and statistical methods
+      - Use format information to optimize detection accuracy
+      - Validate results against expected format specifications
     `
 
     try {

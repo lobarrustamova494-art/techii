@@ -71,6 +71,10 @@ const examSchema = new Schema<IExam>({
     type: Boolean,
     default: false
   },
+  templateId: {
+    type: Schema.Types.ObjectId,
+    ref: 'ExamTemplate'
+  },
   createdBy: {
     type: Schema.Types.ObjectId,
     ref: 'User',

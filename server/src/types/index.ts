@@ -53,6 +53,7 @@ export interface IExam extends Document {
   includeLogo: boolean
   prefillStudentId: boolean
   compactLayout: boolean
+  templateId?: Types.ObjectId
   createdBy: Types.ObjectId
   isActive: boolean
   createdAt: Date

@@ -8,6 +8,8 @@ import ExamCreation from './pages/ExamCreation'
 import ExamDetail from './pages/ExamDetail'
 import ExamKeys from './pages/ExamKeys'
 import ExamScanner from './pages/ExamScanner'
+import EvalBeeScanner from './pages/EvalBeeScanner'
+import EvalBeeCameraScannerPage from './pages/EvalBeeCameraScanner'
 import OMRGeneration from './pages/OMRGeneration'
 import ScanUpload from './pages/ScanUpload'
 import LoadingDemo from './pages/LoadingDemo'
@@ -46,6 +48,16 @@ function App() {
             <Route path="/exam-scanner/:id" element={
               <ProtectedRoute>
                 <ExamScanner />
+              </ProtectedRoute>
+            } />
+            <Route path="/exam-scanner/:id/evalbee" element={
+              <ProtectedRoute>
+                <EvalBeeScanner />
+              </ProtectedRoute>
+            } />
+            <Route path="/exam-scanner/:id/evalbee-camera" element={
+              <ProtectedRoute>
+                <EvalBeeCameraScannerPage />
               </ProtectedRoute>
             } />
             <Route path="/omr-generation" element={

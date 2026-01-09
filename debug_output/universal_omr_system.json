@@ -1,0 +1,2704 @@
+{
+  "format_info": {
+    "image_dimensions": {
+      "width": 1920,
+      "height": 2560
+    },
+    "total_columns": 3,
+    "total_questions": 48,
+    "questions_per_column": {
+      "1": 5,
+      "2": 22,
+      "3": 21
+    }
+  },
+  "calibration_system": {
+    "alignment_markers": 20,
+    "calibration_points": [
+      {
+        "type": "column_alignment",
+        "x": 552,
+        "y": 1232
+      },
+      {
+        "type": "column_alignment",
+        "x": 588,
+        "y": 1187
+      },
+      {
+        "type": "column_alignment",
+        "x": 474,
+        "y": 954
+      },
+      {
+        "type": "column_alignment",
+        "x": 588,
+        "y": 767
+      },
+      {
+        "type": "column_alignment",
+        "x": 551,
+        "y": 858
+      },
+      {
+        "type": "column_alignment",
+        "x": 591,
+        "y": 908
+      },
+      {
+        "type": "column_alignment",
+        "x": 469,
+        "y": 625
+      },
+      {
+        "type": "column_alignment",
+        "x": 475,
+        "y": 1140
+      },
+      {
+        "type": "column_alignment",
+        "x": 512,
+        "y": 813
+      },
+      {
+        "type": "column_alignment",
+        "x": 592,
+        "y": 1048
+      },
+      {
+        "type": "column_alignment",
+        "x": 509,
+        "y": 672
+      },
+      {
+        "type": "column_alignment",
+        "x": 515,
+        "y": 1094
+      },
+      {
+        "type": "column_alignment",
+        "x": 514,
+        "y": 1001
+      },
+      {
+        "type": "column_alignment",
+        "x": 549,
+        "y": 720
+      },
+      {
+        "type": "column_alignment",
+        "x": 336,
+        "y": 1486
+      },
+      {
+        "type": "column_alignment",
+        "x": 335,
+        "y": 2331
+      }
+    ],
+    "column_boundaries": [
+      {
+        "column": 1,
+        "x_start": 285,
+        "x_end": 510
+      },
+      {
+        "column": 2,
+        "x_start": 510,
+        "x_end": 577
+      },
+      {
+        "column": 3,
+        "x_start": 577,
+        "x_end": 869
+      }
+    ]
+  },
+  "coordinate_mapping": {
+    "columns": [
+      {
+        "column_number": 1,
+        "x_start": 285,
+        "x_end": 510,
+        "markers": [
+          {
+            "x": 335,
+            "y": 2331,
+            "width": 24,
+            "height": 25,
+            "area": 522.0,
+            "type": "column_marker",
+            "aspect_ratio": 0.96,
+            "extent": 0.87
+          }
+        ],
+        "reference_x": 335
+      },
+      {
+        "column_number": 2,
+        "x_start": 510,
+        "x_end": 577,
+        "markers": [
+          {
+            "x": 336,
+            "y": 1486,
+            "width": 24,
+            "height": 24,
+            "area": 527.5,
+            "type": "column_marker",
+            "aspect_ratio": 1.0,
+            "extent": 0.9157986111111112
+          }
+        ],
+        "reference_x": 336
+      },
+      {
+        "column_number": 3,
+        "x_start": 577,
+        "x_end": 869,
+        "markers": [
+          {
+            "x": 469,
+            "y": 625,
+            "width": 31,
+            "height": 34,
+            "area": 753.0,
+            "type": "column_marker",
+            "aspect_ratio": 0.9117647058823529,
+            "extent": 0.7144212523719166
+          }
+        ],
+        "reference_x": 469
+      }
+    ],
+    "questions_per_column": {
+      "1": [
+        {
+          "question_number": 1,
+          "local_question_number": 1,
+          "y_position": 248,
+          "x_position": 305,
+          "column": 1
+        },
+        {
+          "question_number": 2,
+          "local_question_number": 2,
+          "y_position": 1216,
+          "x_position": 305,
+          "column": 1
+        },
+        {
+          "question_number": 3,
+          "local_question_number": 3,
+          "y_position": 1500,
+          "x_position": 305,
+          "column": 1
+        },
+        {
+          "question_number": 4,
+          "local_question_number": 4,
+          "y_position": 2338,
+          "x_position": 305,
+          "column": 1
+        },
+        {
+          "question_number": 5,
+          "local_question_number": 5,
+          "y_position": 2439,
+          "x_position": 305,
+          "column": 1
+        }
+      ],
+      "2": [
+        {
+          "question_number": 1,
+          "local_question_number": 1,
+          "y_position": 315,
+          "x_position": 530,
+          "column": 2
+        },
+        {
+          "question_number": 2,
+          "local_question_number": 2,
+          "y_position": 386,
+          "x_position": 530,
+          "column": 2
+        },
+        {
+          "question_number": 3,
+          "local_question_number": 3,
+          "y_position": 427,
+          "x_position": 530,
+          "column": 2
+        },
+        {
+          "question_number": 4,
+          "local_question_number": 4,
+          "y_position": 458,
+          "x_position": 530,
+          "column": 2
+        },
+        {
+          "question_number": 5,
+          "local_question_number": 5,
+          "y_position": 501,
+          "x_position": 530,
+          "column": 2
+        },
+        {
+          "question_number": 6,
+          "local_question_number": 6,
+          "y_position": 603,
+          "x_position": 530,
+          "column": 2
+        },
+        {
+          "question_number": 7,
+          "local_question_number": 7,
+          "y_position": 633,
+          "x_position": 530,
+          "column": 2
+        },
+        {
+          "question_number": 8,
+          "local_question_number": 8,
+          "y_position": 675,
+          "x_position": 530,
+          "column": 2
+        },
+        {
+          "question_number": 9,
+          "local_question_number": 9,
+          "y_position": 722,
+          "x_position": 530,
+          "column": 2
+        },
+        {
+          "question_number": 10,
+          "local_question_number": 10,
+          "y_position": 770,
+          "x_position": 530,
+          "column": 2
+        },
+        {
+          "question_number": 11,
+          "local_question_number": 11,
+          "y_position": 817,
+          "x_position": 530,
+          "column": 2
+        },
+        {
+          "question_number": 12,
+          "local_question_number": 12,
+          "y_position": 864,
+          "x_position": 530,
+          "column": 2
+        },
+        {
+          "question_number": 13,
+          "local_question_number": 13,
+          "y_position": 911,
+          "x_position": 530,
+          "column": 2
+        },
+        {
+          "question_number": 14,
+          "local_question_number": 14,
+          "y_position": 957,
+          "x_position": 530,
+          "column": 2
+        },
+        {
+          "question_number": 15,
+          "local_question_number": 15,
+          "y_position": 1004,
+          "x_position": 530,
+          "column": 2
+        },
+        {
+          "question_number": 16,
+          "local_question_number": 16,
+          "y_position": 1058,
+          "x_position": 530,
+          "column": 2
+        },
+        {
+          "question_number": 17,
+          "local_question_number": 17,
+          "y_position": 1097,
+          "x_position": 530,
+          "column": 2
+        },
+        {
+          "question_number": 18,
+          "local_question_number": 18,
+          "y_position": 1143,
+          "x_position": 530,
+          "column": 2
+        },
+        {
+          "question_number": 19,
+          "local_question_number": 19,
+          "y_position": 1189,
+          "x_position": 530,
+          "column": 2
+        },
+        {
+          "question_number": 20,
+          "local_question_number": 20,
+          "y_position": 1236,
+          "x_position": 530,
+          "column": 2
+        },
+        {
+          "question_number": 21,
+          "local_question_number": 21,
+          "y_position": 1425,
+          "x_position": 530,
+          "column": 2
+        },
+        {
+          "question_number": 22,
+          "local_question_number": 22,
+          "y_position": 2435,
+          "x_position": 530,
+          "column": 2
+        }
+      ],
+      "3": [
+        {
+          "question_number": 1,
+          "local_question_number": 1,
+          "y_position": 312,
+          "x_position": 597,
+          "column": 3
+        },
+        {
+          "question_number": 2,
+          "local_question_number": 2,
+          "y_position": 384,
+          "x_position": 597,
+          "column": 3
+        },
+        {
+          "question_number": 3,
+          "local_question_number": 3,
+          "y_position": 430,
+          "x_position": 597,
+          "column": 3
+        },
+        {
+          "question_number": 4,
+          "local_question_number": 4,
+          "y_position": 499,
+          "x_position": 597,
+          "column": 3
+        },
+        {
+          "question_number": 5,
+          "local_question_number": 5,
+          "y_position": 613,
+          "x_position": 597,
+          "column": 3
+        },
+        {
+          "question_number": 6,
+          "local_question_number": 6,
+          "y_position": 651,
+          "x_position": 597,
+          "column": 3
+        },
+        {
+          "question_number": 7,
+          "local_question_number": 7,
+          "y_position": 682,
+          "x_position": 597,
+          "column": 3
+        },
+        {
+          "question_number": 8,
+          "local_question_number": 8,
+          "y_position": 722,
+          "x_position": 597,
+          "column": 3
+        },
+        {
+          "question_number": 9,
+          "local_question_number": 9,
+          "y_position": 827,
+          "x_position": 597,
+          "column": 3
+        },
+        {
+          "question_number": 10,
+          "local_question_number": 10,
+          "y_position": 864,
+          "x_position": 597,
+          "column": 3
+        },
+        {
+          "question_number": 11,
+          "local_question_number": 11,
+          "y_position": 917,
+          "x_position": 597,
+          "column": 3
+        },
+        {
+          "question_number": 12,
+          "local_question_number": 12,
+          "y_position": 957,
+          "x_position": 597,
+          "column": 3
+        },
+        {
+          "question_number": 13,
+          "local_question_number": 13,
+          "y_position": 1004,
+          "x_position": 597,
+          "column": 3
+        },
+        {
+          "question_number": 14,
+          "local_question_number": 14,
+          "y_position": 1063,
+          "x_position": 597,
+          "column": 3
+        },
+        {
+          "question_number": 15,
+          "local_question_number": 15,
+          "y_position": 1097,
+          "x_position": 597,
+          "column": 3
+        },
+        {
+          "question_number": 16,
+          "local_question_number": 16,
+          "y_position": 1143,
+          "x_position": 597,
+          "column": 3
+        },
+        {
+          "question_number": 17,
+          "local_question_number": 17,
+          "y_position": 1199,
+          "x_position": 597,
+          "column": 3
+        },
+        {
+          "question_number": 18,
+          "local_question_number": 18,
+          "y_position": 1236,
+          "x_position": 597,
+          "column": 3
+        },
+        {
+          "question_number": 19,
+          "local_question_number": 19,
+          "y_position": 1419,
+          "x_position": 597,
+          "column": 3
+        },
+        {
+          "question_number": 20,
+          "local_question_number": 20,
+          "y_position": 1449,
+          "x_position": 597,
+          "column": 3
+        },
+        {
+          "question_number": 21,
+          "local_question_number": 21,
+          "y_position": 2436,
+          "x_position": 597,
+          "column": 3
+        }
+      ]
+    },
+    "bubble_coordinates": [
+      {
+        "question_number": 1,
+        "local_question_number": 1,
+        "column": 1,
+        "option": "A",
+        "x": 350,
+        "y": 248,
+        "detection_method": "spacing"
+      },
+      {
+        "question_number": 1,
+        "local_question_number": 1,
+        "column": 1,
+        "option": "B",
+        "x": 390,
+        "y": 248,
+        "detection_method": "spacing"
+      },
+      {
+        "question_number": 1,
+        "local_question_number": 1,
+        "column": 1,
+        "option": "C",
+        "x": 430,
+        "y": 248,
+        "detection_method": "spacing"
+      },
+      {
+        "question_number": 1,
+        "local_question_number": 1,
+        "column": 1,
+        "option": "D",
+        "x": 470,
+        "y": 248,
+        "detection_method": "spacing"
+      },
+      {
+        "question_number": 1,
+        "local_question_number": 1,
+        "column": 1,
+        "option": "E",
+        "x": 510,
+        "y": 248,
+        "detection_method": "spacing"
+      },
+      {
+        "question_number": 2,
+        "local_question_number": 2,
+        "column": 1,
+        "option": "A",
+        "x": 350,
+        "y": 1216,
+        "detection_method": "spacing"
+      },
+      {
+        "question_number": 2,
+        "local_question_number": 2,
+        "column": 1,
+        "option": "B",
+        "x": 390,
+        "y": 1216,
+        "detection_method": "spacing"
+      },
+      {
+        "question_number": 2,
+        "local_question_number": 2,
+        "column": 1,
+        "option": "C",
+        "x": 430,
+        "y": 1216,
+        "detection_method": "spacing"
+      },
+      {
+        "question_number": 2,
+        "local_question_number": 2,
+        "column": 1,
+        "option": "D",
+        "x": 470,
+        "y": 1216,
+        "detection_method": "spacing"
+      },
+      {
+        "question_number": 2,
+        "local_question_number": 2,
+        "column": 1,
+        "option": "E",
+        "x": 489,
+        "y": 1200,
+        "detection_method": "circle"
+      },
+      {
+        "question_number": 3,
+        "local_question_number": 3,
+        "column": 1,
+        "option": "A",
+        "x": 350,
+        "y": 1500,
+        "detection_method": "spacing"
+      },
+      {
+        "question_number": 3,
+        "local_question_number": 3,
+        "column": 1,
+        "option": "B",
+        "x": 390,
+        "y": 1500,
+        "detection_method": "spacing"
+      },
+      {
+        "question_number": 3,
+        "local_question_number": 3,
+        "column": 1,
+        "option": "C",
+        "x": 430,
+        "y": 1500,
+        "detection_method": "spacing"
+      },
+      {
+        "question_number": 3,
+        "local_question_number": 3,
+        "column": 1,
+        "option": "D",
+        "x": 470,
+        "y": 1500,
+        "detection_method": "spacing"
+      },
+      {
+        "question_number": 3,
+        "local_question_number": 3,
+        "column": 1,
+        "option": "E",
+        "x": 510,
+        "y": 1500,
+        "detection_method": "spacing"
+      },
+      {
+        "question_number": 4,
+        "local_question_number": 4,
+        "column": 1,
+        "option": "A",
+        "x": 350,
+        "y": 2338,
+        "detection_method": "spacing"
+      },
+      {
+        "question_number": 4,
+        "local_question_number": 4,
+        "column": 1,
+        "option": "B",
+        "x": 390,
+        "y": 2338,
+        "detection_method": "spacing"
+      },
+      {
+        "question_number": 4,
+        "local_question_number": 4,
+        "column": 1,
+        "option": "C",
+        "x": 430,
+        "y": 2338,
+        "detection_method": "spacing"
+      },
+      {
+        "question_number": 4,
+        "local_question_number": 4,
+        "column": 1,
+        "option": "D",
+        "x": 470,
+        "y": 2338,
+        "detection_method": "spacing"
+      },
+      {
+        "question_number": 4,
+        "local_question_number": 4,
+        "column": 1,
+        "option": "E",
+        "x": 510,
+        "y": 2338,
+        "detection_method": "spacing"
+      },
+      {
+        "question_number": 5,
+        "local_question_number": 5,
+        "column": 1,
+        "option": "A",
+        "x": 350,
+        "y": 2439,
+        "detection_method": "spacing"
+      },
+      {
+        "question_number": 5,
+        "local_question_number": 5,
+        "column": 1,
+        "option": "B",
+        "x": 390,
+        "y": 2439,
+        "detection_method": "spacing"
+      },
+      {
+        "question_number": 5,
+        "local_question_number": 5,
+        "column": 1,
+        "option": "C",
+        "x": 429,
+        "y": 2447,
+        "detection_method": "circle"
+      },
+      {
+        "question_number": 5,
+        "local_question_number": 5,
+        "column": 1,
+        "option": "D",
+        "x": 470,
+        "y": 2439,
+        "detection_method": "spacing"
+      },
+      {
+        "question_number": 5,
+        "local_question_number": 5,
+        "column": 1,
+        "option": "E",
+        "x": 510,
+        "y": 2439,
+        "detection_method": "spacing"
+      },
+      {
+        "question_number": 6,
+        "local_question_number": 1,
+        "column": 2,
+        "option": "A",
+        "x": 575,
+        "y": 315,
+        "detection_method": "spacing"
+      },
+      {
+        "question_number": 6,
+        "local_question_number": 1,
+        "column": 2,
+        "option": "B",
+        "x": 615,
+        "y": 315,
+        "detection_method": "spacing"
+      },
+      {
+        "question_number": 6,
+        "local_question_number": 1,
+        "column": 2,
+        "option": "C",
+        "x": 655,
+        "y": 315,
+        "detection_method": "spacing"
+      },
+      {
+        "question_number": 6,
+        "local_question_number": 1,
+        "column": 2,
+        "option": "D",
+        "x": 695,
+        "y": 315,
+        "detection_method": "spacing"
+      },
+      {
+        "question_number": 6,
+        "local_question_number": 1,
+        "column": 2,
+        "option": "E",
+        "x": 735,
+        "y": 315,
+        "detection_method": "spacing"
+      },
+      {
+        "question_number": 7,
+        "local_question_number": 2,
+        "column": 2,
+        "option": "A",
+        "x": 575,
+        "y": 386,
+        "detection_method": "spacing"
+      },
+      {
+        "question_number": 7,
+        "local_question_number": 2,
+        "column": 2,
+        "option": "B",
+        "x": 615,
+        "y": 386,
+        "detection_method": "spacing"
+      },
+      {
+        "question_number": 7,
+        "local_question_number": 2,
+        "column": 2,
+        "option": "C",
+        "x": 655,
+        "y": 386,
+        "detection_method": "spacing"
+      },
+      {
+        "question_number": 7,
+        "local_question_number": 2,
+        "column": 2,
+        "option": "D",
+        "x": 695,
+        "y": 386,
+        "detection_method": "spacing"
+      },
+      {
+        "question_number": 7,
+        "local_question_number": 2,
+        "column": 2,
+        "option": "E",
+        "x": 735,
+        "y": 386,
+        "detection_method": "spacing"
+      },
+      {
+        "question_number": 8,
+        "local_question_number": 3,
+        "column": 2,
+        "option": "A",
+        "x": 575,
+        "y": 427,
+        "detection_method": "spacing"
+      },
+      {
+        "question_number": 8,
+        "local_question_number": 3,
+        "column": 2,
+        "option": "B",
+        "x": 615,
+        "y": 427,
+        "detection_method": "spacing"
+      },
+      {
+        "question_number": 8,
+        "local_question_number": 3,
+        "column": 2,
+        "option": "C",
+        "x": 646,
+        "y": 437,
+        "detection_method": "circle"
+      },
+      {
+        "question_number": 8,
+        "local_question_number": 3,
+        "column": 2,
+        "option": "D",
+        "x": 655,
+        "y": 427,
+        "detection_method": "spacing"
+      },
+      {
+        "question_number": 8,
+        "local_question_number": 3,
+        "column": 2,
+        "option": "E",
+        "x": 678,
+        "y": 433,
+        "detection_method": "circle"
+      },
+      {
+        "question_number": 9,
+        "local_question_number": 4,
+        "column": 2,
+        "option": "A",
+        "x": 575,
+        "y": 458,
+        "detection_method": "spacing"
+      },
+      {
+        "question_number": 9,
+        "local_question_number": 4,
+        "column": 2,
+        "option": "B",
+        "x": 615,
+        "y": 458,
+        "detection_method": "spacing"
+      },
+      {
+        "question_number": 9,
+        "local_question_number": 4,
+        "column": 2,
+        "option": "C",
+        "x": 655,
+        "y": 458,
+        "detection_method": "spacing"
+      },
+      {
+        "question_number": 9,
+        "local_question_number": 4,
+        "column": 2,
+        "option": "D",
+        "x": 695,
+        "y": 458,
+        "detection_method": "spacing"
+      },
+      {
+        "question_number": 9,
+        "local_question_number": 4,
+        "column": 2,
+        "option": "E",
+        "x": 735,
+        "y": 458,
+        "detection_method": "spacing"
+      },
+      {
+        "question_number": 10,
+        "local_question_number": 5,
+        "column": 2,
+        "option": "A",
+        "x": 575,
+        "y": 501,
+        "detection_method": "spacing"
+      },
+      {
+        "question_number": 10,
+        "local_question_number": 5,
+        "column": 2,
+        "option": "B",
+        "x": 615,
+        "y": 501,
+        "detection_method": "spacing"
+      },
+      {
+        "question_number": 10,
+        "local_question_number": 5,
+        "column": 2,
+        "option": "C",
+        "x": 655,
+        "y": 501,
+        "detection_method": "spacing"
+      },
+      {
+        "question_number": 10,
+        "local_question_number": 5,
+        "column": 2,
+        "option": "D",
+        "x": 695,
+        "y": 501,
+        "detection_method": "spacing"
+      },
+      {
+        "question_number": 10,
+        "local_question_number": 5,
+        "column": 2,
+        "option": "E",
+        "x": 735,
+        "y": 501,
+        "detection_method": "spacing"
+      },
+      {
+        "question_number": 11,
+        "local_question_number": 6,
+        "column": 2,
+        "option": "A",
+        "x": 575,
+        "y": 603,
+        "detection_method": "spacing"
+      },
+      {
+        "question_number": 11,
+        "local_question_number": 6,
+        "column": 2,
+        "option": "B",
+        "x": 598,
+        "y": 609,
+        "detection_method": "circle"
+      },
+      {
+        "question_number": 11,
+        "local_question_number": 6,
+        "column": 2,
+        "option": "C",
+        "x": 615,
+        "y": 603,
+        "detection_method": "spacing"
+      },
+      {
+        "question_number": 11,
+        "local_question_number": 6,
+        "column": 2,
+        "option": "D",
+        "x": 655,
+        "y": 603,
+        "detection_method": "spacing"
+      },
+      {
+        "question_number": 11,
+        "local_question_number": 6,
+        "column": 2,
+        "option": "E",
+        "x": 695,
+        "y": 603,
+        "detection_method": "spacing"
+      },
+      {
+        "question_number": 12,
+        "local_question_number": 7,
+        "column": 2,
+        "option": "A",
+        "x": 575,
+        "y": 633,
+        "detection_method": "spacing"
+      },
+      {
+        "question_number": 12,
+        "local_question_number": 7,
+        "column": 2,
+        "option": "B",
+        "x": 600,
+        "y": 635,
+        "detection_method": "circle"
+      },
+      {
+        "question_number": 12,
+        "local_question_number": 7,
+        "column": 2,
+        "option": "C",
+        "x": 615,
+        "y": 633,
+        "detection_method": "spacing"
+      },
+      {
+        "question_number": 12,
+        "local_question_number": 7,
+        "column": 2,
+        "option": "D",
+        "x": 655,
+        "y": 633,
+        "detection_method": "spacing"
+      },
+      {
+        "question_number": 12,
+        "local_question_number": 7,
+        "column": 2,
+        "option": "E",
+        "x": 695,
+        "y": 633,
+        "detection_method": "spacing"
+      },
+      {
+        "question_number": 13,
+        "local_question_number": 8,
+        "column": 2,
+        "option": "A",
+        "x": 562,
+        "y": 687,
+        "detection_method": "circle"
+      },
+      {
+        "question_number": 13,
+        "local_question_number": 8,
+        "column": 2,
+        "option": "B",
+        "x": 575,
+        "y": 675,
+        "detection_method": "spacing"
+      },
+      {
+        "question_number": 13,
+        "local_question_number": 8,
+        "column": 2,
+        "option": "C",
+        "x": 602,
+        "y": 687,
+        "detection_method": "circle"
+      },
+      {
+        "question_number": 13,
+        "local_question_number": 8,
+        "column": 2,
+        "option": "D",
+        "x": 615,
+        "y": 675,
+        "detection_method": "spacing"
+      },
+      {
+        "question_number": 13,
+        "local_question_number": 8,
+        "column": 2,
+        "option": "E",
+        "x": 655,
+        "y": 675,
+        "detection_method": "spacing"
+      },
+      {
+        "question_number": 14,
+        "local_question_number": 9,
+        "column": 2,
+        "option": "A",
+        "x": 575,
+        "y": 722,
+        "detection_method": "spacing"
+      },
+      {
+        "question_number": 14,
+        "local_question_number": 9,
+        "column": 2,
+        "option": "B",
+        "x": 602,
+        "y": 734,
+        "detection_method": "circle"
+      },
+      {
+        "question_number": 14,
+        "local_question_number": 9,
+        "column": 2,
+        "option": "C",
+        "x": 615,
+        "y": 722,
+        "detection_method": "spacing"
+      },
+      {
+        "question_number": 14,
+        "local_question_number": 9,
+        "column": 2,
+        "option": "D",
+        "x": 655,
+        "y": 722,
+        "detection_method": "spacing"
+      },
+      {
+        "question_number": 14,
+        "local_question_number": 9,
+        "column": 2,
+        "option": "E",
+        "x": 695,
+        "y": 722,
+        "detection_method": "spacing"
+      },
+      {
+        "question_number": 15,
+        "local_question_number": 10,
+        "column": 2,
+        "option": "A",
+        "x": 564,
+        "y": 782,
+        "detection_method": "circle"
+      },
+      {
+        "question_number": 15,
+        "local_question_number": 10,
+        "column": 2,
+        "option": "B",
+        "x": 575,
+        "y": 770,
+        "detection_method": "spacing"
+      },
+      {
+        "question_number": 15,
+        "local_question_number": 10,
+        "column": 2,
+        "option": "C",
+        "x": 602,
+        "y": 780,
+        "detection_method": "circle"
+      },
+      {
+        "question_number": 15,
+        "local_question_number": 10,
+        "column": 2,
+        "option": "D",
+        "x": 615,
+        "y": 770,
+        "detection_method": "spacing"
+      },
+      {
+        "question_number": 15,
+        "local_question_number": 10,
+        "column": 2,
+        "option": "E",
+        "x": 655,
+        "y": 770,
+        "detection_method": "spacing"
+      },
+      {
+        "question_number": 16,
+        "local_question_number": 11,
+        "column": 2,
+        "option": "A",
+        "x": 564,
+        "y": 829,
+        "detection_method": "circle"
+      },
+      {
+        "question_number": 16,
+        "local_question_number": 11,
+        "column": 2,
+        "option": "B",
+        "x": 575,
+        "y": 817,
+        "detection_method": "spacing"
+      },
+      {
+        "question_number": 16,
+        "local_question_number": 11,
+        "column": 2,
+        "option": "C",
+        "x": 604,
+        "y": 829,
+        "detection_method": "circle"
+      },
+      {
+        "question_number": 16,
+        "local_question_number": 11,
+        "column": 2,
+        "option": "D",
+        "x": 615,
+        "y": 817,
+        "detection_method": "spacing"
+      },
+      {
+        "question_number": 16,
+        "local_question_number": 11,
+        "column": 2,
+        "option": "E",
+        "x": 655,
+        "y": 817,
+        "detection_method": "spacing"
+      },
+      {
+        "question_number": 17,
+        "local_question_number": 12,
+        "column": 2,
+        "option": "A",
+        "x": 575,
+        "y": 864,
+        "detection_method": "spacing"
+      },
+      {
+        "question_number": 17,
+        "local_question_number": 12,
+        "column": 2,
+        "option": "B",
+        "x": 604,
+        "y": 874,
+        "detection_method": "circle"
+      },
+      {
+        "question_number": 17,
+        "local_question_number": 12,
+        "column": 2,
+        "option": "C",
+        "x": 615,
+        "y": 864,
+        "detection_method": "spacing"
+      },
+      {
+        "question_number": 17,
+        "local_question_number": 12,
+        "column": 2,
+        "option": "D",
+        "x": 655,
+        "y": 864,
+        "detection_method": "spacing"
+      },
+      {
+        "question_number": 17,
+        "local_question_number": 12,
+        "column": 2,
+        "option": "E",
+        "x": 695,
+        "y": 864,
+        "detection_method": "spacing"
+      },
+      {
+        "question_number": 18,
+        "local_question_number": 13,
+        "column": 2,
+        "option": "A",
+        "x": 566,
+        "y": 923,
+        "detection_method": "circle"
+      },
+      {
+        "question_number": 18,
+        "local_question_number": 13,
+        "column": 2,
+        "option": "B",
+        "x": 575,
+        "y": 911,
+        "detection_method": "spacing"
+      },
+      {
+        "question_number": 18,
+        "local_question_number": 13,
+        "column": 2,
+        "option": "C",
+        "x": 604,
+        "y": 921,
+        "detection_method": "circle"
+      },
+      {
+        "question_number": 18,
+        "local_question_number": 13,
+        "column": 2,
+        "option": "D",
+        "x": 615,
+        "y": 911,
+        "detection_method": "spacing"
+      },
+      {
+        "question_number": 18,
+        "local_question_number": 13,
+        "column": 2,
+        "option": "E",
+        "x": 655,
+        "y": 911,
+        "detection_method": "spacing"
+      },
+      {
+        "question_number": 19,
+        "local_question_number": 14,
+        "column": 2,
+        "option": "A",
+        "x": 566,
+        "y": 971,
+        "detection_method": "circle"
+      },
+      {
+        "question_number": 19,
+        "local_question_number": 14,
+        "column": 2,
+        "option": "B",
+        "x": 575,
+        "y": 957,
+        "detection_method": "spacing"
+      },
+      {
+        "question_number": 19,
+        "local_question_number": 14,
+        "column": 2,
+        "option": "C",
+        "x": 606,
+        "y": 969,
+        "detection_method": "circle"
+      },
+      {
+        "question_number": 19,
+        "local_question_number": 14,
+        "column": 2,
+        "option": "D",
+        "x": 615,
+        "y": 957,
+        "detection_method": "spacing"
+      },
+      {
+        "question_number": 19,
+        "local_question_number": 14,
+        "column": 2,
+        "option": "E",
+        "x": 655,
+        "y": 957,
+        "detection_method": "spacing"
+      },
+      {
+        "question_number": 20,
+        "local_question_number": 15,
+        "column": 2,
+        "option": "A",
+        "x": 568,
+        "y": 1016,
+        "detection_method": "circle"
+      },
+      {
+        "question_number": 20,
+        "local_question_number": 15,
+        "column": 2,
+        "option": "B",
+        "x": 575,
+        "y": 1004,
+        "detection_method": "spacing"
+      },
+      {
+        "question_number": 20,
+        "local_question_number": 15,
+        "column": 2,
+        "option": "C",
+        "x": 606,
+        "y": 1016,
+        "detection_method": "circle"
+      },
+      {
+        "question_number": 20,
+        "local_question_number": 15,
+        "column": 2,
+        "option": "D",
+        "x": 615,
+        "y": 1004,
+        "detection_method": "spacing"
+      },
+      {
+        "question_number": 20,
+        "local_question_number": 15,
+        "column": 2,
+        "option": "E",
+        "x": 655,
+        "y": 1004,
+        "detection_method": "spacing"
+      },
+      {
+        "question_number": 21,
+        "local_question_number": 16,
+        "column": 2,
+        "option": "A",
+        "x": 568,
+        "y": 1062,
+        "detection_method": "circle"
+      },
+      {
+        "question_number": 21,
+        "local_question_number": 16,
+        "column": 2,
+        "option": "B",
+        "x": 608,
+        "y": 1064,
+        "detection_method": "circle"
+      },
+      {
+        "question_number": 21,
+        "local_question_number": 16,
+        "column": 2,
+        "option": "C",
+        "x": 655,
+        "y": 1058,
+        "detection_method": "spacing"
+      },
+      {
+        "question_number": 21,
+        "local_question_number": 16,
+        "column": 2,
+        "option": "D",
+        "x": 695,
+        "y": 1058,
+        "detection_method": "spacing"
+      },
+      {
+        "question_number": 21,
+        "local_question_number": 16,
+        "column": 2,
+        "option": "E",
+        "x": 735,
+        "y": 1058,
+        "detection_method": "spacing"
+      },
+      {
+        "question_number": 22,
+        "local_question_number": 17,
+        "column": 2,
+        "option": "A",
+        "x": 572,
+        "y": 1109,
+        "detection_method": "circle"
+      },
+      {
+        "question_number": 22,
+        "local_question_number": 17,
+        "column": 2,
+        "option": "B",
+        "x": 575,
+        "y": 1097,
+        "detection_method": "spacing"
+      },
+      {
+        "question_number": 22,
+        "local_question_number": 17,
+        "column": 2,
+        "option": "C",
+        "x": 608,
+        "y": 1107,
+        "detection_method": "circle"
+      },
+      {
+        "question_number": 22,
+        "local_question_number": 17,
+        "column": 2,
+        "option": "D",
+        "x": 615,
+        "y": 1097,
+        "detection_method": "spacing"
+      },
+      {
+        "question_number": 22,
+        "local_question_number": 17,
+        "column": 2,
+        "option": "E",
+        "x": 655,
+        "y": 1097,
+        "detection_method": "spacing"
+      },
+      {
+        "question_number": 23,
+        "local_question_number": 18,
+        "column": 2,
+        "option": "A",
+        "x": 568,
+        "y": 1155,
+        "detection_method": "circle"
+      },
+      {
+        "question_number": 23,
+        "local_question_number": 18,
+        "column": 2,
+        "option": "B",
+        "x": 575,
+        "y": 1143,
+        "detection_method": "spacing"
+      },
+      {
+        "question_number": 23,
+        "local_question_number": 18,
+        "column": 2,
+        "option": "C",
+        "x": 606,
+        "y": 1155,
+        "detection_method": "circle"
+      },
+      {
+        "question_number": 23,
+        "local_question_number": 18,
+        "column": 2,
+        "option": "D",
+        "x": 615,
+        "y": 1143,
+        "detection_method": "spacing"
+      },
+      {
+        "question_number": 23,
+        "local_question_number": 18,
+        "column": 2,
+        "option": "E",
+        "x": 655,
+        "y": 1143,
+        "detection_method": "spacing"
+      },
+      {
+        "question_number": 24,
+        "local_question_number": 19,
+        "column": 2,
+        "option": "A",
+        "x": 568,
+        "y": 1201,
+        "detection_method": "circle"
+      },
+      {
+        "question_number": 24,
+        "local_question_number": 19,
+        "column": 2,
+        "option": "B",
+        "x": 575,
+        "y": 1189,
+        "detection_method": "spacing"
+      },
+      {
+        "question_number": 24,
+        "local_question_number": 19,
+        "column": 2,
+        "option": "C",
+        "x": 606,
+        "y": 1199,
+        "detection_method": "circle"
+      },
+      {
+        "question_number": 24,
+        "local_question_number": 19,
+        "column": 2,
+        "option": "D",
+        "x": 615,
+        "y": 1189,
+        "detection_method": "spacing"
+      },
+      {
+        "question_number": 24,
+        "local_question_number": 19,
+        "column": 2,
+        "option": "E",
+        "x": 655,
+        "y": 1189,
+        "detection_method": "spacing"
+      },
+      {
+        "question_number": 25,
+        "local_question_number": 20,
+        "column": 2,
+        "option": "A",
+        "x": 572,
+        "y": 1246,
+        "detection_method": "circle"
+      },
+      {
+        "question_number": 25,
+        "local_question_number": 20,
+        "column": 2,
+        "option": "B",
+        "x": 575,
+        "y": 1236,
+        "detection_method": "spacing"
+      },
+      {
+        "question_number": 25,
+        "local_question_number": 20,
+        "column": 2,
+        "option": "C",
+        "x": 606,
+        "y": 1248,
+        "detection_method": "circle"
+      },
+      {
+        "question_number": 25,
+        "local_question_number": 20,
+        "column": 2,
+        "option": "D",
+        "x": 615,
+        "y": 1236,
+        "detection_method": "spacing"
+      },
+      {
+        "question_number": 25,
+        "local_question_number": 20,
+        "column": 2,
+        "option": "E",
+        "x": 655,
+        "y": 1236,
+        "detection_method": "spacing"
+      },
+      {
+        "question_number": 26,
+        "local_question_number": 21,
+        "column": 2,
+        "option": "A",
+        "x": 575,
+        "y": 1425,
+        "detection_method": "spacing"
+      },
+      {
+        "question_number": 26,
+        "local_question_number": 21,
+        "column": 2,
+        "option": "B",
+        "x": 624,
+        "y": 1421,
+        "detection_method": "circle"
+      },
+      {
+        "question_number": 26,
+        "local_question_number": 21,
+        "column": 2,
+        "option": "C",
+        "x": 652,
+        "y": 1423,
+        "detection_method": "circle"
+      },
+      {
+        "question_number": 26,
+        "local_question_number": 21,
+        "column": 2,
+        "option": "D",
+        "x": 695,
+        "y": 1425,
+        "detection_method": "spacing"
+      },
+      {
+        "question_number": 26,
+        "local_question_number": 21,
+        "column": 2,
+        "option": "E",
+        "x": 735,
+        "y": 1425,
+        "detection_method": "spacing"
+      },
+      {
+        "question_number": 27,
+        "local_question_number": 22,
+        "column": 2,
+        "option": "A",
+        "x": 575,
+        "y": 2435,
+        "detection_method": "spacing"
+      },
+      {
+        "question_number": 27,
+        "local_question_number": 22,
+        "column": 2,
+        "option": "B",
+        "x": 615,
+        "y": 2435,
+        "detection_method": "spacing"
+      },
+      {
+        "question_number": 27,
+        "local_question_number": 22,
+        "column": 2,
+        "option": "C",
+        "x": 655,
+        "y": 2435,
+        "detection_method": "spacing"
+      },
+      {
+        "question_number": 27,
+        "local_question_number": 22,
+        "column": 2,
+        "option": "D",
+        "x": 695,
+        "y": 2435,
+        "detection_method": "spacing"
+      },
+      {
+        "question_number": 27,
+        "local_question_number": 22,
+        "column": 2,
+        "option": "E",
+        "x": 735,
+        "y": 2435,
+        "detection_method": "spacing"
+      },
+      {
+        "question_number": 28,
+        "local_question_number": 1,
+        "column": 3,
+        "option": "A",
+        "x": 642,
+        "y": 312,
+        "detection_method": "spacing"
+      },
+      {
+        "question_number": 28,
+        "local_question_number": 1,
+        "column": 3,
+        "option": "B",
+        "x": 682,
+        "y": 312,
+        "detection_method": "spacing"
+      },
+      {
+        "question_number": 28,
+        "local_question_number": 1,
+        "column": 3,
+        "option": "C",
+        "x": 722,
+        "y": 312,
+        "detection_method": "spacing"
+      },
+      {
+        "question_number": 28,
+        "local_question_number": 1,
+        "column": 3,
+        "option": "D",
+        "x": 762,
+        "y": 312,
+        "detection_method": "spacing"
+      },
+      {
+        "question_number": 28,
+        "local_question_number": 1,
+        "column": 3,
+        "option": "E",
+        "x": 802,
+        "y": 312,
+        "detection_method": "spacing"
+      },
+      {
+        "question_number": 29,
+        "local_question_number": 2,
+        "column": 3,
+        "option": "A",
+        "x": 642,
+        "y": 384,
+        "detection_method": "spacing"
+      },
+      {
+        "question_number": 29,
+        "local_question_number": 2,
+        "column": 3,
+        "option": "B",
+        "x": 682,
+        "y": 384,
+        "detection_method": "spacing"
+      },
+      {
+        "question_number": 29,
+        "local_question_number": 2,
+        "column": 3,
+        "option": "C",
+        "x": 722,
+        "y": 384,
+        "detection_method": "spacing"
+      },
+      {
+        "question_number": 29,
+        "local_question_number": 2,
+        "column": 3,
+        "option": "D",
+        "x": 762,
+        "y": 384,
+        "detection_method": "spacing"
+      },
+      {
+        "question_number": 29,
+        "local_question_number": 2,
+        "column": 3,
+        "option": "E",
+        "x": 802,
+        "y": 384,
+        "detection_method": "spacing"
+      },
+      {
+        "question_number": 30,
+        "local_question_number": 3,
+        "column": 3,
+        "option": "A",
+        "x": 647,
+        "y": 436,
+        "detection_method": "circle"
+      },
+      {
+        "question_number": 30,
+        "local_question_number": 3,
+        "column": 3,
+        "option": "B",
+        "x": 677,
+        "y": 434,
+        "detection_method": "circle"
+      },
+      {
+        "question_number": 30,
+        "local_question_number": 3,
+        "column": 3,
+        "option": "C",
+        "x": 722,
+        "y": 430,
+        "detection_method": "spacing"
+      },
+      {
+        "question_number": 30,
+        "local_question_number": 3,
+        "column": 3,
+        "option": "D",
+        "x": 762,
+        "y": 430,
+        "detection_method": "spacing"
+      },
+      {
+        "question_number": 30,
+        "local_question_number": 3,
+        "column": 3,
+        "option": "E",
+        "x": 802,
+        "y": 430,
+        "detection_method": "spacing"
+      },
+      {
+        "question_number": 31,
+        "local_question_number": 4,
+        "column": 3,
+        "option": "A",
+        "x": 642,
+        "y": 499,
+        "detection_method": "spacing"
+      },
+      {
+        "question_number": 31,
+        "local_question_number": 4,
+        "column": 3,
+        "option": "B",
+        "x": 682,
+        "y": 499,
+        "detection_method": "spacing"
+      },
+      {
+        "question_number": 31,
+        "local_question_number": 4,
+        "column": 3,
+        "option": "C",
+        "x": 722,
+        "y": 499,
+        "detection_method": "spacing"
+      },
+      {
+        "question_number": 31,
+        "local_question_number": 4,
+        "column": 3,
+        "option": "D",
+        "x": 762,
+        "y": 499,
+        "detection_method": "spacing"
+      },
+      {
+        "question_number": 31,
+        "local_question_number": 4,
+        "column": 3,
+        "option": "E",
+        "x": 802,
+        "y": 499,
+        "detection_method": "spacing"
+      },
+      {
+        "question_number": 32,
+        "local_question_number": 5,
+        "column": 3,
+        "option": "A",
+        "x": 642,
+        "y": 613,
+        "detection_method": "spacing"
+      },
+      {
+        "question_number": 32,
+        "local_question_number": 5,
+        "column": 3,
+        "option": "B",
+        "x": 682,
+        "y": 613,
+        "detection_method": "spacing"
+      },
+      {
+        "question_number": 32,
+        "local_question_number": 5,
+        "column": 3,
+        "option": "C",
+        "x": 722,
+        "y": 613,
+        "detection_method": "spacing"
+      },
+      {
+        "question_number": 32,
+        "local_question_number": 5,
+        "column": 3,
+        "option": "D",
+        "x": 762,
+        "y": 613,
+        "detection_method": "spacing"
+      },
+      {
+        "question_number": 32,
+        "local_question_number": 5,
+        "column": 3,
+        "option": "E",
+        "x": 802,
+        "y": 613,
+        "detection_method": "spacing"
+      },
+      {
+        "question_number": 33,
+        "local_question_number": 6,
+        "column": 3,
+        "option": "A",
+        "x": 642,
+        "y": 651,
+        "detection_method": "spacing"
+      },
+      {
+        "question_number": 33,
+        "local_question_number": 6,
+        "column": 3,
+        "option": "B",
+        "x": 682,
+        "y": 651,
+        "detection_method": "spacing"
+      },
+      {
+        "question_number": 33,
+        "local_question_number": 6,
+        "column": 3,
+        "option": "C",
+        "x": 722,
+        "y": 651,
+        "detection_method": "spacing"
+      },
+      {
+        "question_number": 33,
+        "local_question_number": 6,
+        "column": 3,
+        "option": "D",
+        "x": 762,
+        "y": 651,
+        "detection_method": "spacing"
+      },
+      {
+        "question_number": 33,
+        "local_question_number": 6,
+        "column": 3,
+        "option": "E",
+        "x": 802,
+        "y": 651,
+        "detection_method": "spacing"
+      },
+      {
+        "question_number": 34,
+        "local_question_number": 7,
+        "column": 3,
+        "option": "A",
+        "x": 642,
+        "y": 682,
+        "detection_method": "spacing"
+      },
+      {
+        "question_number": 34,
+        "local_question_number": 7,
+        "column": 3,
+        "option": "B",
+        "x": 682,
+        "y": 682,
+        "detection_method": "spacing"
+      },
+      {
+        "question_number": 34,
+        "local_question_number": 7,
+        "column": 3,
+        "option": "C",
+        "x": 722,
+        "y": 682,
+        "detection_method": "spacing"
+      },
+      {
+        "question_number": 34,
+        "local_question_number": 7,
+        "column": 3,
+        "option": "D",
+        "x": 762,
+        "y": 682,
+        "detection_method": "spacing"
+      },
+      {
+        "question_number": 34,
+        "local_question_number": 7,
+        "column": 3,
+        "option": "E",
+        "x": 802,
+        "y": 682,
+        "detection_method": "spacing"
+      },
+      {
+        "question_number": 35,
+        "local_question_number": 8,
+        "column": 3,
+        "option": "A",
+        "x": 642,
+        "y": 722,
+        "detection_method": "spacing"
+      },
+      {
+        "question_number": 35,
+        "local_question_number": 8,
+        "column": 3,
+        "option": "B",
+        "x": 682,
+        "y": 722,
+        "detection_method": "spacing"
+      },
+      {
+        "question_number": 35,
+        "local_question_number": 8,
+        "column": 3,
+        "option": "C",
+        "x": 722,
+        "y": 722,
+        "detection_method": "spacing"
+      },
+      {
+        "question_number": 35,
+        "local_question_number": 8,
+        "column": 3,
+        "option": "D",
+        "x": 762,
+        "y": 722,
+        "detection_method": "spacing"
+      },
+      {
+        "question_number": 35,
+        "local_question_number": 8,
+        "column": 3,
+        "option": "E",
+        "x": 802,
+        "y": 722,
+        "detection_method": "spacing"
+      },
+      {
+        "question_number": 36,
+        "local_question_number": 9,
+        "column": 3,
+        "option": "A",
+        "x": 642,
+        "y": 827,
+        "detection_method": "spacing"
+      },
+      {
+        "question_number": 36,
+        "local_question_number": 9,
+        "column": 3,
+        "option": "B",
+        "x": 682,
+        "y": 827,
+        "detection_method": "spacing"
+      },
+      {
+        "question_number": 36,
+        "local_question_number": 9,
+        "column": 3,
+        "option": "C",
+        "x": 722,
+        "y": 827,
+        "detection_method": "spacing"
+      },
+      {
+        "question_number": 36,
+        "local_question_number": 9,
+        "column": 3,
+        "option": "D",
+        "x": 762,
+        "y": 827,
+        "detection_method": "spacing"
+      },
+      {
+        "question_number": 36,
+        "local_question_number": 9,
+        "column": 3,
+        "option": "E",
+        "x": 802,
+        "y": 827,
+        "detection_method": "spacing"
+      },
+      {
+        "question_number": 37,
+        "local_question_number": 10,
+        "column": 3,
+        "option": "A",
+        "x": 642,
+        "y": 864,
+        "detection_method": "spacing"
+      },
+      {
+        "question_number": 37,
+        "local_question_number": 10,
+        "column": 3,
+        "option": "B",
+        "x": 682,
+        "y": 864,
+        "detection_method": "spacing"
+      },
+      {
+        "question_number": 37,
+        "local_question_number": 10,
+        "column": 3,
+        "option": "C",
+        "x": 722,
+        "y": 864,
+        "detection_method": "spacing"
+      },
+      {
+        "question_number": 37,
+        "local_question_number": 10,
+        "column": 3,
+        "option": "D",
+        "x": 762,
+        "y": 864,
+        "detection_method": "spacing"
+      },
+      {
+        "question_number": 37,
+        "local_question_number": 10,
+        "column": 3,
+        "option": "E",
+        "x": 802,
+        "y": 864,
+        "detection_method": "spacing"
+      },
+      {
+        "question_number": 38,
+        "local_question_number": 11,
+        "column": 3,
+        "option": "A",
+        "x": 642,
+        "y": 917,
+        "detection_method": "spacing"
+      },
+      {
+        "question_number": 38,
+        "local_question_number": 11,
+        "column": 3,
+        "option": "B",
+        "x": 682,
+        "y": 917,
+        "detection_method": "spacing"
+      },
+      {
+        "question_number": 38,
+        "local_question_number": 11,
+        "column": 3,
+        "option": "C",
+        "x": 722,
+        "y": 917,
+        "detection_method": "spacing"
+      },
+      {
+        "question_number": 38,
+        "local_question_number": 11,
+        "column": 3,
+        "option": "D",
+        "x": 762,
+        "y": 917,
+        "detection_method": "spacing"
+      },
+      {
+        "question_number": 38,
+        "local_question_number": 11,
+        "column": 3,
+        "option": "E",
+        "x": 802,
+        "y": 917,
+        "detection_method": "spacing"
+      },
+      {
+        "question_number": 39,
+        "local_question_number": 12,
+        "column": 3,
+        "option": "A",
+        "x": 642,
+        "y": 957,
+        "detection_method": "spacing"
+      },
+      {
+        "question_number": 39,
+        "local_question_number": 12,
+        "column": 3,
+        "option": "B",
+        "x": 682,
+        "y": 957,
+        "detection_method": "spacing"
+      },
+      {
+        "question_number": 39,
+        "local_question_number": 12,
+        "column": 3,
+        "option": "C",
+        "x": 722,
+        "y": 957,
+        "detection_method": "spacing"
+      },
+      {
+        "question_number": 39,
+        "local_question_number": 12,
+        "column": 3,
+        "option": "D",
+        "x": 762,
+        "y": 957,
+        "detection_method": "spacing"
+      },
+      {
+        "question_number": 39,
+        "local_question_number": 12,
+        "column": 3,
+        "option": "E",
+        "x": 802,
+        "y": 957,
+        "detection_method": "spacing"
+      },
+      {
+        "question_number": 40,
+        "local_question_number": 13,
+        "column": 3,
+        "option": "A",
+        "x": 642,
+        "y": 1004,
+        "detection_method": "spacing"
+      },
+      {
+        "question_number": 40,
+        "local_question_number": 13,
+        "column": 3,
+        "option": "B",
+        "x": 682,
+        "y": 1004,
+        "detection_method": "spacing"
+      },
+      {
+        "question_number": 40,
+        "local_question_number": 13,
+        "column": 3,
+        "option": "C",
+        "x": 722,
+        "y": 1004,
+        "detection_method": "spacing"
+      },
+      {
+        "question_number": 40,
+        "local_question_number": 13,
+        "column": 3,
+        "option": "D",
+        "x": 762,
+        "y": 1004,
+        "detection_method": "spacing"
+      },
+      {
+        "question_number": 40,
+        "local_question_number": 13,
+        "column": 3,
+        "option": "E",
+        "x": 802,
+        "y": 1004,
+        "detection_method": "spacing"
+      },
+      {
+        "question_number": 41,
+        "local_question_number": 14,
+        "column": 3,
+        "option": "A",
+        "x": 642,
+        "y": 1063,
+        "detection_method": "spacing"
+      },
+      {
+        "question_number": 41,
+        "local_question_number": 14,
+        "column": 3,
+        "option": "B",
+        "x": 682,
+        "y": 1063,
+        "detection_method": "spacing"
+      },
+      {
+        "question_number": 41,
+        "local_question_number": 14,
+        "column": 3,
+        "option": "C",
+        "x": 722,
+        "y": 1063,
+        "detection_method": "spacing"
+      },
+      {
+        "question_number": 41,
+        "local_question_number": 14,
+        "column": 3,
+        "option": "D",
+        "x": 762,
+        "y": 1063,
+        "detection_method": "spacing"
+      },
+      {
+        "question_number": 41,
+        "local_question_number": 14,
+        "column": 3,
+        "option": "E",
+        "x": 802,
+        "y": 1063,
+        "detection_method": "spacing"
+      },
+      {
+        "question_number": 42,
+        "local_question_number": 15,
+        "column": 3,
+        "option": "A",
+        "x": 642,
+        "y": 1097,
+        "detection_method": "spacing"
+      },
+      {
+        "question_number": 42,
+        "local_question_number": 15,
+        "column": 3,
+        "option": "B",
+        "x": 682,
+        "y": 1097,
+        "detection_method": "spacing"
+      },
+      {
+        "question_number": 42,
+        "local_question_number": 15,
+        "column": 3,
+        "option": "C",
+        "x": 722,
+        "y": 1097,
+        "detection_method": "spacing"
+      },
+      {
+        "question_number": 42,
+        "local_question_number": 15,
+        "column": 3,
+        "option": "D",
+        "x": 762,
+        "y": 1097,
+        "detection_method": "spacing"
+      },
+      {
+        "question_number": 42,
+        "local_question_number": 15,
+        "column": 3,
+        "option": "E",
+        "x": 802,
+        "y": 1097,
+        "detection_method": "spacing"
+      },
+      {
+        "question_number": 43,
+        "local_question_number": 16,
+        "column": 3,
+        "option": "A",
+        "x": 642,
+        "y": 1143,
+        "detection_method": "spacing"
+      },
+      {
+        "question_number": 43,
+        "local_question_number": 16,
+        "column": 3,
+        "option": "B",
+        "x": 682,
+        "y": 1143,
+        "detection_method": "spacing"
+      },
+      {
+        "question_number": 43,
+        "local_question_number": 16,
+        "column": 3,
+        "option": "C",
+        "x": 722,
+        "y": 1143,
+        "detection_method": "spacing"
+      },
+      {
+        "question_number": 43,
+        "local_question_number": 16,
+        "column": 3,
+        "option": "D",
+        "x": 762,
+        "y": 1143,
+        "detection_method": "spacing"
+      },
+      {
+        "question_number": 43,
+        "local_question_number": 16,
+        "column": 3,
+        "option": "E",
+        "x": 802,
+        "y": 1143,
+        "detection_method": "spacing"
+      },
+      {
+        "question_number": 44,
+        "local_question_number": 17,
+        "column": 3,
+        "option": "A",
+        "x": 642,
+        "y": 1199,
+        "detection_method": "spacing"
+      },
+      {
+        "question_number": 44,
+        "local_question_number": 17,
+        "column": 3,
+        "option": "B",
+        "x": 682,
+        "y": 1199,
+        "detection_method": "spacing"
+      },
+      {
+        "question_number": 44,
+        "local_question_number": 17,
+        "column": 3,
+        "option": "C",
+        "x": 722,
+        "y": 1199,
+        "detection_method": "spacing"
+      },
+      {
+        "question_number": 44,
+        "local_question_number": 17,
+        "column": 3,
+        "option": "D",
+        "x": 762,
+        "y": 1199,
+        "detection_method": "spacing"
+      },
+      {
+        "question_number": 44,
+        "local_question_number": 17,
+        "column": 3,
+        "option": "E",
+        "x": 802,
+        "y": 1199,
+        "detection_method": "spacing"
+      },
+      {
+        "question_number": 45,
+        "local_question_number": 18,
+        "column": 3,
+        "option": "A",
+        "x": 642,
+        "y": 1236,
+        "detection_method": "spacing"
+      },
+      {
+        "question_number": 45,
+        "local_question_number": 18,
+        "column": 3,
+        "option": "B",
+        "x": 682,
+        "y": 1236,
+        "detection_method": "spacing"
+      },
+      {
+        "question_number": 45,
+        "local_question_number": 18,
+        "column": 3,
+        "option": "C",
+        "x": 722,
+        "y": 1236,
+        "detection_method": "spacing"
+      },
+      {
+        "question_number": 45,
+        "local_question_number": 18,
+        "column": 3,
+        "option": "D",
+        "x": 762,
+        "y": 1236,
+        "detection_method": "spacing"
+      },
+      {
+        "question_number": 45,
+        "local_question_number": 18,
+        "column": 3,
+        "option": "E",
+        "x": 802,
+        "y": 1236,
+        "detection_method": "spacing"
+      },
+      {
+        "question_number": 46,
+        "local_question_number": 19,
+        "column": 3,
+        "option": "A",
+        "x": 651,
+        "y": 1423,
+        "detection_method": "circle"
+      },
+      {
+        "question_number": 46,
+        "local_question_number": 19,
+        "column": 3,
+        "option": "B",
+        "x": 682,
+        "y": 1419,
+        "detection_method": "spacing"
+      },
+      {
+        "question_number": 46,
+        "local_question_number": 19,
+        "column": 3,
+        "option": "C",
+        "x": 722,
+        "y": 1419,
+        "detection_method": "spacing"
+      },
+      {
+        "question_number": 46,
+        "local_question_number": 19,
+        "column": 3,
+        "option": "D",
+        "x": 762,
+        "y": 1419,
+        "detection_method": "spacing"
+      },
+      {
+        "question_number": 46,
+        "local_question_number": 19,
+        "column": 3,
+        "option": "E",
+        "x": 802,
+        "y": 1419,
+        "detection_method": "spacing"
+      },
+      {
+        "question_number": 47,
+        "local_question_number": 20,
+        "column": 3,
+        "option": "A",
+        "x": 642,
+        "y": 1449,
+        "detection_method": "spacing"
+      },
+      {
+        "question_number": 47,
+        "local_question_number": 20,
+        "column": 3,
+        "option": "B",
+        "x": 682,
+        "y": 1449,
+        "detection_method": "spacing"
+      },
+      {
+        "question_number": 47,
+        "local_question_number": 20,
+        "column": 3,
+        "option": "C",
+        "x": 722,
+        "y": 1449,
+        "detection_method": "spacing"
+      },
+      {
+        "question_number": 47,
+        "local_question_number": 20,
+        "column": 3,
+        "option": "D",
+        "x": 762,
+        "y": 1449,
+        "detection_method": "spacing"
+      },
+      {
+        "question_number": 47,
+        "local_question_number": 20,
+        "column": 3,
+        "option": "E",
+        "x": 802,
+        "y": 1449,
+        "detection_method": "spacing"
+      },
+      {
+        "question_number": 48,
+        "local_question_number": 21,
+        "column": 3,
+        "option": "A",
+        "x": 642,
+        "y": 2436,
+        "detection_method": "spacing"
+      },
+      {
+        "question_number": 48,
+        "local_question_number": 21,
+        "column": 3,
+        "option": "B",
+        "x": 682,
+        "y": 2436,
+        "detection_method": "spacing"
+      },
+      {
+        "question_number": 48,
+        "local_question_number": 21,
+        "column": 3,
+        "option": "C",
+        "x": 722,
+        "y": 2436,
+        "detection_method": "spacing"
+      },
+      {
+        "question_number": 48,
+        "local_question_number": 21,
+        "column": 3,
+        "option": "D",
+        "x": 762,
+        "y": 2436,
+        "detection_method": "spacing"
+      },
+      {
+        "question_number": 48,
+        "local_question_number": 21,
+        "column": 3,
+        "option": "E",
+        "x": 802,
+        "y": 2436,
+        "detection_method": "spacing"
+      }
+    ]
+  },
+  "detection_rules": {
+    "marker_detection": {
+      "alignment_marker_min_area": 500,
+      "alignment_marker_max_area": 5000,
+      "question_marker_detection": "horizontal_projection",
+      "bubble_detection_methods": [
+        "contour",
+        "circle",
+        "spacing"
+      ]
+    },
+    "coordinate_generation": {
+      "bubble_spacing": 40,
+      "bubbles_per_question": 5,
+      "options": [
+        "A",
+        "B",
+        "C",
+        "D",
+        "E"
+      ]
+    }
+  }
+}

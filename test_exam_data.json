@@ -1,0 +1,17 @@
+{
+  "name": "Test Exam",
+  "structure": "continuous",
+  "paperSize": "a4",
+  "subjects": [
+    {
+      "name": "Test Subject",
+      "sections": [
+        {
+          "name": "Test Section",
+          "questionCount": 5,
+          "questionType": "multiple_choice_5"
+        }
+      ]
+    }
+  ]
+}

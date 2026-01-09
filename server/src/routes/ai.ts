@@ -249,11 +249,18 @@ const omrAnalysisSchema = Joi.object({
 
 /**
  * POST /api/ai/analyze-omr
- * OMR varaqni tahlil qilish va natijalarni hisoblash
+ * OMR varaqni tahlil qilish va natijalarni hisoblash (format-aware)
  */
 router.post('/analyze-omr', authenticate, async (req: Request, res: Response) => {
   try {
-    const { error, value } = omrAnalysisSchema.validate(req.body)
+    // Extended validation schema for format-aware analysis
+    const extendedOMRSchema = omrAnalysisSchema.keys({
+      examId: Joi.string().optional().messages({
+        'string.base': 'Imtihon ID si string bo\'lishi kerak'
+      })
+    })
+
+    const { error, value } = extendedOMRSchema.validate(req.body)
     if (error) {
       return res.status(400).json({
         success: false,
@@ -262,14 +269,26 @@ router.post('/analyze-omr', authenticate, async (req: Request, res: Response) =>
       })
     }
 
-    const { image, answerKey, scoring } = value
+    const { image, answerKey, scoring, examId } = value
 
-    // Let the AI service handle base64 validation
-    const result = await AIService.analyzeOMRSheet(image, answerKey, scoring)
+    // Get exam format information if examId provided
+    let exam = null
+    if (examId) {
+      try {
+        const Exam = (await import('../models/Exam.js')).default
+        exam = await Exam.findById(examId)
+        console.log('Found exam for format analysis:', exam?.name)
+      } catch (examError) {
+        console.warn('Could not load exam for format analysis:', examError)
+      }
+    }
+
+    // Analyze OMR sheet with format awareness
+    const result = await AIService.analyzeOMRSheetWithFormat(image, answerKey, scoring, exam)
 
     res.json({
       success: true,
-      message: 'OMR varaq muvaffaqiyatli tahlil qilindi',
+      message: 'OMR varaq muvaffaqiyatli tahlil qilindi (format-aware)',
       data: result
     })
 
