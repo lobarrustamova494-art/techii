@@ -1,6 +1,6 @@
 import React, { useRef, useEffect, useState } from 'react'
 import { 
-  Camera, X
+  Camera, X, Bug
 } from 'lucide-react'
 
 interface EvalBeeCameraScannerProps {
@@ -8,6 +8,7 @@ interface EvalBeeCameraScannerProps {
   onClose: () => void
   isProcessing: boolean
   answerKey: string[]
+  onShowDebug?: () => void
 }
 
 interface QualityMetrics {
@@ -30,7 +31,8 @@ interface AlignmentStatus {
 const EvalBeeCameraScanner: React.FC<EvalBeeCameraScannerProps> = ({
   onCapture,
   onClose,
-  isProcessing
+  isProcessing,
+  onShowDebug
 }) => {
   const videoRef = useRef<HTMLVideoElement>(null)
   const canvasRef = useRef<HTMLCanvasElement>(null)
@@ -89,6 +91,7 @@ const EvalBeeCameraScanner: React.FC<EvalBeeCameraScannerProps> = ({
   const startCamera = async () => {
     try {
       setError('')
+      console.log('🎥 EvalBee Camera: Starting camera initialization...')
       
       // EvalBee-style camera constraints - optimized for documents
       const constraints = {
@@ -101,18 +104,23 @@ const EvalBeeCameraScanner: React.FC<EvalBeeCameraScannerProps> = ({
         }
       }
 
+      console.log('📱 Camera constraints:', constraints)
+
       const mediaStream = await navigator.mediaDevices.getUserMedia(constraints)
       setStream(mediaStream)
+
+      console.log('✅ Camera stream obtained successfully')
 
       if (videoRef.current) {
         videoRef.current.srcObject = mediaStream
         videoRef.current.onloadedmetadata = () => {
+          console.log('📺 Video metadata loaded, camera ready for analysis')
           setIsReady(true)
           setupOverlayCanvas()
         }
       }
     } catch (err: any) {
-      console.error('EvalBee Camera Error:', err)
+      console.error('❌ EvalBee Camera Error:', err)
       setError('Kameraga kirish imkoni yo\'q. Brauzer sozlamalarini tekshiring.')
     }
   }
@@ -197,6 +205,16 @@ const EvalBeeCameraScanner: React.FC<EvalBeeCameraScannerProps> = ({
     // 4. Overall Quality (EvalBee method)
     const overall = (focus * 0.4 + brightness * 0.3 + alignment.alignment * 0.3)
     
+    // Debug logging for mobile debugging
+    console.log('📊 EvalBee Camera Analysis:', {
+      focus: Math.round(focus * 100) + '%',
+      brightness: Math.round(brightness * 100) + '%',
+      alignment: Math.round(alignment.alignment * 100) + '%',
+      overall: Math.round(overall * 100) + '%',
+      detectedMarkers: alignment.corners.filter(c => c.detected).length,
+      paperDetected: alignment.paperDetected
+    })
+    
     // Update states
     setQualityMetrics({
       focus,
@@ -221,14 +239,26 @@ const EvalBeeCameraScanner: React.FC<EvalBeeCameraScannerProps> = ({
       alignment.alignment >= 0.75 // Good alignment required (75%+ corners)
     )
     
+    if (canCaptureNow !== canCapture) {
+      console.log('🎯 Capture status changed:', canCaptureNow ? 'Ready to capture' : 'Not ready', {
+        focus: focus >= 0.7,
+        brightness: brightness >= 0.3 && brightness <= 0.8,
+        paperDetected: alignment.paperDetected,
+        markersDetected: `${detectedMarkers}/4`,
+        alignmentGood: alignment.alignment >= 0.75
+      })
+    }
+    
     setCanCapture(canCaptureNow)
     
     // EvalBee Feature: Auto-scan when conditions are perfect
     if (canCaptureNow && overall >= 0.9) {
       if (autoScanCountdown === 0) {
+        console.log('✨ Perfect conditions detected! Starting auto-capture countdown...')
         setAutoScanCountdown(3) // 3 second countdown
         setTimeout(() => {
           if (canCapture && overall >= 0.9) {
+            console.log('📸 Auto-capture triggered!')
             captureImage()
           }
           setAutoScanCountdown(0)
@@ -504,6 +534,8 @@ const EvalBeeCameraScanner: React.FC<EvalBeeCameraScannerProps> = ({
   const captureImage = async () => {
     if (!videoRef.current || !canvasRef.current || !isReady || !canCapture) return
 
+    console.log('📸 EvalBee Camera: Starting image capture...')
+
     // EvalBee Method: Stop video stream during processing
     if (animationFrameRef.current) {
       cancelAnimationFrame(animationFrameRef.current)
@@ -520,8 +552,16 @@ const EvalBeeCameraScanner: React.FC<EvalBeeCameraScannerProps> = ({
     canvas.height = video.videoHeight
     context.drawImage(video, 0, 0, canvas.width, canvas.height)
 
+    console.log('📷 Image captured:', {
+      width: canvas.width,
+      height: canvas.height,
+      quality: Math.round(qualityMetrics.overall * 100) + '%'
+    })
+
     // Get image data
     const finalImageData = canvas.toDataURL('image/jpeg', 0.95)
+    
+    console.log('✅ EvalBee Camera: Image capture completed successfully')
     
     // Call parent callback
     onCapture(finalImageData, qualityMetrics)
@@ -579,13 +619,24 @@ const EvalBeeCameraScanner: React.FC<EvalBeeCameraScannerProps> = ({
               </div>
             )}
             
-            {/* Close button - top right */}
-            <button
-              onClick={onClose}
-              className="absolute top-4 right-4 p-2 bg-black/50 hover:bg-black/70 rounded-full text-white transition-colors z-10"
-            >
-              <X size={24} />
-            </button>
+            {/* Close button and Debug button - top right */}
+            <div className="absolute top-4 right-4 flex items-center gap-2 z-10">
+              {onShowDebug && (
+                <button
+                  onClick={onShowDebug}
+                  className="p-2 bg-black/50 hover:bg-black/70 rounded-full text-white transition-colors"
+                  title="Open Debug Console"
+                >
+                  <Bug size={20} />
+                </button>
+              )}
+              <button
+                onClick={onClose}
+                className="p-2 bg-black/50 hover:bg-black/70 rounded-full text-white transition-colors"
+              >
+                <X size={24} />
+              </button>
+            </div>
           </>
         )}
       </div>

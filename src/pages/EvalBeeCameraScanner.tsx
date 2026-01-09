@@ -3,7 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom'
 import { 
   Camera, Brain, Target, CheckCircle, AlertTriangle,
   Eye, BarChart3, TrendingUp, Download, Share2,
-  RefreshCw
+  RefreshCw, Bug
 } from 'lucide-react'
 import Header from '@/components/layout/Header'
 import Button from '@/components/ui/Button'
@@ -11,7 +11,9 @@ import Card from '@/components/ui/Card'
 import LoadingSpinner from '@/components/ui/LoadingSpinner'
 import ProgressBar from '@/components/ui/ProgressBar'
 import EvalBeeCameraScanner from '@/components/EvalBeeCameraScanner'
+import MobileDebugModal from '@/components/MobileDebugModal'
 import { useAuth } from '@/contexts/AuthContext'
+import { useConsoleLogger } from '@/hooks/useConsoleLogger'
 import { apiService } from '@/services/api'
 
 interface QualityMetrics {
@@ -58,6 +60,16 @@ const EvalBeeCameraScannerPage: React.FC = () => {
   const navigate = useNavigate()
   const { user } = useAuth()
   
+  // Console logger for mobile debugging
+  const {
+    logs,
+    isCapturing: isLoggingActive,
+    startCapturing: startLogging,
+    stopCapturing: stopLogging,
+    clearLogs,
+    exportLogs
+  } = useConsoleLogger()
+  
   const [exam, setExam] = useState<any>(null)
   const [loading, setLoading] = useState(true)
   const [processing, setProcessing] = useState(false)
@@ -68,9 +80,17 @@ const EvalBeeCameraScannerPage: React.FC = () => {
   const [capturedImage, setCapturedImage] = useState<string | null>(null)
   const [captureQuality, setCaptureQuality] = useState<QualityMetrics | null>(null)
   const [showAdvancedMetrics, setShowAdvancedMetrics] = useState(false)
+  const [showDebugModal, setShowDebugModal] = useState(false)
 
   useEffect(() => {
     loadExam()
+    // Start logging automatically for debugging
+    startLogging()
+    
+    return () => {
+      // Stop logging when component unmounts
+      stopLogging()
+    }
   }, [id])
 
   const loadExam = async () => {
@@ -288,6 +308,7 @@ const EvalBeeCameraScannerPage: React.FC = () => {
         onClose={() => setShowCamera(false)}
         isProcessing={processing}
         answerKey={exam?.answerKey || []}
+        onShowDebug={() => setShowDebugModal(true)}
       />
     )
   }
@@ -334,6 +355,20 @@ const EvalBeeCameraScannerPage: React.FC = () => {
                       <span>EvalBee Engine</span>
                     </div>
                   </div>
+                </div>
+                
+                {/* Mobile Debug Button */}
+                <div className="flex items-center gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setShowDebugModal(true)}
+                    className="flex items-center gap-2"
+                  >
+                    <Bug size={16} />
+                    <span className="hidden sm:inline">Debug</span>
+                    <div className={`w-2 h-2 rounded-full ${isLoggingActive ? 'bg-green-500 animate-pulse' : 'bg-gray-400'}`} />
+                  </Button>
                 </div>
               </div>
             </div>
@@ -751,6 +786,18 @@ const EvalBeeCameraScannerPage: React.FC = () => {
           </div>
         )}
       </div>
+      
+      {/* Mobile Debug Modal */}
+      <MobileDebugModal
+        isOpen={showDebugModal}
+        onClose={() => setShowDebugModal(false)}
+        logs={logs}
+        isCapturing={isLoggingActive}
+        onStartCapturing={startLogging}
+        onStopCapturing={stopLogging}
+        onClearLogs={clearLogs}
+        onExportLogs={exportLogs}
+      />
     </div>
   )
 }

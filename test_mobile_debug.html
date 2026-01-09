@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>EvalBee Mobile Debug Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .container {
+            max-width: 600px;
+            margin: 0 auto;
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .button {
+            background: #3b82f6;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 8px;
+            cursor: pointer;
+            margin: 5px;
+            font-size: 16px;
+        }
+        .button:hover {
+            background: #2563eb;
+        }
+        .status {
+            margin: 20px 0;
+            padding: 10px;
+            border-radius: 5px;
+            background: #e5f3ff;
+            border-left: 4px solid #3b82f6;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🐛 EvalBee Mobile Debug Test</h1>
+        <p>This page tests the mobile debug functionality for EvalBee Camera Scanner.</p>
+        
+        <div class="status">
+            <strong>Instructions:</strong><br>
+            1. Open this page on your mobile device<br>
+            2. Click the buttons below to generate test logs<br>
+            3. Open the EvalBee Camera Scanner<br>
+            4. Click the Debug button to view captured logs
+        </div>
+
+        <h3>Test Log Generation:</h3>
+        <button class="button" onclick="testInfo()">Generate Info Log</button>
+        <button class="button" onclick="testWarning()">Generate Warning Log</button>
+        <button class="button" onclick="testError()">Generate Error Log</button>
+        <button class="button" onclick="testCameraFlow()">Simulate Camera Flow</button>
+
+        <h3>Navigation:</h3>
+        <button class="button" onclick="goToEvalBee()">Open EvalBee Camera Scanner</button>
+    </div>
+
+    <script>
+        function testInfo() {
+            console.info('📱 Mobile Debug Test: Info message generated at', new Date().toLocaleTimeString());
+            console.log('ℹ️ This is a test info log for mobile debugging');
+        }
+
+        function testWarning() {
+            console.warn('⚠️ Mobile Debug Test: Warning message generated at', new Date().toLocaleTimeString());
+            console.warn('🚨 This is a test warning log for mobile debugging');
+        }
+
+        function testError() {
+            console.error('❌ Mobile Debug Test: Error message generated at', new Date().toLocaleTimeString());
+            console.error('💥 This is a test error log for mobile debugging');
+        }
+
+        function testCameraFlow() {
+            console.log('🎥 Simulating EvalBee Camera Flow...');
+            setTimeout(() => console.info('📊 Camera quality analysis started'), 500);
+            setTimeout(() => console.log('🎯 Focus: 85%, Brightness: 70%, Alignment: 90%'), 1000);
+            setTimeout(() => console.warn('⚡ Image quality could be improved'), 1500);
+            setTimeout(() => console.log('✅ Camera ready for capture'), 2000);
+            setTimeout(() => console.info('📸 Image captured successfully'), 2500);
+        }
+
+        function goToEvalBee() {
+            // This would navigate to the EvalBee camera scanner
+            // For testing, we'll just show an alert
+            alert('In a real app, this would navigate to the EvalBee Camera Scanner page where you can test the debug modal.');
+        }
+
+        // Generate some initial logs
+        console.log('🚀 EvalBee Mobile Debug Test page loaded');
+        console.info('📱 Ready for mobile debugging tests');
+    </script>
+</body>
+</html>
