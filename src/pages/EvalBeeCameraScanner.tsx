@@ -128,14 +128,20 @@ const EvalBeeCameraScannerPage: React.FC = () => {
 
     try {
       console.log('🚀 EvalBee Camera Processing started')
+      console.log('📊 Quality metrics:', qualityMetrics)
+      console.log('📋 Answer key:', exam.answerKey)
+      console.log('🏷️ Exam ID:', exam.id)
       
       const startTime = Date.now()
       
       // Convert base64 to File for API
+      console.log('🔄 Converting image data to file...')
       const blob = await fetch(imageData).then(r => r.blob())
       const file = new File([blob], 'evalbee-camera-capture.jpg', { type: 'image/jpeg' })
+      console.log('📁 File created:', file.name, file.size, 'bytes')
       
       // Process with EvalBee engine
+      console.log('📤 Sending request to EvalBee engine...')
       const omrResult = await apiService.processOMRWithEvalBee(
         file,
         exam.answerKey,
@@ -150,20 +156,27 @@ const EvalBeeCameraScannerPage: React.FC = () => {
         }
       )
 
+      console.log('✅ EvalBee processing response received:', omrResult)
+
       clearInterval(progressInterval)
       setProcessingProgress(100)
 
       const processingTime = (Date.now() - startTime) / 1000
 
+      // Check if response is successful
+      if (!omrResult.success) {
+        throw new Error(omrResult.message || 'EvalBee processing failed')
+      }
+
       // Transform result to EvalBee format with camera quality integration
       const evalBeeResult: EvalBeeResult = {
-        extracted_answers: omrResult.data?.extracted_answers || [],
-        confidence_scores: omrResult.data?.detailed_results?.map((r: any) => r.confidence) || [],
+        extracted_answers: omrResult.data?.extractedAnswers || [],
+        confidence_scores: omrResult.data?.results?.map((r: any) => r.confidence) || [],
         overall_confidence: omrResult.data?.confidence || 0,
         processing_time: processingTime,
         layout_analysis: {
-          layout_type: omrResult.data?.processing_details?.layout_type || 'camera_detected',
-          total_questions: omrResult.data?.processing_details?.actual_question_count || 0,
+          layout_type: omrResult.data?.processingDetails?.layout_type || 'camera_detected',
+          total_questions: omrResult.data?.processingDetails?.actual_question_count || omrResult.data?.extractedAnswers?.length || 0,
           columns: 3,
           format_confidence: omrResult.data?.confidence || 0
         },
@@ -175,7 +188,7 @@ const EvalBeeCameraScannerPage: React.FC = () => {
           skew_angle: qualityMetrics.skew * 10,
           overall_quality: qualityMetrics.overall
         },
-        detailed_results: omrResult.data?.detailed_results || [],
+        detailed_results: omrResult.data?.results || [],
         error_flags: [],
         recommendations: []
       }
@@ -214,7 +227,23 @@ const EvalBeeCameraScannerPage: React.FC = () => {
 
     } catch (error: any) {
       console.error('❌ EvalBee Camera processing error:', error)
-      setError('EvalBee kamera qayta ishlashda xatolik: ' + error.message)
+      console.error('❌ Error details:', {
+        message: error.message,
+        stack: error.stack,
+        response: error.response?.data
+      })
+      
+      let errorMessage = 'EvalBee kamera bilan qayta ishlashda xatolik'
+      
+      if (error.message) {
+        errorMessage += ': ' + error.message
+      }
+      
+      if (error.response?.data?.message) {
+        errorMessage += ' (' + error.response.data.message + ')'
+      }
+      
+      setError(errorMessage)
     } finally {
       clearInterval(progressInterval)
       setProcessing(false)
