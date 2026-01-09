@@ -24,7 +24,7 @@ Render Static Site      Render Web Service    Render Web Service
 - **Region**: `Oregon (US West)`
 - **Branch**: `main`
 - **Root Directory**: `python_omr_checker`
-- **Runtime**: `Python 3`
+- **Runtime**: `Python 3.11.9` (specified in runtime.txt)
 - **Build Command**: `pip install -r requirements.txt`
 - **Start Command**: `python run_server.py`
 

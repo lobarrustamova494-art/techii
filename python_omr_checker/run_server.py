@@ -23,7 +23,7 @@ logger = logging.getLogger(__name__)
 def check_dependencies():
     """Check if all required dependencies are installed"""
     required_packages = [
-        'cv2', 'numpy', 'PIL', 'flask', 'flask_cors'
+        'cv2', 'numpy', 'PIL', 'flask', 'flask_cors', 'sklearn', 'scipy', 'matplotlib'
     ]
     
     missing_packages = []
