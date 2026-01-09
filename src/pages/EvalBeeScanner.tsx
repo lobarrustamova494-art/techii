@@ -243,7 +243,7 @@ const EvalBeeScanner: React.FC = () => {
   if (loading) {
     return (
       <div className="min-h-screen bg-slate-50 dark:bg-slate-900">
-        <Header user={user} />
+      {user && <Header user={user} />}
         <div className="flex items-center justify-center h-96">
           <LoadingSpinner size="lg" />
         </div>
@@ -253,7 +253,7 @@ const EvalBeeScanner: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-slate-50 dark:bg-slate-900">
-      <Header user={user} />
+      {user && <Header user={user} />}
       
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Header Section */}
@@ -635,7 +635,7 @@ const EvalBeeScanner: React.FC = () => {
                     </div>
                     <div className="flex items-center gap-2">
                       <div className="w-3 h-3 bg-red-500 rounded"></div>
-                      <span className="text-slate-600 dark:text-slate-400">Low Confidence (<60%)</span>
+                      <span className="text-slate-600 dark:text-slate-400">Low Confidence (&lt;60%)</span>
                     </div>
                   </div>
                   <div className="text-slate-500 dark:text-slate-400">

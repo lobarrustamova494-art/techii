@@ -180,20 +180,13 @@ const ExamScanner: React.FC = () => {
 
       const startTime = Date.now()
       
-      // Check if this is a Perfect OMR Sheet (by filename or other indicator)
-      const isPerfectOMR = file.name.toLowerCase().includes('perfect_omr') || 
-                          uploadedFileName.toLowerCase().includes('perfect_omr')
-      
       // Ultra-Precision OMR processing with Universal Coordinate Detection
-      const omrResult = await apiService.processOMRSheet(
+      const omrResult = await apiService.processOMRWithEvalBee(
         file,
         exam.answerKey,
         exam.scoring || { correct: 1, wrong: 0, blank: 0 },
         exam.id,
-        exam, // Exam ma'lumotlarini to'g'ridan-to'g'ri yuboramiz
-        true,  // Ultra-precision mode - ENABLED
-        true,  // Universal coordinate detection - ENABLED for new formats
-        isPerfectOMR  // Perfect OMR mode - AUTO-DETECT
+        exam // Exam ma'lumotlarini to'g'ridan-to'g'ri yuboramiz
       )
       
       clearInterval(progressInterval)
@@ -226,16 +219,15 @@ const ExamScanner: React.FC = () => {
           ...omrResult.data,
           processingMethod: 'Ultra-Precision OMR V4 Enhanced + Real Coordinates (40/40 accuracy)',
           analysisDetails: {
-            ...omrResult.data?.analysisDetails,
             ultraPrecisionMode: true,
             universalCoordinateDetection: true,
+            coordinateSource: omrResult.data?.coordinate_source || 'Universal Detection',
             multiRadiusAnalysis: true,
             columnSpecificThresholds: true,
-            realCoordinateMapping: true,
-            coordinateSource: omrResult.data?.processing_details?.coordinate_source || 'Universal Detection'
+            realCoordinateMapping: true
           }
         },
-        detailedResults: omrResult.data?.results
+        detailedResults: omrResult.data?.results || []
       }
       
       console.log('Final Ultra-Precision OMR Processing Result:', result)
@@ -243,14 +235,14 @@ const ExamScanner: React.FC = () => {
       
       // Show success message with enhanced details
       if (omrResult.data?.confidence < 0.7) {
-        const coordinateSource = omrResult.data?.processing_details?.coordinate_source || 'Universal Detection'
+        const coordinateSource = omrResult.data?.coordinate_source || 'Universal Detection'
         setError(`Ultra-Precision OMR V2 + Universal Coordinates tahlil yakunlandi. Koordinata manbai: ${coordinateSource}. Ishonch darajasi: ${Math.round((omrResult.data?.confidence || 0) * 100)}%. Rasm sifatini yaxshilang yoki qayta suratga oling.`)
       } else {
         console.log('✅ Ultra-Precision OMR V2 + Universal Coordinates processing completed successfully!')
         // Show success notification
-        const detectionRate = omrResult.data?.processing_details?.actual_question_count || 0
+        const detectionRate = omrResult.data?.actual_question_count || 0
         const expectedQuestions = exam.answerKey.length
-        const coordinateSource = omrResult.data?.processing_details?.coordinate_source || 'Universal Detection'
+        const coordinateSource = omrResult.data?.coordinate_source || 'Universal Detection'
         console.log(`🎯 Detection: ${detectionRate}/${expectedQuestions} questions (${Math.round((detectionRate/expectedQuestions)*100)}%)`)
         console.log(`📍 Coordinate source: ${coordinateSource}`)
       }
@@ -427,93 +419,9 @@ const ExamScanner: React.FC = () => {
     }
   }
 
-  const processWithAI = async (imageData: string) => {
-    if (!exam || !exam.answerKey || exam.answerKey.length === 0) {
-      setError('Imtihon kalitlari belgilanmagan')
-      return
-    }
-
-    console.log('=== AI TAHLIL BOSHLANDI ===')
-    console.log('Exam data:', exam)
-    console.log('Answer key:', exam.answerKey)
-    console.log('Total questions expected:', exam.answerKey.length)
-    console.log('Scoring:', exam.scoring)
-
-    setAiAnalyzing(true)
-    setAnalysisProgress(0)
-    setError('')
-    
-    try {
-      // Progress simulation with more realistic timing
-      const progressInterval = setInterval(() => {
-        setAnalysisProgress(prev => {
-          if (prev >= 85) {
-            clearInterval(progressInterval)
-            return 85
-          }
-          return prev + 15
-        })
-      }, 800)
-
-      const startTime = Date.now()
-      
-      // AI tahlil - format-aware
-      const aiResult = await apiService.analyzeOMRSheet(
-        imageData,
-        exam.answerKey,
-        exam.scoring || { correct: 1, wrong: 0, blank: 0 },
-        exam.id // Exam ID ni yuborish format ma'lumotlari uchun
-      )
-      
-      clearInterval(progressInterval)
-      setAnalysisProgress(100)
-      
-      const processingTime = Date.now() - startTime
-      
-      console.log('AI Result (Format-Aware):', aiResult)
-      console.log('Expected vs Actual questions:', exam.answerKey.length, 'vs', aiResult.data?.extractedAnswers?.length)
-      
-      // Validate results
-      if (aiResult.data?.extractedAnswers?.length !== exam.answerKey.length) {
-        console.warn(`Javoblar soni mos kelmaydi: kutilgan ${exam.answerKey.length}, topilgan ${aiResult.data?.extractedAnswers?.length}`)
-      }
-      
-      // Natijani formatlash
-      const result: ScanResult = {
-        studentId: 'AI-SCAN-' + Date.now(),
-        studentName: `AI Tahlil (${exam.answerKey.length} savol)${aiResult.data?.analysisDetails?.formatAware ? ' [Format-Aware]' : ''}`,
-        answers: {}, // AI dan kelgan javoblarni formatlash
-        score: aiResult.data?.summary?.totalScore || 0,
-        totalQuestions: exam.answerKey.length,
-        correctAnswers: aiResult.data?.summary?.correctAnswers || 0,
-        wrongAnswers: aiResult.data?.summary?.wrongAnswers || 0,
-        blankAnswers: aiResult.data?.summary?.blankAnswers || 0,
-        confidence: aiResult.data?.confidence || 0.5,
-        processingTime,
-        scannedImage: imageData,
-        aiAnalysis: aiResult.data,
-        detailedResults: aiResult.data?.results
-      }
-      
-      console.log('Final AI Result (Format-Aware):', result)
-      setScanResult(result)
-      
-      // Show success message with details
-      if (aiResult.data?.confidence < 0.7) {
-        const formatAwareMsg = aiResult.data?.analysisDetails?.formatAware ? 'Format-aware tahlil amalga oshirildi. ' : ''
-        setError(`${formatAwareMsg}Ishonch darajasi past (${Math.round((aiResult.data?.confidence || 0) * 100)}%). Rasm sifatini yaxshilang yoki qayta suratga oling.`)
-      } else if (aiResult.data?.analysisDetails?.formatAware) {
-        console.log('✅ Format-aware analysis completed successfully!')
-      }
-      
-    } catch (error: any) {
-      console.error('AI tahlil xatosi:', error)
-      setError('AI tahlil qilishda xatolik yuz berdi: ' + error.message)
-    } finally {
-      setAiAnalyzing(false)
-      setAnalysisProgress(0)
-    }
-  }
+  // const processWithAI = async (imageData: string) => {
+  //   // Function removed to fix build errors
+  // }
 
   const handleSaveResult = async () => {
     if (!scanResult || !exam) return
@@ -619,17 +527,17 @@ const ExamScanner: React.FC = () => {
               <div className="text-sm text-slate-500 dark:text-slate-400 mb-4">
                 Ishonch darajasi: {Math.round(scanResult.confidence * 100)}% | 
                 Qayta ishlash vaqti: {Math.round(scanResult.processingTime / 1000)}s
-                {scanResult.aiAnalysis?.analysisDetails?.universalCoordinateDetection && (
+                {scanResult.aiAnalysis && (scanResult.aiAnalysis as any)?.analysisDetails?.universalCoordinateDetection && (
                   <span className="ml-2 text-green-600 dark:text-green-400 font-medium">
                     [Universal Coordinate Detection]
                   </span>
                 )}
-                {scanResult.aiAnalysis?.analysisDetails?.coordinateSource && (
+                {scanResult.aiAnalysis && (scanResult.aiAnalysis as any)?.analysisDetails?.coordinateSource && (
                   <div className="text-xs text-slate-400 mt-1">
-                    Koordinata manbai: {scanResult.aiAnalysis.analysisDetails.coordinateSource}
+                    Koordinata manbai: {(scanResult.aiAnalysis as any).analysisDetails.coordinateSource}
                   </div>
                 )}
-                {scanResult.confidence < 0.9 && !scanResult.aiAnalysis?.analysisDetails?.ultraPrecisionMode && (
+                {scanResult.confidence < 0.9 && !(scanResult.aiAnalysis as any)?.analysisDetails?.ultraPrecisionMode && (
                   <span className="ml-2 text-blue-600 dark:text-blue-400">
                     (Demo rejim - OpenAI API key kerak haqiqiy tahlil uchun)
                   </span>
@@ -677,7 +585,7 @@ const ExamScanner: React.FC = () => {
           </Card>
 
           {/* Ultra-Precision OMR V4 Enhanced tafsilotlari */}
-          {(scanResult.aiAnalysis?.analysisDetails?.ultraPrecisionMode || scanResult.aiAnalysis?.analysisDetails?.universalCoordinateDetection) && (
+          {((scanResult.aiAnalysis as any)?.analysisDetails?.ultraPrecisionMode || (scanResult.aiAnalysis as any)?.analysisDetails?.universalCoordinateDetection) && (
             <Card className="mb-6">
               <h3 className="text-lg font-semibold text-slate-900 dark:text-white mb-4 flex items-center gap-2">
                 <Zap size={20} className="text-purple-600" />
@@ -691,14 +599,14 @@ const ExamScanner: React.FC = () => {
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4 p-4 bg-gradient-to-r from-purple-50 to-green-50 dark:from-purple-900/20 dark:to-green-900/20 rounded-lg">
                 <div className="text-center">
                   <div className="text-lg font-bold text-purple-600">
-                    {scanResult.aiAnalysis?.processing_details?.actual_question_count || 'Auto'}
+                    {(scanResult.aiAnalysis as any)?.actual_question_count || 'Auto'}
                   </div>
                   <div className="text-xs text-slate-500">Savol aniqlandi</div>
                 </div>
                 <div className="text-center">
                   <div className="text-lg font-bold text-green-600">
-                    {scanResult.aiAnalysis?.processing_details?.bubble_detection_accuracy ? 
-                      Math.round(scanResult.aiAnalysis.processing_details.bubble_detection_accuracy * 100) : 88}%
+                    {(scanResult.aiAnalysis as any)?.bubble_detection_accuracy ? 
+                      Math.round((scanResult.aiAnalysis as any).bubble_detection_accuracy * 100) : 88}%
                   </div>
                   <div className="text-xs text-slate-500">Detection Accuracy</div>
                 </div>
@@ -759,12 +667,12 @@ const ExamScanner: React.FC = () => {
               </div>
 
               {/* Koordinata manbai ma'lumoti */}
-              {scanResult.aiAnalysis?.analysisDetails?.coordinateSource && (
+              {scanResult.aiAnalysis && (scanResult.aiAnalysis as any)?.analysisDetails?.coordinateSource && (
                 <div className="mt-4 p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
                   <div className="text-sm">
                     <span className="font-medium text-blue-900 dark:text-blue-100">Koordinata manbai:</span>
                     <span className="ml-2 text-blue-700 dark:text-blue-300">
-                      {scanResult.aiAnalysis.analysisDetails.coordinateSource}
+                      {(scanResult.aiAnalysis as any).analysisDetails.coordinateSource}
                     </span>
                   </div>
                 </div>
@@ -777,7 +685,7 @@ const ExamScanner: React.FC = () => {
             <Card className="mb-6">
               <h3 className="text-lg font-semibold text-slate-900 dark:text-white mb-4 flex items-center gap-2">
                 <Brain size={20} className="text-purple-600" />
-                {scanResult.aiAnalysis?.analysisDetails?.ultraPrecisionMode ? 'Ultra-Precision' : 'AI'} Tahlil Tafsilotlari
+                {(scanResult.aiAnalysis as any)?.analysisDetails?.ultraPrecisionMode ? 'Ultra-Precision' : 'AI'} Tahlil Tafsilotlari
                 <span className="text-sm font-normal text-slate-500 dark:text-slate-400">
                   ({scanResult.detailedResults.length} savol tahlil qilindi)
                 </span>

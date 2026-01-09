@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { Calendar, Clock, FileText, Users, Key, ScanLine, Download, ChevronDown, Camera, Target } from 'lucide-react'
+import { Calendar, Clock, FileText, Users, Key, ScanLine, Download, ChevronDown, Camera } from 'lucide-react'
 import Header from '@/components/layout/Header'
 import Button from '@/components/ui/Button'
 import Card from '@/components/ui/Card'

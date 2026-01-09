@@ -1,11 +1,16 @@
 import React, { useState } from 'react'
 import { LogOut, Settings, Home } from 'lucide-react'
-import { User } from '@/types'
 import { useAuth } from '@/contexts/AuthContext'
 import { useNavigate } from 'react-router-dom'
 
 interface HeaderProps {
-  user: User
+  user: {
+    id: string
+    name: string
+    phone?: string
+    avatar?: string
+    isOnline?: boolean
+  }
   title?: string
   showBack?: boolean
   showHome?: boolean
