@@ -1,7 +1,6 @@
 import React, { useRef, useEffect, useState } from 'react'
 import { 
-  Camera, RotateCcw, X, CheckCircle, AlertTriangle, 
-  Eye, Target
+  Camera, X
 } from 'lucide-react'
 
 interface EvalBeeCameraScannerProps {
@@ -31,18 +30,16 @@ interface AlignmentStatus {
 const EvalBeeCameraScanner: React.FC<EvalBeeCameraScannerProps> = ({
   onCapture,
   onClose,
-  isProcessing,
-  answerKey
+  isProcessing
 }) => {
   const videoRef = useRef<HTMLVideoElement>(null)
   const canvasRef = useRef<HTMLCanvasElement>(null)
-  const overlayCanvasRef = useRef<HTMLCanvasElement>(null)
   const animationFrameRef = useRef<number>()
   
   const [stream, setStream] = useState<MediaStream | null>(null)
   const [isReady, setIsReady] = useState(false)
   const [error, setError] = useState('')
-  const [facingMode, setFacingMode] = useState<'user' | 'environment'>('environment')
+  const [facingMode] = useState<'user' | 'environment'>('environment')
   
   // EvalBee Core States - Lightweight Real-time Analysis
   const [qualityMetrics, setQualityMetrics] = useState<QualityMetrics>({
@@ -109,7 +106,6 @@ const EvalBeeCameraScanner: React.FC<EvalBeeCameraScannerProps> = ({
         videoRef.current.srcObject = mediaStream
         videoRef.current.onloadedmetadata = () => {
           setIsReady(true)
-          setupOverlayCanvas()
         }
       }
     } catch (err: any) {
@@ -124,16 +120,6 @@ const EvalBeeCameraScanner: React.FC<EvalBeeCameraScannerProps> = ({
       setStream(null)
     }
     setIsReady(false)
-  }
-
-  const setupOverlayCanvas = () => {
-    if (!overlayCanvasRef.current || !videoRef.current) return
-    
-    const canvas = overlayCanvasRef.current
-    const video = videoRef.current
-    
-    canvas.width = video.videoWidth
-    canvas.height = video.videoHeight
   }
 
   // EvalBee Core: Lightweight Real-time Analysis (NO HEAVY OpenCV)
@@ -233,8 +219,7 @@ const EvalBeeCameraScanner: React.FC<EvalBeeCameraScannerProps> = ({
       setAutoScanCountdown(0)
     }
     
-    // Draw overlay
-    drawEvalBeeOverlay(alignment, focus, brightness)
+    // No overlay drawing needed - clean interface
   }
 
   // Fast focus calculation (simplified Laplacian)
@@ -354,112 +339,6 @@ const EvalBeeCameraScanner: React.FC<EvalBeeCameraScannerProps> = ({
     return recommendations
   }
 
-  // EvalBee Overlay: Simple 4-corner alignment markers
-  const drawEvalBeeOverlay = (alignment: AlignmentStatus, _focus: number, _brightness: number) => {
-    if (!overlayCanvasRef.current) return
-    
-    const canvas = overlayCanvasRef.current
-    const ctx = canvas.getContext('2d')
-    if (!ctx) return
-    
-    ctx.clearRect(0, 0, canvas.width, canvas.height)
-    
-    // EvalBee Frame: Main guide rectangle
-    const margin = 0.12
-    const frameX = canvas.width * margin
-    const frameY = canvas.height * margin
-    const frameWidth = canvas.width * (1 - 2 * margin)
-    const frameHeight = canvas.height * (1 - 2 * margin)
-    
-    // Frame color based on alignment
-    const frameColor = alignment.paperDetected && alignment.alignment >= 0.75 
-      ? '#10B981' // Green - good
-      : alignment.paperDetected 
-        ? '#F59E0B' // Yellow - needs adjustment
-        : '#EF4444' // Red - no paper detected
-    
-    // Draw main frame
-    ctx.strokeStyle = frameColor
-    ctx.lineWidth = 3
-    ctx.setLineDash([15, 8])
-    ctx.strokeRect(frameX, frameY, frameWidth, frameHeight)
-    
-    // Draw 4 Corner Alignment Markers
-    const markerSize = 35
-    const markerMargin = 80
-    
-    const cornerPositions = [
-      { x: markerMargin, y: markerMargin, name: 'TL' }, // Top-left
-      { x: canvas.width - markerMargin, y: markerMargin, name: 'TR' }, // Top-right
-      { x: markerMargin, y: canvas.height - markerMargin, name: 'BL' }, // Bottom-left
-      { x: canvas.width - markerMargin, y: canvas.height - markerMargin, name: 'BR' } // Bottom-right
-    ]
-    
-    ctx.setLineDash([])
-    
-    cornerPositions.forEach(pos => {
-      // Find corresponding detected marker
-      const detectedMarker = alignment.corners.find(corner => 
-        Math.abs(corner.x - pos.x) < 50 && Math.abs(corner.y - pos.y) < 50
-      )
-      
-      const isDetected = detectedMarker?.detected || false
-      
-      // Marker background (always visible - black rectangle)
-      ctx.fillStyle = 'rgba(0, 0, 0, 0.9)'
-      ctx.fillRect(pos.x - markerSize/2, pos.y - markerSize/2, markerSize, markerSize)
-      
-      // Marker border color based on detection
-      ctx.strokeStyle = isDetected ? '#10B981' : '#EF4444'
-      ctx.lineWidth = 4
-      ctx.strokeRect(pos.x - markerSize/2, pos.y - markerSize/2, markerSize, markerSize)
-      
-      // Detection indicator (green dot)
-      if (isDetected) {
-        ctx.fillStyle = '#10B981'
-        ctx.beginPath()
-        ctx.arc(pos.x + markerSize/2 - 6, pos.y - markerSize/2 + 6, 5, 0, 2 * Math.PI)
-        ctx.fill()
-      }
-      
-      // Marker label
-      ctx.fillStyle = 'white'
-      ctx.font = 'bold 12px sans-serif'
-      ctx.textAlign = 'center'
-      ctx.fillText(pos.name, pos.x, pos.y + 4)
-    })
-    
-    // Center instruction text
-    if (!alignment.paperDetected) {
-      ctx.fillStyle = 'rgba(0, 0, 0, 0.9)'
-      ctx.fillRect(canvas.width/2 - 160, canvas.height/2 - 35, 320, 70)
-      
-      ctx.fillStyle = 'white'
-      ctx.font = 'bold 16px sans-serif'
-      ctx.textAlign = 'center'
-      ctx.fillText('OMR varaqni 4 ta burchakdagi', canvas.width/2, canvas.height/2 - 10)
-      ctx.fillText('qora to\'rtburchaklarga moslashtiring', canvas.width/2, canvas.height/2 + 15)
-    } else if (alignment.alignment < 0.75) {
-      ctx.fillStyle = 'rgba(255, 193, 7, 0.9)'
-      ctx.fillRect(canvas.width/2 - 120, canvas.height/2 - 25, 240, 50)
-      
-      ctx.fillStyle = 'black'
-      ctx.font = 'bold 14px sans-serif'
-      ctx.textAlign = 'center'
-      ctx.fillText('Burchak markerlarni aniqroq joylashtiring', canvas.width/2, canvas.height/2 + 5)
-    }
-    
-    // Marker detection status
-    const detectedCount = alignment.corners.filter(c => c.detected).length
-    ctx.fillStyle = 'rgba(0, 0, 0, 0.8)'
-    ctx.fillRect(canvas.width/2 - 70, 20, 140, 30)
-    
-    ctx.fillStyle = detectedCount >= 3 ? '#10B981' : '#EF4444'
-    ctx.font = 'bold 14px sans-serif'
-    ctx.textAlign = 'center'
-    ctx.fillText(`Burchaklar: ${detectedCount}/4`, canvas.width/2, 40)
-  }
-
   const captureImage = async () => {
     if (!videoRef.current || !canvasRef.current || !isReady || !canCapture) return
 
@@ -486,43 +365,8 @@ const EvalBeeCameraScanner: React.FC<EvalBeeCameraScannerProps> = ({
     onCapture(finalImageData, qualityMetrics)
   }
 
-  const switchCamera = () => {
-    setFacingMode(prev => prev === 'user' ? 'environment' : 'user')
-  }
-
-  const getQualityColor = (value: number) => {
-    if (value >= 0.8) return 'text-green-500'
-    if (value >= 0.6) return 'text-yellow-500'
-    return 'text-red-500'
-  }
-
-  const getQualityIcon = (value: number) => {
-    if (value >= 0.8) return <CheckCircle size={16} className="text-green-500" />
-    if (value >= 0.6) return <AlertTriangle size={16} className="text-yellow-500" />
-    return <X size={16} className="text-red-500" />
-  }
-
   return (
     <div className="fixed inset-0 bg-black z-50 flex flex-col">
-      {/* Header */}
-      <div className="flex items-center justify-between p-4 bg-black/80 text-white">
-        <div className="flex items-center gap-3">
-          <div className="flex items-center gap-2">
-            <Target className="w-6 h-6 text-blue-400" />
-            <h2 className="text-lg font-semibold">EvalBee OMR Scanner</h2>
-          </div>
-          <div className="text-sm text-gray-300">
-            {answerKey.length} savol
-          </div>
-        </div>
-        <button
-          onClick={onClose}
-          className="p-2 hover:bg-white/20 rounded-full transition-colors"
-        >
-          <X size={24} />
-        </button>
-      </div>
-
       {/* Camera View */}
       <div className="flex-1 relative overflow-hidden">
         {error ? (
@@ -549,231 +393,52 @@ const EvalBeeCameraScanner: React.FC<EvalBeeCameraScannerProps> = ({
               className="w-full h-full object-cover"
             />
             
-            {/* EvalBee Alignment Overlay */}
-            <canvas
-              ref={overlayCanvasRef}
-              className="absolute inset-0 w-full h-full pointer-events-none"
-            />
-            
-            {/* EvalBee Quality Control Panel */}
-            <div className="absolute top-4 right-4 bg-black/90 rounded-xl p-4 text-white min-w-[250px] shadow-2xl border border-white/20">
-              <div className="flex items-center gap-2 mb-3">
-                <Eye size={16} className="text-blue-400" />
-                <span className="text-sm font-medium">EvalBee Quality Control</span>
-                {qualityMetrics.overall >= 0.9 && (
-                  <CheckCircle size={16} className="text-green-400" />
-                )}
-              </div>
-              
-              {/* Overall Quality Progress */}
-              <div className="mb-4">
-                <div className="flex items-center justify-between mb-1">
-                  <span className="text-xs font-medium">Overall Quality</span>
-                  <span className={`text-sm font-bold ${
-                    qualityMetrics.overall >= 0.9 ? 'text-green-400' :
-                    qualityMetrics.overall >= 0.7 ? 'text-yellow-400' : 'text-red-400'
-                  }`}>
-                    {Math.round(qualityMetrics.overall * 100)}%
-                  </span>
-                </div>
-                <div className="w-full bg-gray-700 rounded-full h-2">
-                  <div 
-                    className={`h-2 rounded-full transition-all duration-300 ${
-                      qualityMetrics.overall >= 0.9 ? 'bg-green-500' :
-                      qualityMetrics.overall >= 0.7 ? 'bg-yellow-500' : 'bg-red-500'
-                    }`}
-                    style={{ width: `${Math.round(qualityMetrics.overall * 100)}%` }}
-                  />
-                </div>
-              </div>
-              
-              {/* Detailed Metrics */}
-              <div className="space-y-2 text-xs">
-                <div className="flex items-center justify-between">
-                  <span>Focus:</span>
-                  <div className="flex items-center gap-1">
-                    {getQualityIcon(qualityMetrics.focus)}
-                    <span className={getQualityColor(qualityMetrics.focus)}>
-                      {Math.round(qualityMetrics.focus * 100)}%
-                    </span>
-                  </div>
-                </div>
-                
-                <div className="flex items-center justify-between">
-                  <span>Brightness:</span>
-                  <div className="flex items-center gap-1">
-                    {getQualityIcon(qualityMetrics.brightness)}
-                    <span className={getQualityColor(qualityMetrics.brightness)}>
-                      {Math.round(qualityMetrics.brightness * 100)}%
-                    </span>
-                  </div>
-                </div>
-                
-                <div className="flex items-center justify-between">
-                  <span>Alignment:</span>
-                  <div className="flex items-center gap-1">
-                    {getQualityIcon(alignmentStatus.alignment)}
-                    <span className={getQualityColor(alignmentStatus.alignment)}>
-                      {Math.round(alignmentStatus.alignment * 100)}%
-                    </span>
-                  </div>
-                </div>
-                
-                <div className="flex items-center justify-between">
-                  <span>Burchaklar:</span>
-                  <div className="flex items-center gap-1">
-                    {alignmentStatus.corners.filter(c => c.detected).length >= 3 ? 
-                      <CheckCircle size={16} className="text-green-500" /> : 
-                      alignmentStatus.corners.filter(c => c.detected).length >= 2 ?
-                      <AlertTriangle size={16} className="text-yellow-500" /> :
-                      <X size={16} className="text-red-500" />
-                    }
-                    <span className={
-                      alignmentStatus.corners.filter(c => c.detected).length >= 3 ? 'text-green-500' :
-                      alignmentStatus.corners.filter(c => c.detected).length >= 2 ? 'text-yellow-500' : 'text-red-500'
-                    }>
-                      {alignmentStatus.corners.filter(c => c.detected).length}/4
-                    </span>
-                  </div>
-                </div>
-                
-                <div className="flex items-center justify-between">
-                  <span>Paper:</span>
-                  <div className="flex items-center gap-1">
-                    {alignmentStatus.paperDetected ? 
-                      <CheckCircle size={16} className="text-green-500" /> : 
-                      <X size={16} className="text-red-500" />
-                    }
-                    <span className={alignmentStatus.paperDetected ? 'text-green-500' : 'text-red-500'}>
-                      {alignmentStatus.paperDetected ? 'Detected' : 'Not Found'}
-                    </span>
-                  </div>
-                </div>
-              </div>
-              
-              {/* Issues and Recommendations */}
-              {qualityMetrics.issues.length > 0 && (
-                <div className="mt-3 pt-3 border-t border-gray-600">
-                  <div className="text-xs font-medium text-yellow-400 mb-2">
-                    📋 Issues:
-                  </div>
-                  <div className="text-xs text-red-400 mb-2">
-                    {qualityMetrics.issues[0]}
-                  </div>
-                  {qualityMetrics.recommendations[0] && (
-                    <div className="text-xs text-gray-300">
-                      💡 {qualityMetrics.recommendations[0]}
-                    </div>
-                  )}
-                </div>
-              )}
-              
-              {/* Auto-scan countdown */}
-              {autoScanCountdown > 0 && (
-                <div className="mt-3 pt-3 border-t border-green-600">
-                  <div className="text-xs text-green-400 font-medium flex items-center gap-2">
-                    <CheckCircle size={14} />
-                    Auto-scan in {autoScanCountdown}s...
-                  </div>
-                </div>
-              )}
-            </div>
+            {/* Close button - top right */}
+            <button
+              onClick={onClose}
+              className="absolute top-4 right-4 p-2 bg-black/50 hover:bg-black/70 rounded-full text-white transition-colors z-10"
+            >
+              <X size={24} />
+            </button>
           </>
         )}
       </div>
 
-      {/* Controls */}
-      <div className="p-4 bg-black/80">
-        <div className="flex items-center justify-center gap-4">
-          {/* Switch Camera */}
-          <button
-            onClick={switchCamera}
-            disabled={!isReady || isProcessing}
-            className="p-3 bg-white/20 hover:bg-white/30 disabled:opacity-50 disabled:cursor-not-allowed rounded-full text-white transition-colors"
-          >
-            <RotateCcw size={24} />
-          </button>
-
-          {/* EvalBee Capture Button */}
-          <div className="relative">
-            <button
-              onClick={captureImage}
-              disabled={!isReady || isProcessing || !canCapture}
-              className={`relative p-6 rounded-full text-white transition-all duration-300 shadow-2xl ${
-                canCapture && qualityMetrics.overall >= 0.9
-                  ? 'bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 scale-125 animate-pulse' 
-                  : canCapture
-                    ? 'bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 scale-110'
-                    : 'bg-gray-600 cursor-not-allowed scale-100'
-              }`}
-            >
-              {isProcessing ? (
-                <div className="w-8 h-8 border-3 border-white border-t-transparent rounded-full animate-spin" />
-              ) : (
-                <>
-                  <Camera size={36} />
-                  {canCapture && qualityMetrics.overall >= 0.9 && (
-                    <div className="absolute -top-1 -right-1 w-4 h-4 bg-green-400 rounded-full flex items-center justify-center">
-                      <CheckCircle size={12} className="text-white" />
-                    </div>
-                  )}
-                </>
-              )}
-            </button>
-            
-            {/* Quality Status Ring */}
-            <div className="absolute inset-0 rounded-full border-4 border-transparent">
-              <svg className="w-full h-full -rotate-90" viewBox="0 0 100 100">
-                <circle
-                  cx="50"
-                  cy="50"
-                  r="46"
-                  fill="none"
-                  stroke="rgba(255,255,255,0.2)"
-                  strokeWidth="4"
-                />
-                <circle
-                  cx="50"
-                  cy="50"
-                  r="46"
-                  fill="none"
-                  stroke={
-                    qualityMetrics.overall >= 0.9 ? '#10B981' :
-                    qualityMetrics.overall >= 0.7 ? '#F59E0B' : '#EF4444'
-                  }
-                  strokeWidth="4"
-                  strokeDasharray={`${qualityMetrics.overall * 289} 289`}
-                  strokeLinecap="round"
-                  className="transition-all duration-300"
-                />
-              </svg>
-            </div>
-            
-            {/* Quality Percentage */}
-            <div className="absolute -bottom-8 left-1/2 transform -translate-x-1/2">
-              <div className={`text-xs font-bold px-2 py-1 rounded-full ${
-                qualityMetrics.overall >= 0.9 ? 'bg-green-500 text-white' :
-                qualityMetrics.overall >= 0.7 ? 'bg-yellow-500 text-black' : 'bg-red-500 text-white'
-              }`}>
-                {Math.round(qualityMetrics.overall * 100)}%
-              </div>
-            </div>
-          </div>
+      {/* Simple Status Text - Bottom */}
+      <div className="absolute bottom-0 left-0 right-0 p-6 bg-gradient-to-t from-black/90 to-transparent">
+        <div className="text-center">
+          {!alignmentStatus.paperDetected ? (
+            <p className="text-red-400 text-lg font-medium">📄 OMR varaqni joylashtiring</p>
+          ) : alignmentStatus.corners.filter(c => c.detected).length < 3 ? (
+            <p className="text-yellow-400 text-lg font-medium">🎯 Qog'ozni to'g'ri joylashtiring</p>
+          ) : !canCapture ? (
+            <p className="text-yellow-400 text-lg font-medium">⚡ Sifatni yaxshilang</p>
+          ) : qualityMetrics.overall >= 0.9 ? (
+            <p className="text-green-400 text-lg font-medium">✨ Suratga olishga tayyor</p>
+          ) : (
+            <p className="text-blue-400 text-lg font-medium">📸 Suratga olish mumkin</p>
+          )}
         </div>
         
-        {/* Status Text */}
-        <div className="text-center mt-4">
-          {!alignmentStatus.paperDetected ? (
-            <p className="text-red-400 text-sm">📄 OMR varaqni 4 ta burchakdagi qora markerlar bilan joylashtiring</p>
-          ) : alignmentStatus.corners.filter(c => c.detected).length < 3 ? (
-            <p className="text-yellow-400 text-sm">🎯 Burchak markerlarni aniqroq joylashtiring ({alignmentStatus.corners.filter(c => c.detected).length}/4)</p>
-          ) : !canCapture ? (
-            <p className="text-yellow-400 text-sm">⚡ Sifatni yaxshilang</p>
-          ) : qualityMetrics.overall >= 0.9 ? (
-            <p className="text-green-400 text-sm">✨ Mukammal! Suratga olishga tayyor</p>
-          ) : (
-            <p className="text-blue-400 text-sm">📸 Suratga olish mumkin</p>
-          )}
+        {/* Simple Capture Button */}
+        <div className="flex justify-center mt-4">
+          <button
+            onClick={captureImage}
+            disabled={!isReady || isProcessing || !canCapture}
+            className={`p-4 rounded-full text-white transition-all duration-300 ${
+              canCapture && qualityMetrics.overall >= 0.9
+                ? 'bg-green-500 hover:bg-green-600 scale-110' 
+                : canCapture
+                  ? 'bg-blue-500 hover:bg-blue-600'
+                  : 'bg-gray-600 cursor-not-allowed opacity-50'
+            }`}
+          >
+            {isProcessing ? (
+              <div className="w-8 h-8 border-3 border-white border-t-transparent rounded-full animate-spin" />
+            ) : (
+              <Camera size={32} />
+            )}
+          </button>
         </div>
       </div>
 
