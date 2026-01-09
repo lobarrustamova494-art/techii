@@ -1,5 +1,6 @@
 # Python OMR Checker Requirements
-opencv-python>=4.8.1
+# Use headless OpenCV for cloud deployment (Render, Heroku, etc.)
+opencv-python-headless>=4.8.1
 numpy>=1.24.3
 Pillow>=10.0.1
 scikit-image>=0.21.0

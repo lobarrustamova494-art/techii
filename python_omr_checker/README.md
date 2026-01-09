@@ -1,277 +1,283 @@
-# Python OMR Checker - Ultra-Precision OMR Analysis System
+# 🔍 Python OMR Checker
 
-Professional OMR (Optical Mark Recognition) processing system built with Python, OpenCV, and advanced computer vision techniques.
+Advanced Optical Mark Recognition (OMR) processing engine with EvalBee integration.
 
-## 🚀 Features
+## Features
 
-- **Ultra-Precision Coordinate Mapping**: Pixel-perfect bubble detection using precise coordinate systems
-- **Advanced Image Processing**: Multi-stage preprocessing with adaptive thresholding and morphological operations
-- **Alignment Mark Detection**: 8-point alignment system for automatic coordinate calibration
-- **Format-Aware Processing**: Supports both continuous and subject-based OMR layouts
-- **High Accuracy**: 95-99% accuracy with confidence scoring
-- **Debug Visualization**: Comprehensive debug output for analysis and troubleshooting
-- **RESTful API**: Flask-based web server for integration with other systems
-- **Flexible Input**: Supports multiple image formats (JPG, PNG, TIFF, BMP)
+- **Multiple OMR Engines**: Standard, Enhanced, Ultra-Precision, and EvalBee engines
+- **Advanced Image Processing**: OpenCV-based bubble detection and analysis
+- **Quality Control**: Image quality assessment and enhancement
+- **Flexible Deployment**: Local development and cloud deployment support
+- **RESTful API**: Flask-based web service
+- **Real-time Processing**: Fast and accurate OMR sheet processing
 
-## 📋 Requirements
+## Installation
 
-- Python 3.8+
-- OpenCV 4.8+
-- NumPy
-- Pillow
-- scikit-image
-- Flask (for web server)
+### Local Development
 
-## 🛠️ Installation
-
-1. **Install Python dependencies:**
 ```bash
+# Install development dependencies (includes GUI support)
+pip install -r requirements-dev.txt
+```
+
+### Production/Cloud Deployment
+
+```bash
+# Install production dependencies (headless OpenCV)
 pip install -r requirements.txt
 ```
 
-2. **Verify installation:**
+## OpenCV Dependencies
+
+### For Local Development
+- Uses `opencv-python` with GUI support
+- Suitable for development and testing with visual debugging
+
+### For Cloud Deployment (Render, Heroku, etc.)
+- Uses `opencv-python-headless` without GUI dependencies
+- Optimized for cloud environments without display servers
+- Fixes `ModuleNotFoundError: No module named 'cv2'` in cloud deployments
+
+## Usage
+
+### Start the Server
+
 ```bash
-python test_omr.py
+# Development
+python omr_server.py
+
+# Production
+python run_server.py
 ```
 
-## 🎯 Usage
+### API Endpoints
 
-### Command Line Interface
-
+#### Health Check
 ```bash
-# Basic usage
-python omr_processor.py sample_omr.jpg --answer-key A,B,C,D,A,B,C,D,A,B
-
-# With exam metadata
-python omr_processor.py sample_omr.jpg --answer-key A,B,C,D,A,B,C,D,A,B --exam-data exam_metadata.json
-
-# Enable debug mode
-python omr_processor.py sample_omr.jpg --answer-key A,B,C,D,A,B,C,D,A,B --debug
-
-# Save results to file
-python omr_processor.py sample_omr.jpg --answer-key A,B,C,D,A,B,C,D,A,B --output results.json
+GET /health
 ```
 
-### Web Server API
-
-1. **Start the server:**
+#### Process OMR Sheet
 ```bash
+POST /process-omr
+Content-Type: multipart/form-data
+
+Parameters:
+- image: OMR sheet image file
+- answer_key: JSON array of correct answers
+- exam_id: Unique exam identifier
+- processing_mode: Engine type (standard, enhanced, ultra, evalbee)
+```
+
+### Example Request
+
+```python
+import requests
+
+files = {'image': open('omr_sheet.jpg', 'rb')}
+data = {
+    'answer_key': '["A", "B", "C", "D"]',
+    'exam_id': 'exam_001',
+    'processing_mode': 'evalbee'
+}
+
+response = requests.post('http://localhost:5000/process-omr', 
+                        files=files, data=data)
+print(response.json())
+```
+
+## Available Engines
+
+### 1. Standard OMR Processor
+- Basic bubble detection
+- Fast processing
+- Good for simple OMR sheets
+
+### 2. Enhanced OMR Processor  
+- Advanced image preprocessing
+- Better accuracy
+- Handles various image qualities
+
+### 3. Ultra-Precision OMR Processor
+- Maximum accuracy
+- Advanced algorithms
+- Best for critical applications
+
+### 4. EvalBee OMR Engine
+- AI-powered processing
+- Adaptive algorithms
+- Professional-grade accuracy
+- Real-time quality analysis
+
+## Configuration
+
+### Environment Variables
+
+```bash
+# Flask Configuration
+FLASK_ENV=development
+PORT=5000
+HOST=localhost
+DEBUG=true
+
+# File Upload Settings
+MAX_CONTENT_LENGTH=16777216  # 16MB
+UPLOAD_FOLDER=uploads
+DEBUG_OUTPUT_FOLDER=debug_output
+
+# OpenCV Settings
+OPENCV_LOG_LEVEL=ERROR
+
+# CORS Settings
+CORS_ORIGINS=*
+```
+
+### Development vs Production
+
+#### Development (.env)
+```bash
+DEBUG=true
+FLASK_ENV=development
+HOST=localhost
+```
+
+#### Production (.env)
+```bash
+DEBUG=false
+FLASK_ENV=production
+HOST=0.0.0.0
+WORKERS=2
+```
+
+## Deployment
+
+### Local Development
+```bash
+git clone <repository>
+cd python_omr_checker
+pip install -r requirements-dev.txt
 python omr_server.py
 ```
 
-2. **Process OMR sheet via API:**
+### Render Deployment
+1. Update `requirements.txt` with `opencv-python-headless`
+2. Set environment variables in Render dashboard
+3. Deploy using `render.yaml` configuration
+4. See `RENDER_DEPLOYMENT.md` for detailed instructions
+
+### Docker Deployment
 ```bash
-curl -X POST http://localhost:5000/api/omr/process \
-  -F "image=@sample_omr.jpg" \
-  -F "answerKey=[\"A\",\"B\",\"C\",\"D\",\"A\"]" \
-  -F "examData={\"structure\":\"continuous\",\"paperSize\":\"a4\"}"
+docker build -t python-omr-checker .
+docker run -p 5000:5000 python-omr-checker
 ```
 
-### Python Integration
+## File Structure
 
-```python
-from omr_processor import OMRProcessor
-
-# Initialize processor
-processor = OMRProcessor()
-processor.set_debug_mode(True)
-
-# Define answer key and exam data
-answer_key = ['A', 'B', 'C', 'D', 'A']
-exam_data = {
-    "structure": "continuous",
-    "paperSize": "a4",
-    "subjects": [...]
-}
-
-# Process OMR sheet
-result = processor.process_omr_sheet("omr_image.jpg", answer_key, exam_data)
-
-print(f"Confidence: {result.confidence}")
-print(f"Answers: {result.extracted_answers}")
+```
+python_omr_checker/
+├── requirements.txt              # Production dependencies (headless OpenCV)
+├── requirements-dev.txt          # Development dependencies (full OpenCV)
+├── runtime.txt                   # Python version specification
+├── render.yaml                   # Render deployment configuration
+├── Dockerfile                    # Docker configuration
+├── .env                         # Environment variables
+├── .env.example                 # Environment template
+├── omr_server.py                # Flask web server
+├── run_server.py                # Production server runner
+├── omr_processor.py             # Standard OMR processor
+├── enhanced_omr_processor.py    # Enhanced OMR processor
+├── ultra_precision_omr_processor.py  # Ultra-precision processor
+├── evalbee_omr_engine.py        # EvalBee AI engine
+├── uploads/                     # Temporary upload directory
+├── debug_output/                # Debug images and logs
+└── logs/                        # Application logs
 ```
 
-## 📊 Exam Data Format
+## Troubleshooting
 
-The system supports detailed exam metadata for precise coordinate generation:
+### Common Issues
 
-```json
-{
-  "name": "Sample Exam",
-  "structure": "continuous",
-  "paperSize": "a4",
-  "subjects": [
-    {
-      "name": "Mathematics",
-      "sections": [
-        {
-          "name": "Algebra",
-          "questionCount": 10,
-          "questionType": "multiple_choice_5"
-        }
-      ]
-    }
-  ]
-}
+#### 1. cv2 Import Error in Cloud
+```
+ModuleNotFoundError: No module named 'cv2'
+```
+**Solution**: Use `opencv-python-headless` in production requirements.txt
+
+#### 2. Memory Issues
+**Solution**: Increase server memory or optimize image processing
+
+#### 3. Timeout Issues  
+**Solution**: Increase request timeout or optimize processing algorithms
+
+#### 4. Image Quality Issues
+**Solution**: Use enhanced or ultra-precision processors
+
+### Debug Mode
+
+Enable debug mode to save processed images:
+
+```bash
+DEBUG=true
+DEBUG_OUTPUT_FOLDER=debug_output
 ```
 
-### Supported Question Types
+Debug images will be saved showing:
+- Original image
+- Preprocessed image  
+- Detected bubbles
+- Analysis results
 
-- `multiple_choice_3` - A, B, C
-- `multiple_choice_4` - A, B, C, D  
-- `multiple_choice_5` - A, B, C, D, E
-- `multiple_choice_6` - A, B, C, D, E, F
-- `true_false` - T, F
+## Performance Optimization
 
-### Layout Structures
+### Image Processing
+- Resize large images before processing
+- Use appropriate compression
+- Optimize bubble detection parameters
 
-- **continuous**: 3-column layout with questions flowing continuously
-- **subject_in_column**: Subject-based layout with sections
+### Server Configuration
+- Use multiple workers in production
+- Enable caching for repeated requests
+- Monitor memory usage
 
-## 🔧 API Endpoints
+### Algorithm Selection
+- Use standard processor for simple sheets
+- Use EvalBee engine for maximum accuracy
+- Use enhanced processor for balanced performance
 
-### POST /api/omr/process
-Process an OMR sheet image.
+## API Response Format
 
-**Parameters:**
-- `image` (file): OMR sheet image
-- `answerKey` (JSON array): Expected answers
-- `examData` (JSON object, optional): Exam metadata
-- `scoring` (JSON object, optional): Scoring configuration
-- `debug` (boolean, optional): Enable debug mode
-
-**Response:**
 ```json
 {
   "success": true,
-  "message": "OMR sheet processed successfully",
   "data": {
-    "extracted_answers": ["A", "B", "C", "D", "A"],
-    "confidence": 0.95,
-    "processing_details": {...},
-    "detailed_results": [...]
-  }
+    "extracted_answers": ["A", "B", "C", "D"],
+    "confidence_scores": [0.95, 0.87, 0.92, 0.89],
+    "processing_time": 1.23,
+    "image_quality": {
+      "sharpness": 0.85,
+      "contrast": 0.78,
+      "brightness": 0.65
+    },
+    "detected_bubbles": 40,
+    "processing_mode": "evalbee"
+  },
+  "message": "OMR processing completed successfully"
 }
 ```
 
-### GET /api/omr/status
-Get service status and capabilities.
-
-### GET /health
-Health check endpoint.
-
-## 🐛 Debug Mode
-
-Enable debug mode to get detailed processing information and visualization:
-
-```bash
-python omr_processor.py image.jpg --answer-key A,B,C,D,A --debug
-```
-
-Debug output includes:
-- Preprocessed images
-- Alignment mark detection visualization
-- Bubble intensity analysis
-- Coordinate mapping visualization
-
-Debug files are saved to `debug_output/` directory.
-
-## 📈 Performance
-
-- **Accuracy**: 95-99% depending on image quality
-- **Processing Time**: 2-5 seconds per image
-- **Supported Resolution**: 150-600 DPI
-- **Max File Size**: 16MB
-- **Concurrent Processing**: Multi-threaded support
-
-## 🔍 Troubleshooting
-
-### Low Accuracy Issues
-
-1. **Check image quality**: Ensure high contrast and resolution
-2. **Verify alignment marks**: All 8 alignment marks should be clearly visible
-3. **Enable debug mode**: Analyze intermediate processing steps
-4. **Adjust thresholds**: Modify bubble detection sensitivity
-
-### Common Error Messages
-
-- `"Could not read image"`: Check file path and format
-- `"No alignment marks detected"`: Ensure proper OMR sheet format
-- `"Invalid JSON data"`: Verify exam metadata format
-
-### Debug Analysis
-
-```bash
-# Enable debug mode for detailed analysis
-python omr_processor.py image.jpg --answer-key A,B,C,D,A --debug
-
-# Check debug output
-ls debug_output/
-# - preprocessed.jpg (processed image)
-# - alignment_marks.jpg (detected marks)
-```
-
-## 🧪 Testing
-
-Run the test suite to verify functionality:
-
-```bash
-# Run all tests
-python test_omr.py
-
-# Test with sample image (place sample_omr.jpg in directory)
-python test_omr.py
-```
-
-## 🔗 Integration
-
-### Node.js Integration
-
-```javascript
-const FormData = require('form-data');
-const fs = require('fs');
-
-const form = new FormData();
-form.append('image', fs.createReadStream('omr_sheet.jpg'));
-form.append('answerKey', JSON.stringify(['A', 'B', 'C', 'D', 'A']));
-
-fetch('http://localhost:5000/api/omr/process', {
-  method: 'POST',
-  body: form
-}).then(response => response.json())
-  .then(data => console.log(data));
-```
-
-### PHP Integration
-
-```php
-$curl = curl_init();
-curl_setopt_array($curl, [
-    CURLOPT_URL => 'http://localhost:5000/api/omr/process',
-    CURLOPT_POST => true,
-    CURLOPT_POSTFIELDS => [
-        'image' => new CURLFile('omr_sheet.jpg'),
-        'answerKey' => json_encode(['A', 'B', 'C', 'D', 'A'])
-    ]
-]);
-$response = curl_exec($curl);
-```
-
-## 📝 License
-
-This project is licensed under the MIT License.
-
-## 🤝 Contributing
+## Contributing
 
 1. Fork the repository
 2. Create a feature branch
-3. Make your changes
-4. Add tests
-5. Submit a pull request
+3. Install development dependencies: `pip install -r requirements-dev.txt`
+4. Make your changes
+5. Run tests: `pytest`
+6. Submit a pull request
 
-## 📞 Support
+## License
 
-For support and questions:
-- Create an issue on GitHub
-- Check the troubleshooting section
-- Enable debug mode for detailed analysis
+This project is licensed under the MIT License.
+
+---
+
+**Note**: Always use `requirements.txt` for production deployments and `requirements-dev.txt` for local development to ensure proper OpenCV compatibility.

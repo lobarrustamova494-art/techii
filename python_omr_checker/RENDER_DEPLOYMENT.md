@@ -1,241 +1,186 @@
-# Python OMR Server - Render.com Deployment Guide
+# 🚀 Render Deployment Guide for Python OMR Server
 
 ## Overview
-This guide explains how to deploy the Python OMR Processing Server as a separate service on Render.com.
 
-## Architecture
-```
-Frontend (Static Site) → Node.js Backend → Python OMR Server
-     ↓                        ↓                    ↓
-Render Static Site      Render Web Service    Render Web Service
-```
+This guide explains how to deploy the Python OMR Processing Server on Render as a separate service from the main Node.js application.
+
+## Prerequisites
+
+- Render account
+- GitHub repository with Python OMR code
+- Main Node.js app already deployed on Render
 
 ## Deployment Steps
 
-### 1. Create New Web Service on Render
+### 1. Create New Web Service
 
-1. Go to [Render Dashboard](https://dashboard.render.com)
+1. Go to Render Dashboard
 2. Click "New +" → "Web Service"
 3. Connect your GitHub repository
-4. Configure the service:
+4. Select the repository containing the Python OMR code
+
+### 2. Configure Service Settings
 
 **Basic Settings:**
 - **Name**: `ultra-precision-python-omr`
-- **Region**: `Oregon (US West)`
+- **Environment**: `Python 3`
+- **Region**: `Oregon` (or closest to your users)
 - **Branch**: `main`
-- **Root Directory**: `python_omr_checker`
-- **Runtime**: `Python 3.11.9` (specified in runtime.txt)
+- **Root Directory**: `python_omr_checker` (if in subdirectory)
+
+**Build & Deploy:**
 - **Build Command**: `pip install -r requirements.txt`
 - **Start Command**: `python run_server.py`
 
-**Advanced Settings:**
-- **Plan**: `Starter` (recommended for OpenCV processing)
-- **Health Check Path**: `/health`
-- **Auto-Deploy**: `Yes`
+### 3. Environment Variables
 
-### 2. Environment Variables
-
-Set these environment variables in Render dashboard:
+Add these environment variables in Render dashboard:
 
 ```bash
-# Server Configuration
+# Flask Configuration
 FLASK_ENV=production
-HOST=0.0.0.0
 PORT=5000
+HOST=0.0.0.0
 DEBUG=false
 WORKERS=2
 
 # Performance Settings
 MAX_CONTENT_LENGTH=16777216
-PROCESSING_TIMEOUT=300
-MAX_REQUESTS=1000
-PYTHONUNBUFFERED=1
-
-# OpenCV Settings
-OPENCV_LOG_LEVEL=ERROR
-
-# CORS Settings
-CORS_ORIGINS=*
-
-# File Storage
 UPLOAD_FOLDER=uploads
 DEBUG_OUTPUT_FOLDER=debug_output
 LOG_FOLDER=logs
+
+# OpenCV Settings (IMPORTANT for cv2 module)
+OPENCV_LOG_LEVEL=ERROR
+PYTHONUNBUFFERED=1
+
+# CORS Settings
+CORS_ORIGINS=*
 ```
 
-### 3. Disk Storage (Optional)
+### 4. Important: OpenCV Dependencies
 
-If you need persistent storage for uploads:
+**CRITICAL FIX for cv2 ModuleNotFoundError:**
 
-1. Go to service settings
-2. Add disk storage:
-   - **Name**: `python-omr-storage`
-   - **Mount Path**: `/opt/render/project/src/uploads`
-   - **Size**: `1 GB`
+The `requirements.txt` has been updated to use `opencv-python-headless` instead of `opencv-python`:
 
-### 4. Update Node.js Backend
+```txt
+# Use headless OpenCV for cloud deployment
+opencv-python-headless>=4.8.1
+```
 
-The Node.js backend will automatically detect the Python server URL via environment variable:
+This version doesn't require GUI dependencies and works on Render.
+
+### 5. Health Check
+
+The service includes a health check endpoint:
+- **Health Check Path**: `/health`
+- **Expected Response**: `{"status": "healthy", "service": "Python OMR Processor"}`
+
+### 6. Service Plan
+
+**Recommended Plan:**
+- **Starter Plan** or higher (for OpenCV processing)
+- **Memory**: At least 512MB for image processing
+- **CPU**: Sufficient for OpenCV operations
+
+### 7. Connect to Main App
+
+After Python service is deployed, update your main Node.js app environment variables:
 
 ```bash
+# In main app's environment variables
 PYTHON_OMR_URL=https://ultra-precision-python-omr.onrender.com
 ```
 
-### 5. Service URLs
+### 8. Update Node.js Service
 
-After deployment, your services will be available at:
+Ensure your Node.js `pythonOMRService.ts` uses the HTTP client for production:
 
-- **Frontend**: `https://ultra-precision-omr-frontend.onrender.com`
-- **Node.js Backend**: `https://ultra-precision-omr-backend.onrender.com`
-- **Python OMR Server**: `https://ultra-precision-python-omr.onrender.com`
-
-## API Endpoints
-
-### Health Check
-```bash
-GET /health
+```typescript
+// In production, use HTTP client
+if (process.env.PYTHON_OMR_URL) {
+  // Use HTTP client to call Python service
+  const response = await fetch(`${process.env.PYTHON_OMR_URL}/process-omr`, {
+    method: 'POST',
+    body: formData
+  })
+} else {
+  // Development: use subprocess
+  // ... subprocess code
+}
 ```
 
-### Process OMR
-```bash
-POST /process-omr
-Content-Type: multipart/form-data
+## Troubleshooting
 
-Fields:
-- image: File (JPG/PNG)
-- answer_key: String (comma-separated)
-- exam_data: String (JSON, optional)
-- debug: String ("true"/"false", optional)
+### Common Issues
+
+#### 1. cv2 ModuleNotFoundError
+**Solution**: Use `opencv-python-headless` in requirements.txt (already fixed)
+
+#### 2. Memory Issues
+**Solution**: Upgrade to Starter plan or higher
+
+#### 3. Timeout Issues
+**Solution**: Increase timeout in Node.js service calls
+
+#### 4. CORS Issues
+**Solution**: Set `CORS_ORIGINS=*` or specific domain
+
+### Debugging
+
+1. **Check Logs**: View deployment logs in Render dashboard
+2. **Health Check**: Visit `https://your-service.onrender.com/health`
+3. **Test Endpoint**: Use Postman to test `/process-omr` endpoint
+
+### Performance Optimization
+
+1. **Use Starter Plan**: Better CPU/memory for image processing
+2. **Optimize Images**: Resize images before processing
+3. **Caching**: Implement result caching if needed
+4. **Monitoring**: Use Render metrics to monitor performance
+
+## File Structure
+
+```
+python_omr_checker/
+├── requirements.txt          # Updated with opencv-python-headless
+├── runtime.txt              # Python 3.11.9
+├── render.yaml              # Render configuration
+├── run_server.py            # Production server runner
+├── omr_server.py            # Flask application
+├── omr_processor.py         # OMR processing logic
+└── evalbee_omr_engine.py    # EvalBee engine
+```
+
+## Deployment Commands
+
+```bash
+# If deploying manually
+git add .
+git commit -m "fix: Update OpenCV to headless version for Render deployment"
+git push origin main
 ```
 
 ## Testing Deployment
 
-### 1. Health Check
-```bash
-curl https://ultra-precision-python-omr.onrender.com/health
-```
+1. **Health Check**: `GET https://your-service.onrender.com/health`
+2. **Process Test**: `POST https://your-service.onrender.com/process-omr`
+3. **Integration**: Test from main app
 
-### 2. Process Test Image
-```bash
-curl -X POST https://ultra-precision-python-omr.onrender.com/process-omr \
-  -F "image=@test_image.jpg" \
-  -F "answer_key=A,B,C,D,A"
-```
+## Security Notes
 
-## Performance Considerations
-
-### 1. Cold Start
-- First request may take 30-60 seconds (cold start)
-- Subsequent requests are fast (2-5 seconds)
-
-### 2. Memory Usage
-- OpenCV requires significant memory
-- Starter plan (512MB RAM) is minimum
-- Standard plan (2GB RAM) recommended for production
-
-### 3. Processing Time
-- Simple OMR: 2-5 seconds
-- Complex OMR: 5-15 seconds
-- Timeout set to 5 minutes
-
-## Monitoring
-
-### 1. Logs
-View logs in Render dashboard:
-- Build logs
-- Runtime logs
-- Error logs
-
-### 2. Metrics
-Monitor in Render dashboard:
-- CPU usage
-- Memory usage
-- Response times
-- Error rates
-
-## Troubleshooting
-
-### 1. Build Failures
-```bash
-# Check requirements.txt
-pip install -r requirements.txt
-
-# Check Python version
-python --version  # Should be 3.8+
-```
-
-### 2. Runtime Errors
-```bash
-# Check OpenCV installation
-python -c "import cv2; print(cv2.__version__)"
-
-# Check Flask app
-python -c "from omr_server import app; print('OK')"
-```
-
-### 3. Memory Issues
-- Upgrade to Standard plan
-- Optimize image processing
-- Add memory monitoring
-
-## Security
-
-### 1. CORS Configuration
-```python
-# In omr_server.py
-CORS(app, origins=["https://ultra-precision-omr-frontend.onrender.com"])
-```
-
-### 2. File Upload Limits
-```python
-app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # 16MB
-```
-
-### 3. Input Validation
-- Validate file types
-- Sanitize filenames
-- Check file sizes
-
-## Scaling
-
-### 1. Horizontal Scaling
-- Multiple worker processes
-- Load balancing
-- Queue system for heavy processing
-
-### 2. Vertical Scaling
-- Upgrade to higher plans
-- More CPU/memory
-- Faster processing
+- Service runs in isolated environment
+- No persistent storage (files are temporary)
+- HTTPS enabled by default
+- Environment variables are encrypted
 
 ## Cost Optimization
 
-### 1. Plan Selection
-- **Free**: Development/testing only
-- **Starter ($7/month)**: Small production
-- **Standard ($25/month)**: Production with traffic
+- **Free Tier**: Limited hours, good for testing
+- **Starter Plan**: $7/month, recommended for production
+- **Auto-scaling**: Render handles scaling automatically
 
-### 2. Resource Usage
-- Monitor CPU/memory usage
-- Optimize image processing
-- Cache results when possible
+---
 
-## Backup & Recovery
-
-### 1. Code Backup
-- GitHub repository
-- Automatic deployments
-- Version control
-
-### 2. Data Backup
-- No persistent data stored
-- Temporary files only
-- Stateless service
-
-## Support
-
-For issues:
-1. Check Render logs
-2. Review this documentation
-3. Test locally first
-4. Contact support if needed
+**Important**: After updating `requirements.txt` with `opencv-python-headless`, redeploy the Python service on Render to fix the cv2 import error.
