@@ -17,8 +17,24 @@ from optimized_omr_processor import OptimizedOMRProcessor
 from ultra_precision_omr_processor import UltraPrecisionOMRProcessor
 from ultra_precision_omr_processor_v2 import UltraPrecisionOMRProcessorV2
 from perfect_omr_processor import PerfectOMRProcessor
-from evalbee_omr_engine import EvalBeeOMREngine
-from evalbee_omr_engine_v2 import EvalBeeOMREngineV2
+
+# Safe imports for EvalBee engines (may require sklearn)
+try:
+    from evalbee_omr_engine import EvalBeeOMREngine
+    EVALBEE_ENGINE_AVAILABLE = True
+except ImportError as e:
+    logger.warning(f"EvalBee OMR Engine not available: {e}")
+    EVALBEE_ENGINE_AVAILABLE = False
+    EvalBeeOMREngine = None
+
+try:
+    from evalbee_omr_engine_v2 import EvalBeeOMREngineV2
+    EVALBEE_ENGINE_V2_AVAILABLE = True
+except ImportError as e:
+    logger.warning(f"EvalBee OMR Engine V2 not available: {e}")
+    EVALBEE_ENGINE_V2_AVAILABLE = False
+    EvalBeeOMREngineV2 = None
+
 import time
 import numpy as np
 
@@ -44,8 +60,10 @@ optimized_processor = OptimizedOMRProcessor()
 ultra_processor = UltraPrecisionOMRProcessor()
 ultra_v2_processor = UltraPrecisionOMRProcessorV2()
 perfect_processor = PerfectOMRProcessor()
-evalbee_engine = EvalBeeOMREngine()  # Original EvalBee Engine
-evalbee_v2_engine = EvalBeeOMREngineV2()  # NEW: EvalBee V2 Engine
+
+# Safe initialization of EvalBee engines
+evalbee_engine = EvalBeeOMREngine() if EVALBEE_ENGINE_AVAILABLE else None
+evalbee_v2_engine = EvalBeeOMREngineV2() if EVALBEE_ENGINE_V2_AVAILABLE else None
 
 def convert_numpy_types(obj):
     """Convert numpy types to Python native types for JSON serialization"""
@@ -167,8 +185,13 @@ def process_omr():
         try:
             # Choose processor based on request
             if use_evalbee:
-                processor = evalbee_v2_engine  # Use EvalBee V2 Engine (NEW)
-                processor_name = "EvalBee Professional OMR Engine V2"
+                if EVALBEE_ENGINE_V2_AVAILABLE and evalbee_v2_engine:
+                    processor = evalbee_v2_engine  # Use EvalBee V2 Engine (NEW)
+                    processor_name = "EvalBee Professional OMR Engine V2"
+                else:
+                    logger.warning("EvalBee engine requested but not available, falling back to Ultra-Precision")
+                    processor = ultra_v2_processor
+                    processor_name = "Ultra-Precision V2 OMR Processor (EvalBee Fallback)"
             elif use_perfect:
                 processor = perfect_processor  # Use Perfect OMR Processor
                 processor_name = "Perfect OMR Processor V1 (100% Accuracy)"
@@ -227,7 +250,7 @@ def process_omr():
                 logger.info(f"Paper size: {exam_data.get('paperSize', 'unknown')}")
             
             # Process OMR sheet using selected processor
-            if use_evalbee:
+            if use_evalbee and EVALBEE_ENGINE_V2_AVAILABLE and evalbee_v2_engine:
                 # EvalBee V2 engine processing
                 evalbee_result = processor.process_omr_sheet(temp_path, answer_key)
                 

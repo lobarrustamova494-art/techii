@@ -13,7 +13,22 @@ from dataclasses import dataclass
 import time
 import math
 from collections import defaultdict
-from sklearn.cluster import DBSCAN
+
+# Safe sklearn import with fallback
+try:
+    from sklearn.cluster import DBSCAN
+    SKLEARN_AVAILABLE = True
+except ImportError:
+    logger.warning("sklearn not available, clustering features will be disabled")
+    SKLEARN_AVAILABLE = False
+    # Create a dummy DBSCAN class for fallback
+    class DBSCAN:
+        def __init__(self, *args, **kwargs):
+            pass
+        def fit_predict(self, data):
+            # Simple fallback: return all points as separate clusters
+            return list(range(len(data)))
+
 import scipy.ndimage as ndimage
 
 # Configure logging
@@ -299,19 +314,36 @@ class EvalBeeOMREngine:
         # Cluster analysis for layout detection
         centers_array = np.array(bubble_centers)
         
-        # Detect rows using Y-coordinate clustering
-        y_coords = centers_array[:, 1].reshape(-1, 1)
-        row_clustering = DBSCAN(eps=self.layout_detection['row_tolerance'], 
-                               min_samples=self.layout_detection['min_samples']).fit(y_coords)
-        
-        # Detect columns using X-coordinate clustering
-        x_coords = centers_array[:, 0].reshape(-1, 1)
-        col_clustering = DBSCAN(eps=self.layout_detection['column_tolerance'], 
-                               min_samples=self.layout_detection['min_samples']).fit(x_coords)
-        
-        # Analyze clustering results
-        unique_rows = len(set(row_clustering.labels_)) - (1 if -1 in row_clustering.labels_ else 0)
-        unique_cols = len(set(col_clustering.labels_)) - (1 if -1 in col_clustering.labels_ else 0)
+        if SKLEARN_AVAILABLE:
+            # Detect rows using Y-coordinate clustering
+            y_coords = centers_array[:, 1].reshape(-1, 1)
+            row_clustering = DBSCAN(eps=self.layout_detection['row_tolerance'], 
+                                   min_samples=self.layout_detection['min_samples']).fit(y_coords)
+            
+            # Detect columns using X-coordinate clustering
+            x_coords = centers_array[:, 0].reshape(-1, 1)
+            col_clustering = DBSCAN(eps=self.layout_detection['column_tolerance'], 
+                                   min_samples=self.layout_detection['min_samples']).fit(x_coords)
+            
+            # Analyze clustering results
+            unique_rows = len(set(row_clustering.labels_)) - (1 if -1 in row_clustering.labels_ else 0)
+            unique_cols = len(set(col_clustering.labels_)) - (1 if -1 in col_clustering.labels_ else 0)
+        else:
+            # Fallback: Simple grid-based detection without clustering
+            logger.warning("Using fallback layout detection without sklearn clustering")
+            y_coords = centers_array[:, 1]
+            x_coords = centers_array[:, 0]
+            
+            # Simple binning approach
+            y_bins = np.histogram_bin_edges(y_coords, bins='auto')
+            x_bins = np.histogram_bin_edges(x_coords, bins='auto')
+            
+            unique_rows = len(y_bins) - 1
+            unique_cols = len(x_bins) - 1
+            
+            # Create dummy clustering results for compatibility
+            row_clustering = type('obj', (object,), {'labels_': np.digitize(y_coords, y_bins) - 1})
+            col_clustering = type('obj', (object,), {'labels_': np.digitize(x_coords, x_bins) - 1})
         
         # Determine layout type
         total_bubbles = len(bubble_centers)
