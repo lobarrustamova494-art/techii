@@ -35,6 +35,7 @@ const EvalBeeCameraScanner: React.FC<EvalBeeCameraScannerProps> = ({
   const videoRef = useRef<HTMLVideoElement>(null)
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const overlayCanvasRef = useRef<HTMLCanvasElement>(null)
+  const previewCanvasRef = useRef<HTMLCanvasElement>(null)
   const animationFrameRef = useRef<number>()
   
   const [stream, setStream] = useState<MediaStream | null>(null)
@@ -132,6 +133,12 @@ const EvalBeeCameraScanner: React.FC<EvalBeeCameraScannerProps> = ({
     
     canvas.width = video.videoWidth
     canvas.height = video.videoHeight
+    
+    // Setup preview canvas too
+    if (previewCanvasRef.current) {
+      previewCanvasRef.current.width = 200 // Small preview size
+      previewCanvasRef.current.height = 150
+    }
   }
 
   // EvalBee Core: Lightweight Real-time Analysis (NO HEAVY OpenCV)
@@ -233,6 +240,9 @@ const EvalBeeCameraScanner: React.FC<EvalBeeCameraScannerProps> = ({
     
     // Draw simple guide overlay
     drawSimpleGuide(alignment)
+    
+    // Update preview canvas
+    updatePreview()
   }
 
   // Fast focus calculation (simplified Laplacian)
@@ -426,6 +436,69 @@ const EvalBeeCameraScanner: React.FC<EvalBeeCameraScannerProps> = ({
       ctx.fillText('OMR varaqni ramkaga', canvas.width/2, canvas.height/2 - 5)
       ctx.fillText('joylashtiring', canvas.width/2, canvas.height/2 + 20)
     }
+    
+    // Show capture preview area (what will be captured)
+    if (alignment.paperDetected) {
+      // Draw capture area outline
+      ctx.strokeStyle = '#FFD700' // Gold color for capture area
+      ctx.globalAlpha = 0.9
+      ctx.lineWidth = 2
+      ctx.setLineDash([10, 5])
+      
+      // Slightly smaller area than guide frame (actual capture area)
+      const captureMargin = 0.18
+      const captureX = canvas.width * captureMargin
+      const captureY = canvas.height * captureMargin
+      const captureWidth = canvas.width * (1 - 2 * captureMargin)
+      const captureHeight = canvas.height * (1 - 2 * captureMargin)
+      
+      ctx.strokeRect(captureX, captureY, captureWidth, captureHeight)
+      
+      // Add "CAPTURE AREA" label
+      ctx.fillStyle = 'rgba(255, 215, 0, 0.9)'
+      ctx.fillRect(captureX + 10, captureY + 10, 120, 25)
+      
+      ctx.fillStyle = 'black'
+      ctx.font = 'bold 12px sans-serif'
+      ctx.textAlign = 'left'
+      ctx.fillText('CAPTURE AREA', captureX + 15, captureY + 27)
+      
+      ctx.globalAlpha = 1.0
+      ctx.setLineDash([])
+    }
+  }
+
+  // Update preview canvas to show what will be captured
+  const updatePreview = () => {
+    if (!previewCanvasRef.current || !videoRef.current || !alignmentStatus.paperDetected) return
+    
+    const previewCanvas = previewCanvasRef.current
+    const previewCtx = previewCanvas.getContext('2d')
+    const video = videoRef.current
+    
+    if (!previewCtx) return
+    
+    // Clear preview
+    previewCtx.clearRect(0, 0, previewCanvas.width, previewCanvas.height)
+    
+    // Calculate capture area (same as overlay)
+    const captureMargin = 0.18
+    const sourceX = video.videoWidth * captureMargin
+    const sourceY = video.videoHeight * captureMargin
+    const sourceWidth = video.videoWidth * (1 - 2 * captureMargin)
+    const sourceHeight = video.videoHeight * (1 - 2 * captureMargin)
+    
+    // Draw cropped video frame to preview canvas
+    previewCtx.drawImage(
+      video,
+      sourceX, sourceY, sourceWidth, sourceHeight, // Source area
+      0, 0, previewCanvas.width, previewCanvas.height // Destination area
+    )
+    
+    // Add preview border
+    previewCtx.strokeStyle = '#FFD700'
+    previewCtx.lineWidth = 2
+    previewCtx.strokeRect(0, 0, previewCanvas.width, previewCanvas.height)
   }
 
   const captureImage = async () => {
@@ -487,6 +560,24 @@ const EvalBeeCameraScanner: React.FC<EvalBeeCameraScannerProps> = ({
               ref={overlayCanvasRef}
               className="absolute inset-0 w-full h-full pointer-events-none"
             />
+            
+            {/* Real-time Preview - shows what will be captured */}
+            {alignmentStatus.paperDetected && (
+              <div className="absolute top-4 left-4 bg-black/90 rounded-lg p-2 border-2 border-yellow-400">
+                <div className="text-yellow-400 text-xs font-bold mb-1 text-center">
+                  PREVIEW
+                </div>
+                <canvas
+                  ref={previewCanvasRef}
+                  className="rounded border border-yellow-400"
+                  width={200}
+                  height={150}
+                />
+                <div className="text-white text-xs text-center mt-1">
+                  Suratga olinadi
+                </div>
+              </div>
+            )}
             
             {/* Close button - top right */}
             <button
