@@ -34,6 +34,7 @@ const EvalBeeCameraScanner: React.FC<EvalBeeCameraScannerProps> = ({
 }) => {
   const videoRef = useRef<HTMLVideoElement>(null)
   const canvasRef = useRef<HTMLCanvasElement>(null)
+  const overlayCanvasRef = useRef<HTMLCanvasElement>(null)
   const animationFrameRef = useRef<number>()
   
   const [stream, setStream] = useState<MediaStream | null>(null)
@@ -106,6 +107,7 @@ const EvalBeeCameraScanner: React.FC<EvalBeeCameraScannerProps> = ({
         videoRef.current.srcObject = mediaStream
         videoRef.current.onloadedmetadata = () => {
           setIsReady(true)
+          setupOverlayCanvas()
         }
       }
     } catch (err: any) {
@@ -120,6 +122,16 @@ const EvalBeeCameraScanner: React.FC<EvalBeeCameraScannerProps> = ({
       setStream(null)
     }
     setIsReady(false)
+  }
+
+  const setupOverlayCanvas = () => {
+    if (!overlayCanvasRef.current || !videoRef.current) return
+    
+    const canvas = overlayCanvasRef.current
+    const video = videoRef.current
+    
+    canvas.width = video.videoWidth
+    canvas.height = video.videoHeight
   }
 
   // EvalBee Core: Lightweight Real-time Analysis (NO HEAVY OpenCV)
@@ -219,7 +231,8 @@ const EvalBeeCameraScanner: React.FC<EvalBeeCameraScannerProps> = ({
       setAutoScanCountdown(0)
     }
     
-    // No overlay drawing needed - clean interface
+    // Draw simple guide overlay
+    drawSimpleGuide(alignment)
   }
 
   // Fast focus calculation (simplified Laplacian)
@@ -339,6 +352,82 @@ const EvalBeeCameraScanner: React.FC<EvalBeeCameraScannerProps> = ({
     return recommendations
   }
 
+  // Simple guide overlay - shows paper frame and basic alignment
+  const drawSimpleGuide = (alignment: AlignmentStatus) => {
+    if (!overlayCanvasRef.current) return
+    
+    const canvas = overlayCanvasRef.current
+    const ctx = canvas.getContext('2d')
+    if (!ctx) return
+    
+    ctx.clearRect(0, 0, canvas.width, canvas.height)
+    
+    // Simple paper frame guide
+    const margin = 0.15
+    const frameX = canvas.width * margin
+    const frameY = canvas.height * margin
+    const frameWidth = canvas.width * (1 - 2 * margin)
+    const frameHeight = canvas.height * (1 - 2 * margin)
+    
+    // Frame color based on paper detection
+    const frameColor = alignment.paperDetected ? '#10B981' : '#FFFFFF'
+    const frameOpacity = alignment.paperDetected ? 0.8 : 0.5
+    
+    // Draw main guide frame
+    ctx.strokeStyle = frameColor
+    ctx.globalAlpha = frameOpacity
+    ctx.lineWidth = 3
+    ctx.setLineDash([20, 10])
+    ctx.strokeRect(frameX, frameY, frameWidth, frameHeight)
+    
+    // Draw corner guides (small L-shapes in corners)
+    ctx.setLineDash([])
+    ctx.lineWidth = 4
+    const cornerSize = 40
+    
+    // Top-left corner
+    ctx.beginPath()
+    ctx.moveTo(frameX, frameY + cornerSize)
+    ctx.lineTo(frameX, frameY)
+    ctx.lineTo(frameX + cornerSize, frameY)
+    ctx.stroke()
+    
+    // Top-right corner
+    ctx.beginPath()
+    ctx.moveTo(frameX + frameWidth - cornerSize, frameY)
+    ctx.lineTo(frameX + frameWidth, frameY)
+    ctx.lineTo(frameX + frameWidth, frameY + cornerSize)
+    ctx.stroke()
+    
+    // Bottom-left corner
+    ctx.beginPath()
+    ctx.moveTo(frameX, frameY + frameHeight - cornerSize)
+    ctx.lineTo(frameX, frameY + frameHeight)
+    ctx.lineTo(frameX + cornerSize, frameY + frameHeight)
+    ctx.stroke()
+    
+    // Bottom-right corner
+    ctx.beginPath()
+    ctx.moveTo(frameX + frameWidth - cornerSize, frameY + frameHeight)
+    ctx.lineTo(frameX + frameWidth, frameY + frameHeight)
+    ctx.lineTo(frameX + frameWidth, frameY + frameHeight - cornerSize)
+    ctx.stroke()
+    
+    ctx.globalAlpha = 1.0
+    
+    // Simple center instruction (only when no paper detected)
+    if (!alignment.paperDetected) {
+      ctx.fillStyle = 'rgba(0, 0, 0, 0.7)'
+      ctx.fillRect(canvas.width/2 - 120, canvas.height/2 - 30, 240, 60)
+      
+      ctx.fillStyle = 'white'
+      ctx.font = 'bold 16px sans-serif'
+      ctx.textAlign = 'center'
+      ctx.fillText('OMR varaqni ramkaga', canvas.width/2, canvas.height/2 - 5)
+      ctx.fillText('joylashtiring', canvas.width/2, canvas.height/2 + 20)
+    }
+  }
+
   const captureImage = async () => {
     if (!videoRef.current || !canvasRef.current || !isReady || !canCapture) return
 
@@ -391,6 +480,12 @@ const EvalBeeCameraScanner: React.FC<EvalBeeCameraScannerProps> = ({
               playsInline
               muted
               className="w-full h-full object-cover"
+            />
+            
+            {/* Simple Guide Overlay */}
+            <canvas
+              ref={overlayCanvasRef}
+              className="absolute inset-0 w-full h-full pointer-events-none"
             />
             
             {/* Close button - top right */}
