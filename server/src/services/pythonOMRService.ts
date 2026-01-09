@@ -6,6 +6,8 @@
 import { spawn } from 'child_process'
 import fs from 'fs'
 import path from 'path'
+import FormData from 'form-data'
+import fetch from 'node-fetch'
 
 interface PythonOMRResult {
   extractedAnswers: string[]
@@ -41,9 +43,11 @@ interface PythonOMRResult {
 
 export class PythonOMRService {
   private timeout: number
+  private pythonOMRUrl: string
 
   constructor() {
     this.timeout = 300000 // 5 minutes timeout
+    this.pythonOMRUrl = process.env.PYTHON_OMR_URL || 'http://localhost:5000'
   }
 
   /**
@@ -51,8 +55,18 @@ export class PythonOMRService {
    */
   async isAvailable(): Promise<boolean> {
     try {
-      // Check if Python is available and the processor file exists
-      // The server runs from techii/server, but python_omr_checker is in techii/
+      // First try HTTP server (production)
+      if (process.env.NODE_ENV === 'production' || process.env.PYTHON_OMR_URL) {
+        console.log(`🔍 Checking Python OMR server at: ${this.pythonOMRUrl}`)
+        const response = await fetch(`${this.pythonOMRUrl}/health`, {
+          method: 'GET'
+        })
+        const isAvailable = response.ok
+        console.log(`Python OMR server available: ${isAvailable}`)
+        return isAvailable
+      }
+      
+      // Fallback to local subprocess (development)
       const processorPath = path.join(process.cwd(), '..', 'python_omr_checker', 'omr_processor.py')
       console.log(`🔍 Checking Python processor at: ${processorPath}`)
       const exists = fs.existsSync(processorPath)
@@ -100,7 +114,7 @@ export class PythonOMRService {
   }
 
   /**
-   * Process OMR sheet using Python processor (direct subprocess call)
+   * Process OMR sheet using Python processor
    */
   async processOMRSheet(
     imageBuffer: Buffer, 
@@ -109,7 +123,7 @@ export class PythonOMRService {
     scoring: any = null, 
     debug = false
   ): Promise<PythonOMRResult> {
-    console.log('🐍 Processing OMR with Python processor (direct subprocess)...')
+    console.log('🐍 Processing OMR with Python processor...')
     console.log(`Image size: ${imageBuffer.length} bytes`)
     console.log(`Answer key: ${answerKey.length} questions`)
     console.log(`Exam data provided: ${!!examData}`)
@@ -121,145 +135,247 @@ export class PythonOMRService {
         throw new Error('Python OMR processor is not available')
       }
 
-      // Create temporary directory if it doesn't exist
-      const tempDir = path.join(process.cwd(), '..', 'uploads', 'temp')
-      if (!fs.existsSync(tempDir)) {
-        fs.mkdirSync(tempDir, { recursive: true })
-      }
-
-      // Save image to temporary file
-      const timestamp = Date.now()
-      const tempImagePath = path.join(tempDir, `omr_${timestamp}.jpg`)
-      fs.writeFileSync(tempImagePath, imageBuffer)
-      
-      // Save exam data to temporary file if provided
-      let examDataPath = null
-      if (examData) {
-        examDataPath = path.join(tempDir, `exam_${timestamp}.json`)
-        fs.writeFileSync(examDataPath, JSON.stringify(examData, null, 2))
-        console.log(`📋 Exam data saved to: ${examDataPath}`)
-        console.log(`📋 Exam data content: ${JSON.stringify(examData, null, 2)}`)
-      } else {
-        console.log('⚠️ No exam data provided - will use generic processing')
+      // Try HTTP server first (production)
+      if (process.env.NODE_ENV === 'production' || process.env.PYTHON_OMR_URL) {
+        return await this.processOMRViaHTTP(imageBuffer, answerKey, examData, scoring, debug)
       }
       
-      // Prepare command arguments
-      const processorPath = path.join('..', 'python_omr_checker', 'omr_processor.py')
-      const args = [
-        processorPath,
-        tempImagePath,
-        '--answer-key', answerKey.join(',')
-      ]
-      
-      if (examDataPath) {
-        args.push('--exam-data', examDataPath)
-      }
-      
-      if (debug) {
-        args.push('--debug')
-      }
-      
-      console.log('📤 Calling Python processor directly...')
-      console.log(`Command: python ${args.join(' ')}`)
-      
-      // Execute Python processor directly
-      return new Promise((resolve, reject) => {
-        const pythonProcess = spawn('python', args, {
-          cwd: process.cwd(),
-          stdio: ['pipe', 'pipe', 'pipe']
-        })
-        
-        let stdout = ''
-        let stderr = ''
-        
-        pythonProcess.stdout.on('data', (data: Buffer) => {
-          stdout += data.toString()
-        })
-        
-        pythonProcess.stderr.on('data', (data: Buffer) => {
-          stderr += data.toString()
-        })
-        
-        pythonProcess.on('close', (code: number) => {
-          // Clean up temporary files
-          try {
-            if (fs.existsSync(tempImagePath)) fs.unlinkSync(tempImagePath)
-            if (examDataPath && fs.existsSync(examDataPath)) fs.unlinkSync(examDataPath)
-          } catch (cleanupError) {
-            console.warn('Failed to clean up temporary files:', cleanupError)
-          }
-          
-          if (code !== 0) {
-            console.error('Python processor failed:', stderr)
-            reject(new Error(`Python processor failed with code ${code}: ${stderr}`))
-            return
-          }
-          
-          try {
-            // Parse JSON output from Python processor
-            const result = JSON.parse(stdout)
-            
-            console.log('✅ Python OMR processing completed (direct subprocess)')
-            console.log(`Confidence: ${Math.round((result.confidence || 0) * 100)}%`)
-            console.log(`Extracted answers: ${result.extracted_answers?.length || 0}`)
-            
-            // Format result to match expected structure
-            const formattedResult: PythonOMRResult = {
-              extractedAnswers: result.extracted_answers || [],
-              confidence: result.confidence || 0,
-              processingDetails: {
-                alignmentMarksFound: result.processing_details?.alignment_marks_found || 0,
-                bubbleDetectionAccuracy: result.processing_details?.bubble_detection_accuracy || 0,
-                imageQuality: result.processing_details?.image_quality || 0,
-                processingMethod: 'Python OpenCV Ultra-Precision (Direct Subprocess)',
-                processingTime: result.processing_details?.processing_time || 0,
-                imageInfo: result.processing_details?.image_info || {
-                  width: 0,
-                  height: 0,
-                  format: 'unknown',
-                  size: imageBuffer.length
-                },
-                actualQuestionCount: result.processing_details?.actual_question_count || 0,
-                expectedQuestionCount: result.processing_details?.expected_question_count || 0,
-                pythonServerUsed: false // Direct subprocess call, not HTTP
-              },
-              detailedResults: (result.detailed_results || []).map((detailResult: any) => ({
-                question: detailResult.question,
-                detectedAnswer: detailResult.detected_answer,
-                confidence: detailResult.confidence,
-                bubbleIntensities: detailResult.bubble_intensities || {},
-                bubbleCoordinates: detailResult.bubble_coordinates || {},
-                questionType: detailResult.question_type,
-                subjectName: detailResult.subject_name,
-                sectionName: detailResult.section_name
-              })),
-              scoring: null
-            }
-            
-            // Add scoring if provided
-            if (scoring && result.extracted_answers) {
-              formattedResult.scoring = this.calculateScoring(result.extracted_answers, answerKey, scoring)
-            }
-            
-            resolve(formattedResult)
-            
-          } catch (parseError) {
-            console.error('Failed to parse Python processor output:', parseError)
-            console.error('Raw output:', stdout.substring(0, 1000))
-            reject(new Error(`Failed to parse Python processor output: ${parseError}`))
-          }
-        })
-        
-        pythonProcess.on('error', (error: Error) => {
-          console.error('Failed to start Python processor:', error)
-          reject(new Error(`Failed to start Python processor: ${error.message}`))
-        })
-      })
+      // Fallback to subprocess (development)
+      return await this.processOMRViaSubprocess(imageBuffer, answerKey, examData, scoring, debug)
 
     } catch (error: any) {
-      console.error('Python OMR processing error (direct subprocess):', error)
+      console.error('Python OMR processing error:', error)
       throw new Error(`Python OMR processing failed: ${error.message}`)
     }
+  }
+
+  /**
+   * Process OMR via HTTP server (production)
+   */
+  private async processOMRViaHTTP(
+    imageBuffer: Buffer, 
+    answerKey: string[], 
+    examData: any = null, 
+    scoring: any = null, 
+    debug = false
+  ): Promise<PythonOMRResult> {
+    console.log('📡 Processing OMR via HTTP server...')
+    
+    const formData = new FormData()
+    formData.append('image', imageBuffer, {
+      filename: 'omr_sheet.jpg',
+      contentType: 'image/jpeg'
+    })
+    formData.append('answer_key', answerKey.join(','))
+    
+    if (examData) {
+      formData.append('exam_data', JSON.stringify(examData))
+    }
+    
+    if (debug) {
+      formData.append('debug', 'true')
+    }
+
+    const response = await fetch(`${this.pythonOMRUrl}/process-omr`, {
+      method: 'POST',
+      body: formData
+    })
+
+    if (!response.ok) {
+      const errorText = await response.text()
+      throw new Error(`HTTP ${response.status}: ${errorText}`)
+    }
+
+    const result: any = await response.json()
+    
+    console.log('✅ Python OMR processing completed (HTTP)')
+    console.log(`Confidence: ${Math.round((result.confidence || 0) * 100)}%`)
+    console.log(`Extracted answers: ${result.extracted_answers?.length || 0}`)
+    
+    // Format result to match expected structure
+    const formattedResult: PythonOMRResult = {
+      extractedAnswers: result.extracted_answers || [],
+      confidence: result.confidence || 0,
+      processingDetails: {
+        alignmentMarksFound: result.processing_details?.alignment_marks_found || 0,
+        bubbleDetectionAccuracy: result.processing_details?.bubble_detection_accuracy || 0,
+        imageQuality: result.processing_details?.image_quality || 0,
+        processingMethod: 'Python OpenCV Ultra-Precision (HTTP Server)',
+        processingTime: result.processing_details?.processing_time || 0,
+        imageInfo: result.processing_details?.image_info || {
+          width: 0,
+          height: 0,
+          format: 'unknown',
+          size: imageBuffer.length
+        },
+        actualQuestionCount: result.processing_details?.actual_question_count || 0,
+        expectedQuestionCount: result.processing_details?.expected_question_count || 0,
+        pythonServerUsed: true
+      },
+      detailedResults: (result.detailed_results || []).map((detailResult: any) => ({
+        question: detailResult.question,
+        detectedAnswer: detailResult.detected_answer,
+        confidence: detailResult.confidence,
+        bubbleIntensities: detailResult.bubble_intensities || {},
+        bubbleCoordinates: detailResult.bubble_coordinates || {},
+        questionType: detailResult.question_type,
+        subjectName: detailResult.subject_name,
+        sectionName: detailResult.section_name
+      })),
+      scoring: null
+    }
+    
+    // Add scoring if provided
+    if (scoring && result.extracted_answers) {
+      formattedResult.scoring = this.calculateScoring(result.extracted_answers, answerKey, scoring)
+    }
+    
+    return formattedResult
+  }
+
+  /**
+   * Process OMR via subprocess (development)
+   */
+  private async processOMRViaSubprocess(
+    imageBuffer: Buffer, 
+    answerKey: string[], 
+    examData: any = null, 
+    scoring: any = null, 
+    debug = false
+  ): Promise<PythonOMRResult> {
+    console.log('🔧 Processing OMR via subprocess (development)...')
+
+    // Create temporary directory if it doesn't exist
+    const tempDir = path.join(process.cwd(), '..', 'uploads', 'temp')
+    if (!fs.existsSync(tempDir)) {
+      fs.mkdirSync(tempDir, { recursive: true })
+    }
+
+    // Save image to temporary file
+    const timestamp = Date.now()
+    const tempImagePath = path.join(tempDir, `omr_${timestamp}.jpg`)
+    fs.writeFileSync(tempImagePath, imageBuffer)
+    
+    // Save exam data to temporary file if provided
+    let examDataPath = null
+    if (examData) {
+      examDataPath = path.join(tempDir, `exam_${timestamp}.json`)
+      fs.writeFileSync(examDataPath, JSON.stringify(examData, null, 2))
+      console.log(`📋 Exam data saved to: ${examDataPath}`)
+    }
+    
+    // Prepare command arguments
+    const processorPath = path.join('..', 'python_omr_checker', 'omr_processor.py')
+    const args = [
+      processorPath,
+      tempImagePath,
+      '--answer-key', answerKey.join(',')
+    ]
+    
+    if (examDataPath) {
+      args.push('--exam-data', examDataPath)
+    }
+    
+    if (debug) {
+      args.push('--debug')
+    }
+    
+    console.log('📤 Calling Python processor directly...')
+    console.log(`Command: python ${args.join(' ')}`)
+    
+    // Execute Python processor directly
+    return new Promise((resolve, reject) => {
+      const pythonProcess = spawn('python', args, {
+        cwd: process.cwd(),
+        stdio: ['pipe', 'pipe', 'pipe']
+      })
+      
+      let stdout = ''
+      let stderr = ''
+      
+      pythonProcess.stdout.on('data', (data: Buffer) => {
+        stdout += data.toString()
+      })
+      
+      pythonProcess.stderr.on('data', (data: Buffer) => {
+        stderr += data.toString()
+      })
+      
+      pythonProcess.on('close', (code: number) => {
+        // Clean up temporary files
+        try {
+          if (fs.existsSync(tempImagePath)) fs.unlinkSync(tempImagePath)
+          if (examDataPath && fs.existsSync(examDataPath)) fs.unlinkSync(examDataPath)
+        } catch (cleanupError) {
+          console.warn('Failed to clean up temporary files:', cleanupError)
+        }
+        
+        if (code !== 0) {
+          console.error('Python processor failed:', stderr)
+          reject(new Error(`Python processor failed with code ${code}: ${stderr}`))
+          return
+        }
+        
+        try {
+          // Parse JSON output from Python processor
+          const result = JSON.parse(stdout)
+          
+          console.log('✅ Python OMR processing completed (subprocess)')
+          console.log(`Confidence: ${Math.round((result.confidence || 0) * 100)}%`)
+          console.log(`Extracted answers: ${result.extracted_answers?.length || 0}`)
+          
+          // Format result to match expected structure
+          const formattedResult: PythonOMRResult = {
+            extractedAnswers: result.extracted_answers || [],
+            confidence: result.confidence || 0,
+            processingDetails: {
+              alignmentMarksFound: result.processing_details?.alignment_marks_found || 0,
+              bubbleDetectionAccuracy: result.processing_details?.bubble_detection_accuracy || 0,
+              imageQuality: result.processing_details?.image_quality || 0,
+              processingMethod: 'Python OpenCV Ultra-Precision (Subprocess)',
+              processingTime: result.processing_details?.processing_time || 0,
+              imageInfo: result.processing_details?.image_info || {
+                width: 0,
+                height: 0,
+                format: 'unknown',
+                size: imageBuffer.length
+              },
+              actualQuestionCount: result.processing_details?.actual_question_count || 0,
+              expectedQuestionCount: result.processing_details?.expected_question_count || 0,
+              pythonServerUsed: false
+            },
+            detailedResults: (result.detailed_results || []).map((detailResult: any) => ({
+              question: detailResult.question,
+              detectedAnswer: detailResult.detected_answer,
+              confidence: detailResult.confidence,
+              bubbleIntensities: detailResult.bubble_intensities || {},
+              bubbleCoordinates: detailResult.bubble_coordinates || {},
+              questionType: detailResult.question_type,
+              subjectName: detailResult.subject_name,
+              sectionName: detailResult.section_name
+            })),
+            scoring: null
+          }
+          
+          // Add scoring if provided
+          if (scoring && result.extracted_answers) {
+            formattedResult.scoring = this.calculateScoring(result.extracted_answers, answerKey, scoring)
+          }
+          
+          resolve(formattedResult)
+          
+        } catch (parseError) {
+          console.error('Failed to parse Python processor output:', parseError)
+          console.error('Raw output:', stdout.substring(0, 1000))
+          reject(new Error(`Failed to parse Python processor output: ${parseError}`))
+        }
+      })
+      
+      pythonProcess.on('error', (error: Error) => {
+        console.error('Failed to start Python processor:', error)
+        reject(new Error(`Failed to start Python processor: ${error.message}`))
+      })
+    })
   }
   
   /**

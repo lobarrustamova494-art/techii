@@ -43,6 +43,8 @@ services:
         value: 7d
       - key: FRONTEND_URL
         value: https://ultra-precision-omr-frontend.onrender.com
+      - key: PYTHON_OMR_URL
+        value: https://ultra-precision-python-omr.onrender.com
       # AI Service Configuration
       - key: GROQ_API_KEY
         sync: false # Set manually in Render dashboard
