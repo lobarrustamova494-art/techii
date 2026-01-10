@@ -315,36 +315,44 @@ const EvalBeeCameraScanner: React.FC<EvalBeeCameraScannerProps> = memo(({
   }
 
 
-  // EvalBee KENG RAMKA: 4 ta nuqtani topish - KENGROQ MASOFA
+  // CAMERA_RAMKA.MD bo'yicha: Ramka ichidagi hudud tekshiruvi
   const detectCornerMarkers = (grayscale: number[], width: number, height: number, sampleRate: number = 1): { x: number, y: number, detected: boolean, name: string }[] => {
-    // 4 ta burchakda qora nuqtalarni qidiramiz - KENGROQ RAMKA
+    // RAMKA ICHIDAGI HUDUD - 10% dan 90% gacha (80% x 70%)
+    const frameLeft = 0.1   // 10%
+    const frameRight = 0.9  // 90%
+    const frameTop = 0.15   // 15%
+    const frameBottom = 0.85 // 85%
+    
+    // 4 ta burchakda qora nuqtalarni qidiramiz - RAMKA ICHIDA
     const cornerRegions = [
-      { name: 'TL', x: 0.08, y: 0.12, detected: false }, // Top-Left - kengroq
-      { name: 'TR', x: 0.92, y: 0.12, detected: false }, // Top-Right - kengroq
-      { name: 'BL', x: 0.08, y: 0.88, detected: false }, // Bottom-Left - kengroq
-      { name: 'BR', x: 0.92, y: 0.88, detected: false }  // Bottom-Right - kengroq
+      { name: 'TL', x: frameLeft + 0.05, y: frameTop + 0.05, detected: false },   // Top-Left
+      { name: 'TR', x: frameRight - 0.05, y: frameTop + 0.05, detected: false },  // Top-Right
+      { name: 'BL', x: frameLeft + 0.05, y: frameBottom - 0.05, detected: false }, // Bottom-Left
+      { name: 'BR', x: frameRight - 0.05, y: frameBottom - 0.05, detected: false } // Bottom-Right
     ]
     
     // Har bir burchakda qora nuqta borligini tekshiramiz
     cornerRegions.forEach(corner => {
       const centerX = Math.floor(width * corner.x)
       const centerY = Math.floor(height * corner.y)
-      const searchRadius = Math.min(width, height) * 0.1 // Kattaroq radius - topish osonroq
+      const searchRadius = Math.min(width, height) * 0.06 // Ramka ichida kichikroq radius
       
       let darkPixels = 0
       let totalPixels = 0
       
-      // Kichik doira ichida qora pixellarni qidiramiz
-      for (let dy = -searchRadius; dy <= searchRadius; dy += 2) { // Kichikroq step
-        for (let dx = -searchRadius; dx <= searchRadius; dx += 2) { // Kichikroq step
+      // Ramka ichidagi nuqtalarni qidiramiz
+      for (let dy = -searchRadius; dy <= searchRadius; dy += 2) {
+        for (let dx = -searchRadius; dx <= searchRadius; dx += 2) {
           const x = centerX + dx
           const y = centerY + dy
           
-          if (x >= 0 && x < width && y >= 0 && y < height) {
+          // Faqat ramka ichidagi pixellarni tekshiramiz
+          if (x >= frameLeft * width && x <= frameRight * width && 
+              y >= frameTop * height && y <= frameBottom * height) {
             const idx = Math.floor(y) * width + Math.floor(x)
             if (idx < grayscale.length) {
               const pixel = grayscale[idx]
-              if (pixel < 130) { // Qora pixel (130 dan past - kengroq range)
+              if (pixel < 120) { // Qora pixel
                 darkPixels++
               }
               totalPixels++
@@ -353,8 +361,8 @@ const EvalBeeCameraScanner: React.FC<EvalBeeCameraScannerProps> = memo(({
         }
       }
       
-      // Agar 20% dan ko'p qora pixel bo'lsa - nuqta topildi (pastroq threshold)
-      corner.detected = totalPixels > 0 && (darkPixels / totalPixels) > 0.2
+      // Ramka ichida nuqta topildi
+      corner.detected = totalPixels > 0 && (darkPixels / totalPixels) > 0.25
     })
     
     // Koordinatalarni qaytaramiz
@@ -533,87 +541,89 @@ const EvalBeeCameraScanner: React.FC<EvalBeeCameraScannerProps> = memo(({
               // Mirror effect olib tashlandi - to'g'ri holat
             />
             
-            {/* KENG RAMKA UI: 4 ta doira - kengroq masofa */}
+            {/* CAMERA_RAMKA.MD bo'yicha: Markazda katta to'rtburchak + dimmed tashqi hudud */}
             <div className="absolute inset-0 z-15 pointer-events-none">
-              {/* 4 ta burchakda doiralar - KENGROQ RAMKA */}
-              <div className="absolute" style={{ left: '8%', top: '12%' }}>
-                <div className={`w-18 h-18 rounded-full border-4 flex items-center justify-center text-xl font-bold transition-all duration-300 ${
-                  alignmentStatus.corners[0]?.detected 
-                    ? 'border-green-400 bg-green-400/20 text-green-400' 
-                    : 'border-red-400 bg-red-400/20 text-red-400'
-                }`}>
-                  {alignmentStatus.corners[0]?.detected ? '✓' : '○'}
-                </div>
-              </div>
               
-              <div className="absolute" style={{ right: '8%', top: '12%' }}>
-                <div className={`w-18 h-18 rounded-full border-4 flex items-center justify-center text-xl font-bold transition-all duration-300 ${
-                  alignmentStatus.corners[1]?.detected 
-                    ? 'border-green-400 bg-green-400/20 text-green-400' 
-                    : 'border-red-400 bg-red-400/20 text-red-400'
-                }`}>
-                  {alignmentStatus.corners[1]?.detected ? '✓' : '○'}
-                </div>
-              </div>
+              {/* TASHQI HUDUD QORAROQ (DIMMED) - Ko'zni markazga majburlash */}
+              <div className="absolute inset-0 bg-black/60"></div>
               
-              <div className="absolute" style={{ left: '8%', bottom: '12%' }}>
-                <div className={`w-18 h-18 rounded-full border-4 flex items-center justify-center text-xl font-bold transition-all duration-300 ${
-                  alignmentStatus.corners[2]?.detected 
-                    ? 'border-green-400 bg-green-400/20 text-green-400' 
-                    : 'border-red-400 bg-red-400/20 text-red-400'
-                }`}>
-                  {alignmentStatus.corners[2]?.detected ? '✓' : '○'}
+              {/* MARKAZDA KATTA TO'RTBURCHAK - Ramka ichida faqat imtihon varag'i */}
+              <div 
+                className="absolute bg-transparent border-4 border-white/80 rounded-lg"
+                style={{
+                  left: '10%',
+                  top: '15%', 
+                  width: '80%',
+                  height: '70%',
+                  boxShadow: '0 0 0 9999px rgba(0, 0, 0, 0.6)' // Tashqi hudud dimmed
+                }}
+              >
+                {/* TO'RT BURCHAGIDA ANIQ MARKERLAR */}
+                <div className="absolute -top-3 -left-3">
+                  <div className={`w-8 h-8 border-l-4 border-t-4 rounded-tl-lg transition-all duration-300 ${
+                    alignmentStatus.corners[0]?.detected 
+                      ? 'border-green-400' 
+                      : 'border-red-400'
+                  }`}></div>
                 </div>
-              </div>
-              
-              <div className="absolute" style={{ right: '8%', bottom: '12%' }}>
-                <div className={`w-18 h-18 rounded-full border-4 flex items-center justify-center text-xl font-bold transition-all duration-300 ${
-                  alignmentStatus.corners[3]?.detected 
-                    ? 'border-green-400 bg-green-400/20 text-green-400' 
-                    : 'border-red-400 bg-red-400/20 text-red-400'
-                }`}>
-                  {alignmentStatus.corners[3]?.detected ? '✓' : '○'}
-                </div>
-              </div>
-              
-              {/* Markazda oddiy status */}
-              <div className="absolute inset-0 flex items-center justify-center">
-                <div className={`px-6 py-3 rounded-full text-lg font-bold transition-all duration-300 ${
-                  alignmentStatus.corners.filter(c => c.detected).length >= 3
-                    ? 'bg-green-500/90 text-white' 
-                    : 'bg-red-500/90 text-white'
-                }`}>
-                  {alignmentStatus.corners.filter(c => c.detected).length >= 3 
-                    ? '✅ TAYYOR!' 
-                    : `${alignmentStatus.corners.filter(c => c.detected).length}/4 NUQTA`
-                  }
-                </div>
-              </div>
-              
-              {/* Yordamchi chiziqlar - KENG ramka ko'rsatish */}
-              <div className="absolute inset-0 pointer-events-none">
-                {/* Horizontal lines - kengroq */}
-                <div className="absolute border-t-2 border-dashed border-white/30" 
-                     style={{ left: '8%', right: '8%', top: '12%' }}></div>
-                <div className="absolute border-t-2 border-dashed border-white/30" 
-                     style={{ left: '8%', right: '8%', bottom: '12%' }}></div>
                 
-                {/* Vertical lines - kengroq */}
-                <div className="absolute border-l-2 border-dashed border-white/30" 
-                     style={{ left: '8%', top: '12%', bottom: '12%' }}></div>
-                <div className="absolute border-l-2 border-dashed border-white/30" 
-                     style={{ right: '8%', top: '12%', bottom: '12%' }}></div>
+                <div className="absolute -top-3 -right-3">
+                  <div className={`w-8 h-8 border-r-4 border-t-4 rounded-tr-lg transition-all duration-300 ${
+                    alignmentStatus.corners[1]?.detected 
+                      ? 'border-green-400' 
+                      : 'border-red-400'
+                  }`}></div>
+                </div>
                 
-                {/* Burchak ko'rsatkichlari */}
-                <div className="absolute border-l-4 border-t-4 border-white/50 w-8 h-8" 
-                     style={{ left: '8%', top: '12%' }}></div>
-                <div className="absolute border-r-4 border-t-4 border-white/50 w-8 h-8" 
-                     style={{ right: '8%', top: '12%' }}></div>
-                <div className="absolute border-l-4 border-b-4 border-white/50 w-8 h-8" 
-                     style={{ left: '8%', bottom: '12%' }}></div>
-                <div className="absolute border-r-4 border-b-4 border-white/50 w-8 h-8" 
-                     style={{ right: '8%', bottom: '12%' }}></div>
+                <div className="absolute -bottom-3 -left-3">
+                  <div className={`w-8 h-8 border-l-4 border-b-4 rounded-bl-lg transition-all duration-300 ${
+                    alignmentStatus.corners[2]?.detected 
+                      ? 'border-green-400' 
+                      : 'border-red-400'
+                  }`}></div>
+                </div>
+                
+                <div className="absolute -bottom-3 -right-3">
+                  <div className={`w-8 h-8 border-r-4 border-b-4 rounded-br-lg transition-all duration-300 ${
+                    alignmentStatus.corners[3]?.detected 
+                      ? 'border-green-400' 
+                      : 'border-red-400'
+                  }`}></div>
+                </div>
+                
+                {/* RAMKA ICHIDA STATUS - Majburlovchi mexanizm */}
+                <div className="absolute inset-0 flex items-center justify-center">
+                  <div className={`px-6 py-3 rounded-lg text-lg font-bold transition-all duration-300 ${
+                    alignmentStatus.corners.filter(c => c.detected).length >= 3
+                      ? 'bg-green-500/90 text-white' 
+                      : 'bg-red-500/90 text-white'
+                  }`}>
+                    {alignmentStatus.corners.filter(c => c.detected).length >= 3 
+                      ? '✅ RAMKA ICHIDA - TAYYOR!' 
+                      : `📄 VARAQNI RAMKA ICHIGA - ${alignmentStatus.corners.filter(c => c.detected).length}/4`
+                    }
+                  </div>
+                </div>
+                
+                {/* QIYSHAYISH NAZORATI - Ramka ichida chiziqlar */}
+                <div className="absolute inset-0 pointer-events-none">
+                  {/* Yuqori va pastki chiziqlar - qiyshayish nazorati */}
+                  <div className="absolute top-0 left-0 right-0 border-t border-dashed border-white/30"></div>
+                  <div className="absolute bottom-0 left-0 right-0 border-t border-dashed border-white/30"></div>
+                  
+                  {/* Markaziy yo'naltiruvchi chiziqlar */}
+                  <div className="absolute top-1/2 left-0 right-0 border-t border-dashed border-white/20 transform -translate-y-1/2"></div>
+                  <div className="absolute left-1/2 top-0 bottom-0 border-l border-dashed border-white/20 transform -translate-x-1/2"></div>
+                </div>
               </div>
+              
+              {/* RAMKA TASHQARISIDA OGOHLANTIRISH */}
+              <div className="absolute top-4 left-1/2 transform -translate-x-1/2">
+                <div className="bg-black/80 px-4 py-2 rounded-lg text-white text-sm font-medium">
+                  📱 Varaq ramkadan chiqmasin - majburiy shart
+                </div>
+              </div>
+              
             </div>
             
             {/* Real-time Preview Window */}
@@ -668,16 +678,16 @@ const EvalBeeCameraScanner: React.FC<EvalBeeCameraScannerProps> = memo(({
               </div>
             </div>
             
-            {/* Frame Status Indicator - KENG RAMKA */}
+            {/* Frame Status Indicator - CAMERA_RAMKA.MD bo'yicha */}
             <div className="absolute top-16 left-1/2 transform -translate-x-1/2 z-20">
               <div className={`px-4 py-2 rounded-lg text-sm font-medium transition-all duration-300 ${
                 alignmentStatus.corners.filter(c => c.detected).length >= 3
                   ? 'bg-green-500/90 text-white' 
-                  : 'bg-blue-500/90 text-white'
+                  : 'bg-red-500/90 text-white'
               }`}>
                 {alignmentStatus.corners.filter(c => c.detected).length >= 3
-                  ? '✅ Keng ramka - TAYYOR!' 
-                  : `📄 Varaqni keng ramkaga qo'ying - ${alignmentStatus.corners.filter(c => c.detected).length}/4`
+                  ? '✅ Ramka ichida - AVTOMATIK SKAN!' 
+                  : `⚠️ Varaq ramkadan chiqmasin - ${alignmentStatus.corners.filter(c => c.detected).length}/4`
                 }
               </div>
             </div>
@@ -687,22 +697,22 @@ const EvalBeeCameraScanner: React.FC<EvalBeeCameraScannerProps> = memo(({
 
       {/* Bottom Controls */}
       <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black via-black/80 to-transparent p-6 z-20">
-        {/* EvalBee KENG RAMKA Status - Kengroq masofa */}
+        {/* CAMERA_RAMKA.MD bo'yicha: Majburlovchi mexanizm */}
         <div className="text-center mb-6">
           {alignmentStatus.corners.filter(c => c.detected).length < 3 ? (
             <div className="space-y-2">
-              <p className="text-blue-400 text-lg font-medium">📄 Varaqni keng ramkaga qo'ying</p>
-              <p className="text-white/70 text-sm">4 ta nuqta kengroq maydonda bo'lsin</p>
+              <p className="text-red-400 text-lg font-medium">⚠️ VARAQ RAMKADAN CHIQMASIN</p>
+              <p className="text-white/70 text-sm">Avval to'g'ri joylashtir, keyin tekshiraman</p>
             </div>
           ) : qualityMetrics.focus < 0.3 ? (
             <div className="space-y-2">
-              <p className="text-yellow-400 text-lg font-medium">📱 Biroz yaqinroq qiling</p>
-              <p className="text-white/70 text-sm">Rasm tiniq bo'lishi kerak</p>
+              <p className="text-yellow-400 text-lg font-medium">📱 Telefonni tekislang</p>
+              <p className="text-white/70 text-sm">Qiyshayish nazorati - rasm tiniq bo'lsin</p>
             </div>
           ) : (
             <div className="space-y-2">
-              <p className="text-green-400 text-lg font-medium">✨ TAYYOR - Darhol suratga olinadi!</p>
-              <p className="text-green-300 text-sm">Focus: ✓ | Keng ramka: ✓</p>
+              <p className="text-green-400 text-lg font-medium">✨ RAMKA ICHIDA - AVTOMATIK SKAN!</p>
+              <p className="text-green-300 text-sm">Majburlovchi mexanizm: ✓ | ROI tayyor: ✓</p>
             </div>
           )}
         </div>
