@@ -1,4 +1,4 @@
-import React, { useRef, useEffect, useState } from 'react'
+import React, { useRef, useEffect, useState, useCallback, useMemo, memo } from 'react'
 import { 
   Camera, X, Bug
 } from 'lucide-react'
@@ -38,7 +38,7 @@ interface DetectedBubble {
   confidence: number
 }
 
-const EvalBeeCameraScanner: React.FC<EvalBeeCameraScannerProps> = ({
+const EvalBeeCameraScanner: React.FC<EvalBeeCameraScannerProps> = memo(({
   onCapture,
   onClose,
   isProcessing,
@@ -101,29 +101,26 @@ const EvalBeeCameraScanner: React.FC<EvalBeeCameraScannerProps> = ({
     }
   }, [isReady, isProcessing])
 
-  const startCamera = async () => {
+  // Memoize expensive calculations
+  const cameraConstraints = useMemo(() => ({
+    video: {
+      facingMode: facingMode,
+      width: { ideal: 1280, min: 960 }, // Reduced resolution for better performance
+      height: { ideal: 960, min: 720 },
+      frameRate: { ideal: 24, min: 15 }, // Reduced frame rate
+      aspectRatio: { ideal: 4/3 },
+      focusMode: 'continuous',
+      exposureMode: 'continuous',
+      whiteBalanceMode: 'continuous'
+    }
+  }), [facingMode])
+
+  const startCamera = useCallback(async () => {
     try {
       setError('')
       console.log('🎥 EvalBee Camera: Starting camera initialization...')
       
-      // EvalBee-style camera constraints - optimized for documents with better quality
-      const constraints = {
-        video: {
-          facingMode: facingMode,
-          width: { ideal: 1920, min: 1280 },
-          height: { ideal: 1440, min: 960 },
-          frameRate: { ideal: 30, min: 20 },
-          aspectRatio: { ideal: 4/3 },
-          // Enhanced settings for better image quality
-          focusMode: 'continuous',
-          exposureMode: 'continuous',
-          whiteBalanceMode: 'continuous'
-        }
-      }
-
-      console.log('📱 Camera constraints:', constraints)
-
-      const mediaStream = await navigator.mediaDevices.getUserMedia(constraints)
+      const mediaStream = await navigator.mediaDevices.getUserMedia(cameraConstraints)
       setStream(mediaStream)
 
       console.log('✅ Camera stream obtained successfully')
@@ -131,15 +128,12 @@ const EvalBeeCameraScanner: React.FC<EvalBeeCameraScannerProps> = ({
       if (videoRef.current) {
         videoRef.current.srcObject = mediaStream
         
-        // Enhanced video settings
         videoRef.current.onloadedmetadata = () => {
           console.log('📺 Video metadata loaded, camera ready for analysis')
-          console.log(`📐 Video dimensions: ${videoRef.current?.videoWidth}x${videoRef.current?.videoHeight}`)
           setIsReady(true)
           setupOverlayCanvas()
         }
         
-        // Optimize video element for better performance
         videoRef.current.setAttribute('playsinline', 'true')
         videoRef.current.setAttribute('webkit-playsinline', 'true')
       }
@@ -157,15 +151,15 @@ const EvalBeeCameraScanner: React.FC<EvalBeeCameraScannerProps> = ({
       
       setError(errorMessage)
     }
-  }
+  }, [cameraConstraints])
 
-  const stopCamera = () => {
+  const stopCamera = useCallback(() => {
     if (stream) {
       stream.getTracks().forEach(track => track.stop())
       setStream(null)
     }
     setIsReady(false)
-  }
+  }, [stream])
 
   const setupOverlayCanvas = () => {
     if (!overlayCanvasRef.current || !videoRef.current) return
@@ -216,179 +210,178 @@ const EvalBeeCameraScanner: React.FC<EvalBeeCameraScannerProps> = ({
     analyzeFrame()
   }
 
-  // EvalBee Core: Fast Analysis (grayscale + basic checks only)
+  // EvalBee Core: Fast Analysis (grayscale + basic checks only) - OPTIMIZED
   const performLightweightAnalysis = (imageData: ImageData) => {
     const { data, width, height } = imageData
     
-    // Convert to grayscale (lightweight)
-    const grayscale = new Array(width * height)
-    for (let i = 0; i < data.length; i += 4) {
-      const gray = 0.299 * data[i] + 0.587 * data[i + 1] + 0.114 * data[i + 2]
-      grayscale[i / 4] = gray
+    // Skip analysis if processing or not ready
+    if (isProcessing || !isReady) return
+    
+    // Throttle analysis to every 3rd frame for better performance
+    if (Math.random() > 0.33) return
+    
+    // Convert to grayscale (lightweight) - sample every 4th pixel
+    const sampleRate = 4
+    const sampledWidth = Math.floor(width / sampleRate)
+    const sampledHeight = Math.floor(height / sampleRate)
+    const grayscale = new Array(sampledWidth * sampledHeight)
+    
+    for (let y = 0; y < sampledHeight; y++) {
+      for (let x = 0; x < sampledWidth; x++) {
+        const sourceX = x * sampleRate
+        const sourceY = y * sampleRate
+        const sourceIdx = (sourceY * width + sourceX) * 4
+        
+        const gray = 0.299 * data[sourceIdx] + 0.587 * data[sourceIdx + 1] + 0.114 * data[sourceIdx + 2]
+        grayscale[y * sampledWidth + x] = gray
+      }
     }
     
-    // 1. Fast Focus Check (Laplacian variance - simplified)
-    const focus = calculateFastFocus(grayscale, width, height)
+    // 1. Fast Focus Check (simplified)
+    const focus = calculateFastFocus(grayscale, sampledWidth, sampledHeight)
     
     // 2. Fast Brightness Check
     const brightness = calculateFastBrightness(grayscale)
     
     // 3. Fast Alignment Check
-    const alignment = detectPaperAlignment(grayscale, width, height)
+    const alignment = detectPaperAlignment(grayscale, sampledWidth, sampledHeight, sampleRate)
     
-    // 4. Bubble Detection (when paper is detected)
+    // 4. Bubble Detection (only when paper detected and every 10th frame)
     let bubbles: DetectedBubble[] = []
-    if (alignment.paperDetected && correctAnswers.length > 0) {
-      bubbles = detectBubbles(grayscale, width, height, alignment)
+    if (alignment.paperDetected && correctAnswers.length > 0 && Math.random() > 0.9) {
+      bubbles = detectBubbles(grayscale, sampledWidth, sampledHeight, alignment, sampleRate)
     }
     
     // 5. Overall Quality (EvalBee method)
     const overall = (focus * 0.4 + brightness * 0.3 + alignment.alignment * 0.3)
     
-    // Debug logging for mobile debugging
-    console.log('📊 EvalBee Camera Analysis:', {
-      focus: Math.round(focus * 100) + '%',
-      brightness: Math.round(brightness * 100) + '%',
-      alignment: Math.round(alignment.alignment * 100) + '%',
-      overall: Math.round(overall * 100) + '%',
-      detectedMarkers: alignment.corners.filter(c => c.detected).length,
-      paperDetected: alignment.paperDetected,
-      bubblesDetected: bubbles.length
-    })
-    
-    // Update states
-    setQualityMetrics({
+    // Batch state updates to prevent excessive re-renders
+    const newQualityMetrics = {
       focus,
       brightness,
-      contrast: alignment.alignment, // Using alignment as contrast proxy
+      contrast: alignment.alignment,
       skew: 1 - alignment.alignment,
       overall,
       issues: generateIssues(focus, brightness, alignment),
       recommendations: generateRecommendations(focus, brightness, alignment)
-    })
+    }
     
-    setAlignmentStatus(alignment)
-    setDetectedBubbles(bubbles)
-    setShowBubbleOverlay(alignment.paperDetected && bubbles.length > 0)
+    // Only update if significant change
+    if (Math.abs(qualityMetrics.overall - overall) > 0.05) {
+      setQualityMetrics(newQualityMetrics)
+      setAlignmentStatus(alignment)
+      
+      if (bubbles.length > 0) {
+        setDetectedBubbles(bubbles)
+        setShowBubbleOverlay(true)
+      }
+    }
     
-    // EvalBee Logic: Strict requirements for capture based on 4 corner markers
+    // EvalBee Logic: Optimized capture detection
     const detectedMarkers = alignment.corners.filter(c => c.detected).length
     const canCaptureNow = (
-      focus >= 0.7 &&           // Good focus required
-      brightness >= 0.3 &&      // Adequate lighting
-      brightness <= 0.8 &&      
-      alignment.paperDetected && // Paper must be detected
-      detectedMarkers >= 3 &&    // At least 3 out of 4 corners detected
-      alignment.alignment >= 0.75 // Good alignment required (75%+ corners)
+      focus >= 0.7 &&
+      brightness >= 0.3 && brightness <= 0.8 &&
+      alignment.paperDetected &&
+      detectedMarkers >= 3 &&
+      alignment.alignment >= 0.75
     )
-    
-    if (canCaptureNow !== canCapture) {
-      console.log('🎯 Capture status changed:', canCaptureNow ? 'Ready to capture' : 'Not ready', {
-        focus: focus >= 0.7,
-        brightness: brightness >= 0.3 && brightness <= 0.8,
-        paperDetected: alignment.paperDetected,
-        markersDetected: `${detectedMarkers}/4`,
-        alignmentGood: alignment.alignment >= 0.75
-      })
-    }
     
     setCanCapture(canCaptureNow)
     
-    // EvalBee Feature: Auto-scan when conditions are perfect
-    if (canCaptureNow && overall >= 0.9) {
-      if (autoScanCountdown === 0) {
-        console.log('✨ Perfect conditions detected! Starting auto-capture countdown...')
-        setAutoScanCountdown(3) // 3 second countdown
-        setTimeout(() => {
-          if (canCapture && overall >= 0.9) {
-            console.log('📸 Auto-capture triggered!')
-            captureImage()
-          }
-          setAutoScanCountdown(0)
-        }, 3000)
-      }
-    } else {
-      setAutoScanCountdown(0)
+    // Throttled auto-capture logic
+    if (canCaptureNow && overall >= 0.9 && autoScanCountdown === 0) {
+      setAutoScanCountdown(3)
+      setTimeout(() => {
+        if (canCapture && qualityMetrics.overall >= 0.9) {
+          captureImage()
+        }
+        setAutoScanCountdown(0)
+      }, 3000)
     }
     
-    // Draw guide overlay with bubbles
-    drawGuideWithBubbles(alignment, bubbles)
-    
-    // Update preview canvas
-    updatePreview()
+    // Draw guide overlay (throttled)
+    if (Math.random() > 0.5) {
+      drawGuideWithBubbles(alignment, bubbles)
+    }
   }
 
-  // Fast focus calculation (simplified Laplacian)
+  // Fast focus calculation (optimized)
   const calculateFastFocus = (grayscale: number[], width: number, height: number): number => {
     let variance = 0
     let count = 0
     
-    // Sample every 4th pixel for speed
-    for (let y = 2; y < height - 2; y += 4) {
-      for (let x = 2; x < width - 2; x += 4) {
+    // Sample every 8th pixel for better performance
+    for (let y = 2; y < height - 2; y += 8) {
+      for (let x = 2; x < width - 2; x += 8) {
         const idx = y * width + x
-        const laplacian = 
-          -grayscale[idx - width] - grayscale[idx - 1] + 4 * grayscale[idx] - grayscale[idx + 1] - grayscale[idx + width]
-        
-        variance += laplacian * laplacian
-        count++
+        if (idx < grayscale.length - width - 1) {
+          const laplacian = 
+            -grayscale[idx - width] - grayscale[idx - 1] + 4 * grayscale[idx] - grayscale[idx + 1] - grayscale[idx + width]
+          
+          variance += laplacian * laplacian
+          count++
+        }
       }
     }
     
-    return Math.min(1, (variance / count) / 500)
+    return count > 0 ? Math.min(1, (variance / count) / 500) : 0
   }
 
-  // Fast brightness calculation
+  // Fast brightness calculation (optimized)
   const calculateFastBrightness = (grayscale: number[]): number => {
-    // Sample every 10th pixel for speed
+    // Sample every 20th pixel for better performance
     let sum = 0
     let count = 0
     
-    for (let i = 0; i < grayscale.length; i += 10) {
+    for (let i = 0; i < grayscale.length; i += 20) {
       sum += grayscale[i]
       count++
     }
     
-    return (sum / count) / 255
+    return count > 0 ? (sum / count) / 255 : 0
   }
 
-  // EvalBee Core: Paper alignment detection with 4 corner markers
-  const detectPaperAlignment = (grayscale: number[], width: number, height: number): AlignmentStatus => {
-    // Define 4 corner marker positions
-    const markerSize = 30
-    const margin = 80 // Distance from edges
+  // EvalBee Core: Paper alignment detection with 4 corner markers (optimized)
+  const detectPaperAlignment = (grayscale: number[], width: number, height: number, sampleRate: number = 1): AlignmentStatus => {
+    // Define 4 corner marker positions (scaled)
+    const markerSize = Math.floor(30 / sampleRate)
+    const margin = Math.floor(80 / sampleRate)
     
     const cornerMarkers = [
-      { x: margin, y: margin, name: 'TL', detected: false }, // Top-left
-      { x: width - margin, y: margin, name: 'TR', detected: false }, // Top-right
-      { x: margin, y: height - margin, name: 'BL', detected: false }, // Bottom-left
-      { x: width - margin, y: height - margin, name: 'BR', detected: false } // Bottom-right
+      { x: margin, y: margin, name: 'TL', detected: false },
+      { x: width - margin, y: margin, name: 'TR', detected: false },
+      { x: margin, y: height - margin, name: 'BL', detected: false },
+      { x: width - margin, y: height - margin, name: 'BR', detected: false }
     ]
     
-    // Detect dark rectangular markers in corners
+    // Detect dark rectangular markers in corners (optimized)
     let detectedMarkers = 0
     
     cornerMarkers.forEach(marker => {
       let darkPixels = 0
       let totalPixels = 0
       
-      for (let dy = -markerSize/2; dy <= markerSize/2; dy++) {
-        for (let dx = -markerSize/2; dx <= markerSize/2; dx++) {
+      // Sample fewer pixels for performance
+      for (let dy = -markerSize/2; dy <= markerSize/2; dy += 2) {
+        for (let dx = -markerSize/2; dx <= markerSize/2; dx += 2) {
           const x = Math.floor(marker.x + dx)
           const y = Math.floor(marker.y + dy)
           
           if (x >= 0 && x < width && y >= 0 && y < height) {
             const idx = y * width + x
-            const pixel = grayscale[idx]
-            
-            if (pixel < 100) darkPixels++ // Dark threshold
-            totalPixels++
+            if (idx < grayscale.length) {
+              const pixel = grayscale[idx]
+              
+              if (pixel < 100) darkPixels++
+              totalPixels++
+            }
           }
         }
       }
       
       const darkRatio = totalPixels > 0 ? darkPixels / totalPixels : 0
-      if (darkRatio > 0.6) { // 60% dark pixels = marker detected
+      if (darkRatio > 0.6) {
         marker.detected = true
         detectedMarkers++
       }
@@ -396,12 +389,17 @@ const EvalBeeCameraScanner: React.FC<EvalBeeCameraScannerProps> = ({
     
     // Calculate alignment quality
     const markerDetectionRatio = detectedMarkers / 4
-    const paperDetected = detectedMarkers >= 3 // At least 3 out of 4 corners
+    const paperDetected = detectedMarkers >= 3
     const withinFrame = true
     const alignment = markerDetectionRatio
     
-    // Store marker positions for overlay
-    const corners = cornerMarkers.map(m => ({ x: m.x, y: m.y, detected: m.detected, name: m.name }))
+    // Scale marker positions back for overlay
+    const corners = cornerMarkers.map(m => ({ 
+      x: m.x * sampleRate, 
+      y: m.y * sampleRate, 
+      detected: m.detected, 
+      name: m.name 
+    }))
     
     return {
       paperDetected,
@@ -411,72 +409,75 @@ const EvalBeeCameraScanner: React.FC<EvalBeeCameraScannerProps> = ({
     }
   }
 
-  // Bubble detection funksiyasi
-  const detectBubbles = (grayscale: number[], width: number, height: number, alignment: AlignmentStatus): DetectedBubble[] => {
+  // Bubble detection funksiyasi (optimized)
+  const detectBubbles = (grayscale: number[], width: number, height: number, alignment: AlignmentStatus, sampleRate: number = 1): DetectedBubble[] => {
     const bubbles: DetectedBubble[] = []
     
     if (!alignment.paperDetected || correctAnswers.length === 0) return bubbles
     
-    // OMR sheet layout parameters (simplified for real-time)
-    const questionsPerColumn = Math.ceil(correctAnswers.length / 3) // 3 columns
-    const questionHeight = Math.floor(height * 0.6 / questionsPerColumn) // 60% of height for questions
-    const startY = height * 0.2 // Start 20% from top
-    const columnWidth = width * 0.25 // Each column 25% width
-    const startX = width * 0.15 // Start 15% from left
+    // Limit to first 15 questions for performance
+    const maxQuestions = Math.min(correctAnswers.length, 15)
+    const questionsPerColumn = Math.ceil(maxQuestions / 3)
+    const questionHeight = Math.floor(height * 0.6 / questionsPerColumn)
+    const startY = Math.floor(height * 0.2)
+    const columnWidth = Math.floor(width * 0.25)
+    const startX = Math.floor(width * 0.15)
     
-    const bubbleRadius = 8
-    const optionSpacing = 25
+    const bubbleRadius = Math.floor(8 / sampleRate)
+    const optionSpacing = Math.floor(25 / sampleRate)
     const options = ['A', 'B', 'C', 'D', 'E']
     
-    // Detect bubbles for each question
-    for (let q = 0; q < Math.min(correctAnswers.length, 30); q++) { // Limit to 30 questions for performance
+    // Detect bubbles for limited questions
+    for (let q = 0; q < maxQuestions; q++) {
       const column = Math.floor(q / questionsPerColumn)
       const rowInColumn = q % questionsPerColumn
       
       const questionX = startX + column * columnWidth
       const questionY = startY + rowInColumn * questionHeight
       
-      // Check each option bubble for this question
-      for (let optIndex = 0; optIndex < options.length; optIndex++) {
+      // Check only first 4 options for performance
+      for (let optIndex = 0; optIndex < Math.min(options.length, 4); optIndex++) {
         const option = options[optIndex]
         const bubbleX = questionX + optIndex * optionSpacing
         const bubbleY = questionY
         
-        // Skip if bubble is outside image bounds
         if (bubbleX < bubbleRadius || bubbleX >= width - bubbleRadius || 
             bubbleY < bubbleRadius || bubbleY >= height - bubbleRadius) {
           continue
         }
         
-        // Check if bubble is filled (dark pixels in circular area)
+        // Simplified bubble detection
         let darkPixels = 0
         let totalPixels = 0
         
-        for (let dy = -bubbleRadius; dy <= bubbleRadius; dy++) {
-          for (let dx = -bubbleRadius; dx <= bubbleRadius; dx++) {
+        // Sample fewer pixels in circular area
+        for (let dy = -bubbleRadius; dy <= bubbleRadius; dy += 2) {
+          for (let dx = -bubbleRadius; dx <= bubbleRadius; dx += 2) {
             if (dx * dx + dy * dy <= bubbleRadius * bubbleRadius) {
               const x = Math.floor(bubbleX + dx)
               const y = Math.floor(bubbleY + dy)
               
               if (x >= 0 && x < width && y >= 0 && y < height) {
                 const idx = y * width + x
-                const pixel = grayscale[idx]
-                
-                if (pixel < 120) darkPixels++ // Dark threshold for filled bubble
-                totalPixels++
+                if (idx < grayscale.length) {
+                  const pixel = grayscale[idx]
+                  
+                  if (pixel < 120) darkPixels++
+                  totalPixels++
+                }
               }
             }
           }
         }
         
         const fillRatio = totalPixels > 0 ? darkPixels / totalPixels : 0
-        const isFilled = fillRatio > 0.4 // 40% dark = filled
+        const isFilled = fillRatio > 0.4
         const isCorrect = correctAnswers[q] === option
-        const confidence = Math.min(1, fillRatio * 2) // Convert fill ratio to confidence
+        const confidence = Math.min(1, fillRatio * 2)
         
         bubbles.push({
-          x: bubbleX,
-          y: bubbleY,
+          x: bubbleX * sampleRate, // Scale back
+          y: bubbleY * sampleRate,
           option,
           questionNumber: q + 1,
           isFilled,
@@ -690,45 +691,11 @@ const EvalBeeCameraScanner: React.FC<EvalBeeCameraScannerProps> = ({
     }
   }
 
-  // Update preview canvas to show what will be captured
-  const updatePreview = () => {
-    if (!previewCanvasRef.current || !videoRef.current || !alignmentStatus.paperDetected) return
-    
-    const previewCanvas = previewCanvasRef.current
-    const previewCtx = previewCanvas.getContext('2d')
-    const video = videoRef.current
-    
-    if (!previewCtx) return
-    
-    // Clear preview
-    previewCtx.clearRect(0, 0, previewCanvas.width, previewCanvas.height)
-    
-    // Calculate capture area (same as overlay)
-    const captureMargin = 0.18
-    const sourceX = video.videoWidth * captureMargin
-    const sourceY = video.videoHeight * captureMargin
-    const sourceWidth = video.videoWidth * (1 - 2 * captureMargin)
-    const sourceHeight = video.videoHeight * (1 - 2 * captureMargin)
-    
-    // Draw cropped video frame to preview canvas
-    previewCtx.drawImage(
-      video,
-      sourceX, sourceY, sourceWidth, sourceHeight, // Source area
-      0, 0, previewCanvas.width, previewCanvas.height // Destination area
-    )
-    
-    // Add preview border
-    previewCtx.strokeStyle = '#FFD700'
-    previewCtx.lineWidth = 2
-    previewCtx.strokeRect(0, 0, previewCanvas.width, previewCanvas.height)
-  }
-
-  const captureImage = async () => {
+  const captureImage = useCallback(async () => {
     if (!videoRef.current || !canvasRef.current || !isReady || !canCapture) return
 
     console.log('📸 EvalBee Camera: Starting image capture...')
 
-    // EvalBee Method: Stop video stream during processing
     if (animationFrameRef.current) {
       cancelAnimationFrame(animationFrameRef.current)
     }
@@ -739,25 +706,16 @@ const EvalBeeCameraScanner: React.FC<EvalBeeCameraScannerProps> = ({
 
     if (!context) return
 
-    // Capture high-quality frame
     canvas.width = video.videoWidth
     canvas.height = video.videoHeight
     context.drawImage(video, 0, 0, canvas.width, canvas.height)
 
-    console.log('📷 Image captured:', {
-      width: canvas.width,
-      height: canvas.height,
-      quality: Math.round(qualityMetrics.overall * 100) + '%'
-    })
-
-    // Get image data
-    const finalImageData = canvas.toDataURL('image/jpeg', 0.95)
+    const finalImageData = canvas.toDataURL('image/jpeg', 0.85) // Reduced quality for better performance
     
     console.log('✅ EvalBee Camera: Image capture completed successfully')
     
-    // Call parent callback
     onCapture(finalImageData, qualityMetrics)
-  }
+  }, [videoRef, canvasRef, isReady, canCapture, qualityMetrics, onCapture])
 
   return (
     <div className="fixed inset-0 bg-black z-50 flex flex-col">
@@ -981,6 +939,8 @@ const EvalBeeCameraScanner: React.FC<EvalBeeCameraScannerProps> = ({
       <canvas ref={canvasRef} className="hidden" />
     </div>
   )
-}
+})
+
+EvalBeeCameraScanner.displayName = 'EvalBeeCameraScanner'
 
 export default EvalBeeCameraScanner
