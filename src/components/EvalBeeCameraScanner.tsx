@@ -634,6 +634,96 @@ const EvalBeeCameraScanner: React.FC<EvalBeeCameraScannerProps> = memo(({
               style={{ transform: 'scaleX(-1)' }} // Match video mirror
             />
             
+            {/* Visible UI Frame Overlay */}
+            <div className="absolute inset-0 z-15 pointer-events-none">
+              {/* Main Frame Border */}
+              <div 
+                className={`absolute border-4 rounded-lg transition-all duration-300 ${
+                  alignmentStatus.paperDetected 
+                    ? 'border-green-400 shadow-lg shadow-green-400/50' 
+                    : 'border-red-400 shadow-lg shadow-red-400/50'
+                }`}
+                style={{
+                  left: '10%',
+                  top: '10%',
+                  width: '80%',
+                  height: '80%',
+                  borderStyle: 'dashed',
+                  borderWidth: '3px'
+                }}
+              >
+                {/* Corner Markers with Animation */}
+                <div className="absolute -top-3 -left-3">
+                  <div className={`w-16 h-16 border-l-4 border-t-4 rounded-tl-lg transition-all duration-300 ${
+                    alignmentStatus.paperDetected 
+                      ? 'border-green-400 shadow-lg shadow-green-400/50' 
+                      : 'border-red-400 shadow-lg shadow-red-400/50 animate-pulse'
+                  }`}></div>
+                </div>
+                <div className="absolute -top-3 -right-3">
+                  <div className={`w-16 h-16 border-r-4 border-t-4 rounded-tr-lg transition-all duration-300 ${
+                    alignmentStatus.paperDetected 
+                      ? 'border-green-400 shadow-lg shadow-green-400/50' 
+                      : 'border-red-400 shadow-lg shadow-red-400/50 animate-pulse'
+                  }`}></div>
+                </div>
+                <div className="absolute -bottom-3 -left-3">
+                  <div className={`w-16 h-16 border-l-4 border-b-4 rounded-bl-lg transition-all duration-300 ${
+                    alignmentStatus.paperDetected 
+                      ? 'border-green-400 shadow-lg shadow-green-400/50' 
+                      : 'border-red-400 shadow-lg shadow-red-400/50 animate-pulse'
+                  }`}></div>
+                </div>
+                <div className="absolute -bottom-3 -right-3">
+                  <div className={`w-16 h-16 border-r-4 border-b-4 rounded-br-lg transition-all duration-300 ${
+                    alignmentStatus.paperDetected 
+                      ? 'border-green-400 shadow-lg shadow-green-400/50' 
+                      : 'border-red-400 shadow-lg shadow-red-400/50 animate-pulse'
+                  }`}></div>
+                </div>
+                
+                {/* Frame Label */}
+                <div className="absolute -top-10 left-1/2 transform -translate-x-1/2">
+                  <div className={`px-4 py-2 rounded-full text-sm font-bold transition-all duration-300 ${
+                    alignmentStatus.paperDetected 
+                      ? 'bg-green-400 text-green-900 shadow-lg shadow-green-400/50' 
+                      : 'bg-red-400 text-red-900 shadow-lg shadow-red-400/50 animate-pulse'
+                  }`}>
+                    {alignmentStatus.paperDetected ? '✅ RAMKA ICHIDA' : '📄 RAMKAGA JOYLASHTIRING'}
+                  </div>
+                </div>
+              </div>
+              
+              {/* Center Guidelines */}
+              <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                {/* Horizontal center line */}
+                <div className={`absolute w-20 h-0.5 transition-all duration-300 ${
+                  alignmentStatus.paperDetected ? 'bg-green-400' : 'bg-white'
+                } opacity-60`}></div>
+                {/* Vertical center line */}
+                <div className={`absolute h-20 w-0.5 transition-all duration-300 ${
+                  alignmentStatus.paperDetected ? 'bg-green-400' : 'bg-white'
+                } opacity-60`}></div>
+                
+                {/* Center circle */}
+                <div className={`absolute w-4 h-4 rounded-full transition-all duration-300 ${
+                  alignmentStatus.paperDetected ? 'bg-green-400' : 'bg-white'
+                } opacity-60`}></div>
+              </div>
+              
+              {/* Scanning Area Overlay */}
+              <div className="absolute inset-0 pointer-events-none">
+                {/* Top overlay */}
+                <div className="absolute top-0 left-0 right-0 bg-black/40" style={{ height: '10%' }}></div>
+                {/* Bottom overlay */}
+                <div className="absolute bottom-0 left-0 right-0 bg-black/40" style={{ height: '10%' }}></div>
+                {/* Left overlay */}
+                <div className="absolute left-0 bg-black/40" style={{ top: '10%', bottom: '10%', width: '10%' }}></div>
+                {/* Right overlay */}
+                <div className="absolute right-0 bg-black/40" style={{ top: '10%', bottom: '10%', width: '10%' }}></div>
+              </div>
+            </div>
+            
             {/* Real-time Preview Window */}
             {alignmentStatus.paperDetected && (
               <div className="absolute top-4 left-4 bg-black/90 rounded-lg p-2 border-2 border-green-400 z-20">
@@ -683,6 +773,20 @@ const EvalBeeCameraScanner: React.FC<EvalBeeCameraScannerProps> = memo(({
                 <span className="text-white text-sm font-medium">
                   Sifat: {Math.round(qualityMetrics.overall * 100)}%
                 </span>
+              </div>
+            </div>
+            
+            {/* Frame Status Indicator */}
+            <div className="absolute top-16 left-1/2 transform -translate-x-1/2 z-20">
+              <div className={`px-4 py-2 rounded-lg text-sm font-medium transition-all duration-300 ${
+                alignmentStatus.paperDetected 
+                  ? 'bg-green-500/90 text-white' 
+                  : 'bg-red-500/90 text-white'
+              }`}>
+                {alignmentStatus.paperDetected 
+                  ? '✅ Ramka ichida' 
+                  : '❌ Ramkaga joylashtiring'
+                }
               </div>
             </div>
           </>
