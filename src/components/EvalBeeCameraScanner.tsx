@@ -315,28 +315,28 @@ const EvalBeeCameraScanner: React.FC<EvalBeeCameraScannerProps> = memo(({
   }
 
 
-  // EvalBee SUPER SIMPLE: 4 ta nuqtani topish - boshqa hech narsa
+  // EvalBee SUPER SIMPLE: 4 ta nuqtani topish - YAQINROQ JOYLASHGAN
   const detectCornerMarkers = (grayscale: number[], width: number, height: number, sampleRate: number = 1): { x: number, y: number, detected: boolean, name: string }[] => {
-    // 4 ta burchakda qora nuqtalarni qidiramiz
+    // 4 ta burchakda qora nuqtalarni qidiramiz - YAQINROQ
     const cornerRegions = [
-      { name: 'TL', x: 0.1, y: 0.1, detected: false }, // Top-Left
-      { name: 'TR', x: 0.9, y: 0.1, detected: false }, // Top-Right  
-      { name: 'BL', x: 0.1, y: 0.9, detected: false }, // Bottom-Left
-      { name: 'BR', x: 0.9, y: 0.9, detected: false }  // Bottom-Right
+      { name: 'TL', x: 0.15, y: 0.15, detected: false }, // Top-Left - yaqinroq
+      { name: 'TR', x: 0.85, y: 0.15, detected: false }, // Top-Right - yaqinroq
+      { name: 'BL', x: 0.15, y: 0.85, detected: false }, // Bottom-Left - yaqinroq
+      { name: 'BR', x: 0.85, y: 0.85, detected: false }  // Bottom-Right - yaqinroq
     ]
     
     // Har bir burchakda qora nuqta borligini tekshiramiz
     cornerRegions.forEach(corner => {
       const centerX = Math.floor(width * corner.x)
       const centerY = Math.floor(height * corner.y)
-      const searchRadius = Math.min(width, height) * 0.05 // 5% radius
+      const searchRadius = Math.min(width, height) * 0.08 // Kattaroq radius - topish osonroq
       
       let darkPixels = 0
       let totalPixels = 0
       
       // Kichik doira ichida qora pixellarni qidiramiz
-      for (let dy = -searchRadius; dy <= searchRadius; dy += 3) {
-        for (let dx = -searchRadius; dx <= searchRadius; dx += 3) {
+      for (let dy = -searchRadius; dy <= searchRadius; dy += 2) { // Kichikroq step
+        for (let dx = -searchRadius; dx <= searchRadius; dx += 2) { // Kichikroq step
           const x = centerX + dx
           const y = centerY + dy
           
@@ -344,7 +344,7 @@ const EvalBeeCameraScanner: React.FC<EvalBeeCameraScannerProps> = memo(({
             const idx = Math.floor(y) * width + Math.floor(x)
             if (idx < grayscale.length) {
               const pixel = grayscale[idx]
-              if (pixel < 100) { // Qora pixel (100 dan past)
+              if (pixel < 120) { // Qora pixel (120 dan past - kengroq range)
                 darkPixels++
               }
               totalPixels++
@@ -353,8 +353,8 @@ const EvalBeeCameraScanner: React.FC<EvalBeeCameraScannerProps> = memo(({
         }
       }
       
-      // Agar 30% dan ko'p qora pixel bo'lsa - nuqta topildi
-      corner.detected = totalPixels > 0 && (darkPixels / totalPixels) > 0.3
+      // Agar 25% dan ko'p qora pixel bo'lsa - nuqta topildi (pastroq threshold)
+      corner.detected = totalPixels > 0 && (darkPixels / totalPixels) > 0.25
     })
     
     // Koordinatalarni qaytaramiz
@@ -533,11 +533,11 @@ const EvalBeeCameraScanner: React.FC<EvalBeeCameraScannerProps> = memo(({
               // Mirror effect olib tashlandi - to'g'ri holat
             />
             
-            {/* SUPER SIMPLE UI: Faqat 4 ta doira - nuqtalar uchun */}
+            {/* YAQINROQ UI: 4 ta doira - osonroq alignment */}
             <div className="absolute inset-0 z-15 pointer-events-none">
-              {/* 4 ta burchakda doiralar */}
-              <div className="absolute" style={{ left: '10%', top: '10%' }}>
-                <div className={`w-20 h-20 rounded-full border-4 flex items-center justify-center text-2xl font-bold transition-all duration-300 ${
+              {/* 4 ta burchakda doiralar - YAQINROQ */}
+              <div className="absolute" style={{ left: '15%', top: '15%' }}>
+                <div className={`w-16 h-16 rounded-full border-4 flex items-center justify-center text-xl font-bold transition-all duration-300 ${
                   alignmentStatus.corners[0]?.detected 
                     ? 'border-green-400 bg-green-400/20 text-green-400' 
                     : 'border-red-400 bg-red-400/20 text-red-400'
@@ -546,8 +546,8 @@ const EvalBeeCameraScanner: React.FC<EvalBeeCameraScannerProps> = memo(({
                 </div>
               </div>
               
-              <div className="absolute" style={{ right: '10%', top: '10%' }}>
-                <div className={`w-20 h-20 rounded-full border-4 flex items-center justify-center text-2xl font-bold transition-all duration-300 ${
+              <div className="absolute" style={{ right: '15%', top: '15%' }}>
+                <div className={`w-16 h-16 rounded-full border-4 flex items-center justify-center text-xl font-bold transition-all duration-300 ${
                   alignmentStatus.corners[1]?.detected 
                     ? 'border-green-400 bg-green-400/20 text-green-400' 
                     : 'border-red-400 bg-red-400/20 text-red-400'
@@ -556,8 +556,8 @@ const EvalBeeCameraScanner: React.FC<EvalBeeCameraScannerProps> = memo(({
                 </div>
               </div>
               
-              <div className="absolute" style={{ left: '10%', bottom: '10%' }}>
-                <div className={`w-20 h-20 rounded-full border-4 flex items-center justify-center text-2xl font-bold transition-all duration-300 ${
+              <div className="absolute" style={{ left: '15%', bottom: '15%' }}>
+                <div className={`w-16 h-16 rounded-full border-4 flex items-center justify-center text-xl font-bold transition-all duration-300 ${
                   alignmentStatus.corners[2]?.detected 
                     ? 'border-green-400 bg-green-400/20 text-green-400' 
                     : 'border-red-400 bg-red-400/20 text-red-400'
@@ -566,8 +566,8 @@ const EvalBeeCameraScanner: React.FC<EvalBeeCameraScannerProps> = memo(({
                 </div>
               </div>
               
-              <div className="absolute" style={{ right: '10%', bottom: '10%' }}>
-                <div className={`w-20 h-20 rounded-full border-4 flex items-center justify-center text-2xl font-bold transition-all duration-300 ${
+              <div className="absolute" style={{ right: '15%', bottom: '15%' }}>
+                <div className={`w-16 h-16 rounded-full border-4 flex items-center justify-center text-xl font-bold transition-all duration-300 ${
                   alignmentStatus.corners[3]?.detected 
                     ? 'border-green-400 bg-green-400/20 text-green-400' 
                     : 'border-red-400 bg-red-400/20 text-red-400'
@@ -578,7 +578,7 @@ const EvalBeeCameraScanner: React.FC<EvalBeeCameraScannerProps> = memo(({
               
               {/* Markazda oddiy status */}
               <div className="absolute inset-0 flex items-center justify-center">
-                <div className={`px-8 py-4 rounded-full text-xl font-bold transition-all duration-300 ${
+                <div className={`px-6 py-3 rounded-full text-lg font-bold transition-all duration-300 ${
                   alignmentStatus.corners.filter(c => c.detected).length >= 3
                     ? 'bg-green-500/90 text-white' 
                     : 'bg-red-500/90 text-white'
@@ -588,6 +588,21 @@ const EvalBeeCameraScanner: React.FC<EvalBeeCameraScannerProps> = memo(({
                     : `${alignmentStatus.corners.filter(c => c.detected).length}/4 NUQTA`
                   }
                 </div>
+              </div>
+              
+              {/* Yordamchi chiziqlar - nuqtalar orasidagi masofa ko'rsatish */}
+              <div className="absolute inset-0 pointer-events-none">
+                {/* Horizontal lines */}
+                <div className="absolute border-t-2 border-dashed border-white/30" 
+                     style={{ left: '15%', right: '15%', top: '15%' }}></div>
+                <div className="absolute border-t-2 border-dashed border-white/30" 
+                     style={{ left: '15%', right: '15%', bottom: '15%' }}></div>
+                
+                {/* Vertical lines */}
+                <div className="absolute border-l-2 border-dashed border-white/30" 
+                     style={{ left: '15%', top: '15%', bottom: '15%' }}></div>
+                <div className="absolute border-l-2 border-dashed border-white/30" 
+                     style={{ right: '15%', top: '15%', bottom: '15%' }}></div>
               </div>
             </div>
             
@@ -643,7 +658,7 @@ const EvalBeeCameraScanner: React.FC<EvalBeeCameraScannerProps> = memo(({
               </div>
             </div>
             
-            {/* Frame Status Indicator - SUPER SIMPLE */}
+            {/* Frame Status Indicator - YAQINROQ NUQTALAR */}
             <div className="absolute top-16 left-1/2 transform -translate-x-1/2 z-20">
               <div className={`px-4 py-2 rounded-lg text-sm font-medium transition-all duration-300 ${
                 alignmentStatus.corners.filter(c => c.detected).length >= 3
@@ -651,8 +666,8 @@ const EvalBeeCameraScanner: React.FC<EvalBeeCameraScannerProps> = memo(({
                   : 'bg-blue-500/90 text-white'
               }`}>
                 {alignmentStatus.corners.filter(c => c.detected).length >= 3
-                  ? '✅ 4 nuqta topildi - TAYYOR!' 
-                  : `📄 ${alignmentStatus.corners.filter(c => c.detected).length}/4 nuqta ko'rinib tursin`
+                  ? '✅ Nuqtalar topildi - TAYYOR!' 
+                  : `📄 Varaqni yaqinroq qiling - ${alignmentStatus.corners.filter(c => c.detected).length}/4`
                 }
               </div>
             </div>
@@ -662,12 +677,12 @@ const EvalBeeCameraScanner: React.FC<EvalBeeCameraScannerProps> = memo(({
 
       {/* Bottom Controls */}
       <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black via-black/80 to-transparent p-6 z-20">
-        {/* EvalBee SUPER SIMPLE Status - Faqat 2 ta holat */}
+        {/* EvalBee YAQINROQ Status - Osonroq alignment */}
         <div className="text-center mb-6">
           {alignmentStatus.corners.filter(c => c.detected).length < 3 ? (
             <div className="space-y-2">
-              <p className="text-blue-400 text-lg font-medium">📄 4 ta nuqtani ko'rsating</p>
-              <p className="text-white/70 text-sm">Varaq burchaklaridagi qora nuqtalar ko'rinsin</p>
+              <p className="text-blue-400 text-lg font-medium">📄 Varaqni yaqinroq qiling</p>
+              <p className="text-white/70 text-sm">4 ta nuqta kichikroq maydonda bo'lsin</p>
             </div>
           ) : qualityMetrics.focus < 0.3 ? (
             <div className="space-y-2">
@@ -677,7 +692,7 @@ const EvalBeeCameraScanner: React.FC<EvalBeeCameraScannerProps> = memo(({
           ) : (
             <div className="space-y-2">
               <p className="text-green-400 text-lg font-medium">✨ TAYYOR - Darhol suratga olinadi!</p>
-              <p className="text-green-300 text-sm">Focus: ✓ | 4 nuqta: ✓</p>
+              <p className="text-green-300 text-sm">Focus: ✓ | Nuqtalar: ✓</p>
             </div>
           )}
         </div>
