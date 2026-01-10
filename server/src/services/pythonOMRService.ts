@@ -177,13 +177,9 @@ export class PythonOMRService {
       }
 
       // Development: Try HTTP first, then fallback to subprocess
-      if (process.env.PYTHON_OMR_URL) {
-        try {
-          console.log('🚀 Development mode: Trying HTTP server first')
-          return await this.processOMRViaHTTP(imageBuffer, answerKey, examData, scoring, debug)
-        } catch (httpError: any) {
-          console.log('HTTP server failed, falling back to subprocess:', httpError.message)
-        }
+      if (this.pythonOMRUrl && this.pythonOMRUrl !== 'http://localhost:5000') {
+        console.log('🚀 Using HTTP server (production or configured URL)')
+        return await this.processOMRViaHTTP(imageBuffer, answerKey, examData, scoring, debug)
       }
       
       // Fallback to subprocess (development only)
@@ -213,7 +209,13 @@ export class PythonOMRService {
       filename: 'omr_sheet.jpg',
       contentType: 'image/jpeg'
     })
-    formData.append('answer_key', answerKey.join(','))
+    formData.append('answerKey', JSON.stringify(answerKey))
+    
+    // EvalBee processing parameters
+    formData.append('evalbee', 'true')        // Use EvalBee engine
+    formData.append('ultra', 'true')          // Ultra precision
+    formData.append('universal', 'true')      // Universal coordinates
+    formData.append('debug', 'true')          // Debug mode
     
     if (examData) {
       formData.append('exam_data', JSON.stringify(examData))
@@ -223,7 +225,7 @@ export class PythonOMRService {
       formData.append('debug', 'true')
     }
 
-    const response = await fetch(`${this.pythonOMRUrl}/process-omr`, {
+    const response = await fetch(`${this.pythonOMRUrl}/api/omr/process`, {
       method: 'POST',
       body: formData
     })
@@ -233,7 +235,13 @@ export class PythonOMRService {
       throw new Error(`HTTP ${response.status}: ${errorText}`)
     }
 
-    const result: any = await response.json()
+    const response_data: any = await response.json()
+    
+    if (!response_data.success) {
+      throw new Error(response_data.message || 'Python OMR processing failed')
+    }
+    
+    const result = response_data.data  // Extract data from Python server response
     
     console.log('✅ Python OMR processing completed (HTTP)')
     console.log(`Confidence: ${Math.round((result.confidence || 0) * 100)}%`)

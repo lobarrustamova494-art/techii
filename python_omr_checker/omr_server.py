@@ -18,6 +18,13 @@ from ultra_precision_omr_processor import UltraPrecisionOMRProcessor
 from ultra_precision_omr_processor_v2 import UltraPrecisionOMRProcessorV2
 from perfect_omr_processor import PerfectOMRProcessor
 
+import time
+import numpy as np
+
+# Configure logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
 # Safe imports for EvalBee engines (may require sklearn)
 try:
     from evalbee_omr_engine import EvalBeeOMREngine
@@ -34,13 +41,6 @@ except ImportError as e:
     logger.warning(f"EvalBee OMR Engine V2 not available: {e}")
     EVALBEE_ENGINE_V2_AVAILABLE = False
     EvalBeeOMREngineV2 = None
-
-import time
-import numpy as np
-
-# Configure logging
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
 
 # Initialize Flask app
 app = Flask(__name__)

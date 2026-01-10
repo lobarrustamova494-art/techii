@@ -294,8 +294,14 @@ class ApiService {
   ) {
     const formData = new FormData()
     formData.append('image', file)
-    formData.append('answer_key', answerKey.join(','))
+    formData.append('answerKey', JSON.stringify(answerKey))
     formData.append('processing_mode', processingMode)
+    
+    // EvalBee processing parameters
+    formData.append('evalbee', 'true')        // Use EvalBee engine
+    formData.append('ultra', 'true')          // Ultra precision
+    formData.append('universal', 'true')      // Universal coordinates
+    formData.append('debug', 'true')          // Debug mode
     
     if (examId) {
       formData.append('exam_id', examId)
@@ -304,7 +310,7 @@ class ApiService {
     console.log('🐍 Processing OMR directly via Python service')
 
     try {
-      const response = await fetch(`${PYTHON_OMR_URL}/process-omr`, {
+      const response = await fetch(`${PYTHON_OMR_URL}/api/omr/process`, {
         method: 'POST',
         body: formData,
       })
@@ -316,7 +322,7 @@ class ApiService {
 
       const result = await response.json()
       console.log('✅ Direct Python OMR processing completed')
-      return { success: true, data: result }
+      return result  // Python server already returns { success: true, data: {...} }
     } catch (error) {
       console.error('❌ Direct Python OMR processing failed:', error)
       throw error
