@@ -400,7 +400,7 @@ async function processWithPython(req: Request, res: Response) {
         finalAnswerKey = examMetadata.answerKey.map((key: string) => {
           // Handle comma-separated multiple answers (take first one for processing)
           if (typeof key === 'string' && key.includes(',')) {
-            return key.split(',')[0].trim()
+            return key.split(',')[0]?.trim() || key
           }
           return key || 'A'
         })
@@ -412,12 +412,12 @@ async function processWithPython(req: Request, res: Response) {
         console.log('Exam metadata loaded from DB:', examMetadata?.name)
         
         // If exam has answerKey set (from exam-keys page), use it instead of request answerKey
-        if (examMetadata &&answerKey && examMetadata.answerKey.length > 0) {
+        if (examMetadata && examMetadata.answerKey && examMetadata.answerKey.length > 0) {
           console.log('🔑 Using answerKey from exam-keys page (priority)')
           finalAnswerKey = examMetadata.answerKey.map((key: string) => {
             // Handle comma-separated multiple answers (take first one for processing)
             if (typeof key === 'string' && key.includes(',')) {
-              return key.split(',')[0].trim()
+              return key.split(',')[0]?.trim() || key
             }
             return key || 'A'
           })
@@ -530,12 +530,12 @@ async function processWithNodeJS(req: Request, res: Response) {
         console.log('Exam metadata loaded from DB:', examMetadata?.name)
         
         // If exam has answerKey set (from exam-keys page), use it instead of request answerKey
-        if (examMetadata &&answerKey && examMetadata.answerKey.length > 0) {
+        if (examMetadata && examMetadata.answerKey && examMetadata.answerKey.length > 0) {
           console.log('🔑 Using answerKey from exam-keys page (priority)')
           finalAnswerKey = examMetadata.answerKey.map((key: string) => {
             // Handle comma-separated multiple answers (take first one for processing)
             if (typeof key === 'string' && key.includes(',')) {
-              return key.split(',')[0].trim()
+              return key.split(',')[0]?.trim() || key
             }
             return key || 'A'
           })
