@@ -160,9 +160,24 @@ const ExamDetail: React.FC = () => {
   }
 
   // Extract correct answers from exam data
+  // Priority: 1. answerKey (from exam-keys page), 2. subjects.questions.correctAnswer
   const getCorrectAnswers = (exam: Exam): string[] => {
     const correctAnswers: string[] = []
     
+    // First priority: Use answerKey if it exists and is properly set
+    if (exam.answerKey && exam.answerKey.length > 0) {
+      console.log('Using answerKey from exam-keys page:', exam.answerKey)
+      return exam.answerKey.map(key => {
+        // Handle comma-separated multiple answers (take first one for display)
+        if (typeof key === 'string' && key.includes(',')) {
+          return key.split(',')[0].trim()
+        }
+        return key || 'A'
+      })
+    }
+    
+    // Second priority: Extract from exam subjects structure
+    console.log('Using correctAnswers from exam subjects structure')
     if (exam.subjects) {
       exam.subjects.forEach(subject => {
         if (subject.sections) {

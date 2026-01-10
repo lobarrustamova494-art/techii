@@ -63,6 +63,7 @@ export interface ExamData {
   date: string
   examSets: number
   subjects: Subject[]
+  answerKey?: string[]
 }
 
 export interface UploadFile {

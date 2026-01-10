@@ -42,9 +42,24 @@ const OMRGeneration: React.FC = () => {
   })
 
   // Extract correct answers from exam data
+  // Priority: 1. answerKey (from exam-keys page), 2. subjects.questions.correctAnswer
   const getCorrectAnswers = (examData: ExamData): string[] => {
     const correctAnswers: string[] = []
     
+    // First priority: Use answerKey if it exists and is properly set
+    if (examData.answerKey && examData.answerKey.length > 0) {
+      console.log('Using answerKey from exam-keys page:', examData.answerKey)
+      return examData.answerKey.map(key => {
+        // Handle comma-separated multiple answers (take first one for display)
+        if (typeof key === 'string' && key.includes(',')) {
+          return key.split(',')[0].trim()
+        }
+        return key || 'A'
+      })
+    }
+    
+    // Second priority: Extract from exam subjects structure
+    console.log('Using correctAnswers from exam subjects structure')
     if (examData.subjects) {
       examData.subjects.forEach(subject => {
         if (subject.sections) {

@@ -45,11 +45,20 @@ const ExamKeys: React.FC = () => {
           const initialKeys: AnswerKey[] = []
           
           for (let i = 1; i <= totalQuestions; i++) {
+            let correctAnswers: string[] = []
+            
+            // Check if answerKey exists and has value for this question
+            if (examData.answerKey && examData.answerKey[i - 1]) {
+              const keyValue = examData.answerKey[i - 1]
+              if (typeof keyValue === 'string' && keyValue.trim() !== '') {
+                // Handle comma-separated multiple answers
+                correctAnswers = keyValue.split(',').map(ans => ans.trim()).filter(ans => ans !== '')
+              }
+            }
+            
             initialKeys.push({
               questionNumber: i,
-              correctAnswers: examData.answerKey && examData.answerKey[i - 1] 
-                ? examData.answerKey[i - 1].split(',') 
-                : []
+              correctAnswers
             })
           }
           
@@ -100,7 +109,10 @@ const ExamKeys: React.FC = () => {
     setSaving(true)
     try {
       // Convert answer keys to string array format
-      const answerKeyArray = answerKeys.map(key => key.correctAnswers.join(','))
+      const answerKeyArray = answerKeys.map(key => {
+        // If no answers selected for this question, use empty string
+        return key.correctAnswers.length > 0 ? key.correctAnswers.join(',') : ''
+      })
       
       // Faqat answerKey ni yuborish
       const updateData = {
@@ -108,11 +120,17 @@ const ExamKeys: React.FC = () => {
       }
 
       console.log('Saving answer keys:', updateData)
+      console.log('Completed questions:', getCompletedCount(), 'of', answerKeys.length)
 
       const response = await apiService.updateExam(id, updateData)
       
       if (response.success) {
-        alert('Kalitlar muvaffaqiyatli saqlandi!')
+        const completedCount = getCompletedCount()
+        if (completedCount === answerKeys.length) {
+          alert('Barcha kalitlar muvaffaqiyatli saqlandi!')
+        } else {
+          alert(`${completedCount}/${answerKeys.length} kalitlar saqlandi. Qolgan kalitlarni keyinroq belgilashingiz mumkin.`)
+        }
         navigate(`/exam-detail/${id}`)
       } else {
         throw new Error(response.message || 'Saqlashda xatolik')
@@ -279,7 +297,7 @@ const ExamKeys: React.FC = () => {
             </Button>
             <Button
               onClick={handleSave}
-              disabled={saving || getCompletedCount() === 0}
+              disabled={saving}
               className="flex-1 flex items-center justify-center gap-2"
             >
               {saving ? (
