@@ -355,29 +355,42 @@ const EvalBeeCameraScanner: React.FC<EvalBeeCameraScannerProps> = memo(({
     return count > 0 ? (sum / count) / 255 : 0
   }
 
-  // EvalBee Core: Paper alignment detection with 4 corner markers (optimized)
+  // EvalBee Core: Paper alignment detection with OMR sheet format (8 alignment marks - 4 corners)
   const detectPaperAlignment = (grayscale: number[], width: number, height: number, sampleRate: number = 1): AlignmentStatus => {
-    // Define 4 corner marker positions (scaled)
-    const markerSize = Math.floor(30 / sampleRate)
-    const margin = Math.floor(80 / sampleRate)
+    // Define 4 corner alignment positions based on actual OMR sheet format
+    // These correspond to the outermost alignment marks from the OMR sheet
+    const markerSize = Math.floor(35 / sampleRate) // Larger marker size to match OMR format
+    const leftMargin = Math.floor(47 / sampleRate)   // 4mm from left edge
+    const rightMargin = Math.floor(47 / sampleRate)  // 4mm from right edge
+    const topMargin = Math.floor(120 / sampleRate)   // Top position (L1/R1)
+    const bottomMargin = Math.floor(922 / sampleRate) // Bottom position (L4/R4)
+    
+    // Adjust positions based on image dimensions
+    const adjustedLeftX = Math.min(leftMargin, width * 0.05)
+    const adjustedRightX = Math.max(width - rightMargin, width * 0.95)
+    const adjustedTopY = Math.min(topMargin, height * 0.12)
+    const adjustedBottomY = Math.max(bottomMargin, height * 0.88)
     
     const cornerMarkers = [
-      { x: margin, y: margin, name: 'TL', detected: false },
-      { x: width - margin, y: margin, name: 'TR', detected: false },
-      { x: margin, y: height - margin, name: 'BL', detected: false },
-      { x: width - margin, y: height - margin, name: 'BR', detected: false }
+      { x: adjustedLeftX, y: adjustedTopY, name: 'TL', detected: false },      // Top-Left (L1)
+      { x: adjustedRightX, y: adjustedTopY, name: 'TR', detected: false },     // Top-Right (R1)
+      { x: adjustedLeftX, y: adjustedBottomY, name: 'BL', detected: false },   // Bottom-Left (L4)
+      { x: adjustedRightX, y: adjustedBottomY, name: 'BR', detected: false }   // Bottom-Right (R4)
     ]
     
-    // Detect dark rectangular markers in corners (optimized)
+    // Detect dark rectangular markers in corners (optimized for OMR format)
     let detectedMarkers = 0
     
     cornerMarkers.forEach(marker => {
       let darkPixels = 0
       let totalPixels = 0
       
-      // Sample fewer pixels for performance
-      for (let dy = -markerSize/2; dy <= markerSize/2; dy += 2) {
-        for (let dx = -markerSize/2; dx <= markerSize/2; dx += 2) {
+      // Sample rectangular area (not circular) to match OMR alignment marks
+      const halfWidth = Math.floor(markerSize * 0.6)
+      const halfHeight = Math.floor(markerSize * 0.6)
+      
+      for (let dy = -halfHeight; dy <= halfHeight; dy += 2) {
+        for (let dx = -halfWidth; dx <= halfWidth; dx += 2) {
           const x = Math.floor(marker.x + dx)
           const y = Math.floor(marker.y + dy)
           
@@ -386,7 +399,7 @@ const EvalBeeCameraScanner: React.FC<EvalBeeCameraScannerProps> = memo(({
             if (idx < grayscale.length) {
               const pixel = grayscale[idx]
               
-              if (pixel < 100) darkPixels++
+              if (pixel < 80) darkPixels++ // Lower threshold for black alignment marks
               totalPixels++
             }
           }
@@ -394,7 +407,7 @@ const EvalBeeCameraScanner: React.FC<EvalBeeCameraScannerProps> = memo(({
       }
       
       const darkRatio = totalPixels > 0 ? darkPixels / totalPixels : 0
-      if (darkRatio > 0.6) {
+      if (darkRatio > 0.5) { // Lower threshold for better detection
         marker.detected = true
         detectedMarkers++
       }
@@ -402,7 +415,7 @@ const EvalBeeCameraScanner: React.FC<EvalBeeCameraScannerProps> = memo(({
     
     // Calculate alignment quality
     const markerDetectionRatio = detectedMarkers / 4
-    const paperDetected = detectedMarkers >= 3
+    const paperDetected = detectedMarkers >= 3 // Need at least 3 corners
     const withinFrame = true
     const alignment = markerDetectionRatio
     
@@ -536,7 +549,7 @@ const EvalBeeCameraScanner: React.FC<EvalBeeCameraScannerProps> = memo(({
     return recommendations
   }
 
-  // Guide overlay with bubble visualization
+  // Guide overlay with OMR sheet format alignment rectangles
   const drawGuideWithBubbles = (alignment: AlignmentStatus, bubbles: DetectedBubble[]) => {
     if (!overlayCanvasRef.current) return
     
@@ -546,73 +559,81 @@ const EvalBeeCameraScanner: React.FC<EvalBeeCameraScannerProps> = memo(({
     
     ctx.clearRect(0, 0, canvas.width, canvas.height)
     
-    // Simple paper frame guide
-    const margin = 0.12
-    const frameX = canvas.width * margin
-    const frameY = canvas.height * margin
-    const frameWidth = canvas.width * (1 - 2 * margin)
-    const frameHeight = canvas.height * (1 - 2 * margin)
+    // OMR Sheet format guide - 4 black rectangles for corner alignment
+    const rectWidth = 30  // Width of alignment rectangles
+    const rectHeight = 30 // Height of alignment rectangles
+    
+    // Calculate positions based on OMR sheet format
+    const leftMargin = canvas.width * 0.05   // 5% from left edge
+    const rightMargin = canvas.width * 0.95  // 5% from right edge  
+    const topMargin = canvas.height * 0.12   // 12% from top
+    const bottomMargin = canvas.height * 0.88 // 12% from bottom
+    
+    // Define 4 corner alignment rectangles matching OMR sheet format
+    const alignmentRects = [
+      { x: leftMargin - rectWidth/2, y: topMargin - rectHeight/2, name: 'TL' },      // Top-Left
+      { x: rightMargin - rectWidth/2, y: topMargin - rectHeight/2, name: 'TR' },     // Top-Right
+      { x: leftMargin - rectWidth/2, y: bottomMargin - rectHeight/2, name: 'BL' },   // Bottom-Left
+      { x: rightMargin - rectWidth/2, y: bottomMargin - rectHeight/2, name: 'BR' }   // Bottom-Right
+    ]
+    
+    // Draw 4 black alignment rectangles
+    alignmentRects.forEach((rect, index) => {
+      const corner = alignment.corners[index]
+      const isDetected = corner?.detected || false
+      
+      // Rectangle styling based on detection
+      if (isDetected) {
+        // Green glow for detected alignment marks
+        ctx.fillStyle = 'rgba(16, 185, 129, 0.8)'
+        ctx.strokeStyle = '#10B981'
+        ctx.shadowColor = '#10B981'
+        ctx.shadowBlur = 15
+        ctx.lineWidth = 3
+      } else {
+        // Red glow for undetected alignment marks
+        ctx.fillStyle = 'rgba(239, 68, 68, 0.8)'
+        ctx.strokeStyle = '#EF4444'
+        ctx.shadowColor = '#EF4444'
+        ctx.shadowBlur = 15
+        ctx.lineWidth = 3
+      }
+      
+      // Draw filled rectangle (matching OMR sheet black rectangles)
+      ctx.fillRect(rect.x, rect.y, rectWidth, rectHeight)
+      ctx.strokeRect(rect.x, rect.y, rectWidth, rectHeight)
+      
+      // Add corner label
+      ctx.fillStyle = 'white'
+      ctx.font = 'bold 12px sans-serif'
+      ctx.textAlign = 'center'
+      ctx.textBaseline = 'middle'
+      ctx.shadowColor = 'rgba(0,0,0,0.8)'
+      ctx.shadowBlur = 3
+      ctx.fillText(rect.name, rect.x + rectWidth/2, rect.y + rectHeight/2)
+      
+      // Reset shadow
+      ctx.shadowBlur = 0
+    })
+    
+    // Draw main paper frame guide (dashed outline)
+    const frameMargin = 0.08 // 8% margin for paper frame
+    const frameX = canvas.width * frameMargin
+    const frameY = canvas.height * frameMargin
+    const frameWidth = canvas.width * (1 - 2 * frameMargin)
+    const frameHeight = canvas.height * (1 - 2 * frameMargin)
     
     // Frame color based on paper detection
     const frameColor = alignment.paperDetected ? '#10B981' : '#3B82F6'
     const frameOpacity = alignment.paperDetected ? 0.9 : 0.7
     
-    // Draw main guide frame with glow effect
+    // Draw main guide frame
     ctx.strokeStyle = frameColor
     ctx.globalAlpha = frameOpacity
-    ctx.lineWidth = 3
-    ctx.shadowColor = frameColor
-    ctx.shadowBlur = 10
+    ctx.lineWidth = 2
     ctx.setLineDash([15, 8])
     ctx.strokeRect(frameX, frameY, frameWidth, frameHeight)
-    
-    // Reset shadow
-    ctx.shadowBlur = 0
-    
-    // Draw corner guides (L-shapes in corners) with better visibility
     ctx.setLineDash([])
-    ctx.lineWidth = 4
-    ctx.globalAlpha = 1.0
-    const cornerSize = 50
-    
-    // Corner colors based on detection
-    alignment.corners.forEach((corner) => {
-      const cornerColor = corner.detected ? '#10B981' : '#EF4444'
-      ctx.strokeStyle = cornerColor
-      ctx.shadowColor = cornerColor
-      ctx.shadowBlur = 8
-      
-      const x = corner.x
-      const y = corner.y
-      
-      // Draw L-shape for each corner
-      ctx.beginPath()
-      if (corner.name === 'TL') {
-        // Top-left
-        ctx.moveTo(x, y + cornerSize)
-        ctx.lineTo(x, y)
-        ctx.lineTo(x + cornerSize, y)
-      } else if (corner.name === 'TR') {
-        // Top-right
-        ctx.moveTo(x - cornerSize, y)
-        ctx.lineTo(x, y)
-        ctx.lineTo(x, y + cornerSize)
-      } else if (corner.name === 'BL') {
-        // Bottom-left
-        ctx.moveTo(x, y - cornerSize)
-        ctx.lineTo(x, y)
-        ctx.lineTo(x + cornerSize, y)
-      } else if (corner.name === 'BR') {
-        // Bottom-right
-        ctx.moveTo(x - cornerSize, y)
-        ctx.lineTo(x, y)
-        ctx.lineTo(x, y - cornerSize)
-      }
-      ctx.stroke()
-    })
-    
-    // Reset shadow
-    ctx.shadowBlur = 0
     ctx.globalAlpha = 1.0
     
     // Draw bubble overlays when paper is detected - ENHANCED VISUAL FEEDBACK
@@ -691,47 +712,40 @@ const EvalBeeCameraScanner: React.FC<EvalBeeCameraScannerProps> = memo(({
     if (!alignment.paperDetected) {
       // Semi-transparent background
       ctx.fillStyle = 'rgba(0, 0, 0, 0.8)'
-      ctx.fillRect(canvas.width/2 - 140, canvas.height/2 - 40, 280, 80)
+      ctx.fillRect(canvas.width/2 - 160, canvas.height/2 - 50, 320, 100)
       
       // Border glow
       ctx.strokeStyle = '#3B82F6'
       ctx.lineWidth = 2
       ctx.shadowColor = '#3B82F6'
       ctx.shadowBlur = 10
-      ctx.strokeRect(canvas.width/2 - 140, canvas.height/2 - 40, 280, 80)
+      ctx.strokeRect(canvas.width/2 - 160, canvas.height/2 - 50, 320, 100)
       ctx.shadowBlur = 0
       
       // Text
       ctx.fillStyle = 'white'
       ctx.font = 'bold 18px sans-serif'
       ctx.textAlign = 'center'
-      ctx.fillText('OMR varaqni ramkaga', canvas.width/2, canvas.height/2 - 8)
-      ctx.fillText('joylashtiring', canvas.width/2, canvas.height/2 + 18)
+      ctx.fillText('OMR varaqni 4 ta qora', canvas.width/2, canvas.height/2 - 15)
+      ctx.fillText('to\'rtburchak ichiga joylashtiring', canvas.width/2, canvas.height/2 + 15)
     }
     
-    // Show capture preview area (what will be captured)
+    // Show alignment status
     if (alignment.paperDetected) {
-      // Draw capture area outline with animated effect
-      ctx.strokeStyle = '#FFD700'
-      ctx.globalAlpha = 0.8
+      // Alignment status indicator
+      const detectedCount = alignment.corners.filter(c => c.detected).length
+      
+      ctx.fillStyle = 'rgba(0, 0, 0, 0.8)'
+      ctx.fillRect(canvas.width/2 - 100, 20, 200, 40)
+      
+      ctx.strokeStyle = detectedCount >= 3 ? '#10B981' : '#EF4444'
       ctx.lineWidth = 2
-      ctx.shadowColor = '#FFD700'
-      ctx.shadowBlur = 15
-      ctx.setLineDash([8, 4])
+      ctx.strokeRect(canvas.width/2 - 100, 20, 200, 40)
       
-      // Slightly smaller area than guide frame (actual capture area)
-      const captureMargin = 0.15
-      const captureX = canvas.width * captureMargin
-      const captureY = canvas.height * captureMargin
-      const captureWidth = canvas.width * (1 - 2 * captureMargin)
-      const captureHeight = canvas.height * (1 - 2 * captureMargin)
-      
-      ctx.strokeRect(captureX, captureY, captureWidth, captureHeight)
-      
-      // Reset effects
-      ctx.shadowBlur = 0
-      ctx.globalAlpha = 1.0
-      ctx.setLineDash([])
+      ctx.fillStyle = 'white'
+      ctx.font = 'bold 16px sans-serif'
+      ctx.textAlign = 'center'
+      ctx.fillText(`Alignment: ${detectedCount}/4`, canvas.width/2, 45)
     }
   }
 
@@ -966,13 +980,13 @@ const EvalBeeCameraScanner: React.FC<EvalBeeCameraScannerProps> = memo(({
           {!alignmentStatus.paperDetected ? (
             <div className="space-y-2">
               <p className="text-red-400 text-lg font-medium">📄 OMR varaqni joylashtiring</p>
-              <p className="text-white/70 text-sm">Varaqni kamera oldiga qo'ying</p>
+              <p className="text-white/70 text-sm">Varaqni 4 ta qora to'rtburchak ichiga qo'ying</p>
             </div>
           ) : alignmentStatus.corners.filter(c => c.detected).length < 3 ? (
             <div className="space-y-2">
-              <p className="text-yellow-400 text-lg font-medium">🎯 Qog'ozni to'g'ri joylashtiring</p>
+              <p className="text-yellow-400 text-lg font-medium">🎯 Qora to'rtburchaklarni tekislang</p>
               <p className="text-white/70 text-sm">
-                Burchaklar: {alignmentStatus.corners.filter(c => c.detected).length}/4
+                Aniqlangan: {alignmentStatus.corners.filter(c => c.detected).length}/4 burchak
               </p>
             </div>
           ) : !canCapture ? (
@@ -985,7 +999,7 @@ const EvalBeeCameraScanner: React.FC<EvalBeeCameraScannerProps> = memo(({
             </div>
           ) : qualityMetrics.overall >= 0.9 ? (
             <div className="space-y-2">
-              <p className="text-green-400 text-lg font-medium">✨ Mukammal sifat!</p>
+              <p className="text-green-400 text-lg font-medium">✨ Mukammal tekislash!</p>
               {autoScanCountdown > 0 && (
                 <p className="text-green-300 text-sm">Avtomatik suratga olish: {autoScanCountdown}s</p>
               )}
@@ -1060,7 +1074,11 @@ const EvalBeeCameraScanner: React.FC<EvalBeeCameraScannerProps> = memo(({
             </div>
             <div className="text-center">
               <div className="text-white font-medium">{alignmentStatus.corners.filter(c => c.detected).length}/4</div>
-              <div>Burchak</div>
+              <div>Tekislash</div>
+            </div>
+            <div className="text-center">
+              <div className="text-white font-medium">{Math.round(alignmentStatus.alignment * 100)}%</div>
+              <div>Sifat</div>
             </div>
           </div>
         )}
