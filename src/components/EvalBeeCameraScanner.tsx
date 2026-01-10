@@ -206,16 +206,16 @@ const EvalBeeCameraScanner: React.FC<EvalBeeCameraScannerProps> = memo(({
     analyzeFrame()
   }, [isProcessing])
 
-  // EvalBee Core: Lightweight Real-time Analysis (EXACTLY as specified in evalbee_camera_page.md)
+  // EvalBee SUPER SIMPLE: Faqat 2 ta narsa - FOCUS va 4 NUQTA
   const performLightweightAnalysis = useCallback((imageData: ImageData) => {
     const { data, width, height } = imageData
     
     // Skip analysis if processing or not ready
     if (isProcessing || !isReady) return
     
-    // EvalBee Method: ONLY lightweight checks - NO HEAVY OpenCV
-    // 1. Grayscale conversion (lightweight sampling)
-    const sampleRate = 12 // Even more aggressive sampling for performance
+    // SUPER SIMPLE: Faqat focus tekshiramiz (brightness emas!)
+    // 1. Grayscale conversion (minimal sampling)
+    const sampleRate = 20 // Katta sampling - tezroq
     const sampledWidth = Math.floor(width / sampleRate)
     const sampledHeight = Math.floor(height / sampleRate)
     const grayscale = new Array(sampledWidth * sampledHeight)
@@ -231,84 +231,62 @@ const EvalBeeCameraScanner: React.FC<EvalBeeCameraScannerProps> = memo(({
       }
     }
     
-    // 2. FOCUS CHECK using Laplacian variance (as specified)
+    // 2. FAQAT FOCUS CHECK - boshqa hech narsa
     const focus = calculateLaplacianVariance(grayscale, sampledWidth, sampledHeight)
     
-    // 3. BRIGHTNESS CHECK (average brightness)
-    const brightness = calculateAverageBrightness(grayscale)
+    // 3. FAQAT 4 NUQTA CHECK - paper detection emas, nuqta detection
+    const corners = detectCornerMarkers(grayscale, sampledWidth, sampledHeight, sampleRate)
+    const cornersFound = corners.filter(c => c.detected).length
     
-    // 4. ALIGNMENT CHECK (paper detection)
-    const alignment = detectPaperInFrame(grayscale, sampledWidth, sampledHeight, sampleRate)
+    // SUPER SIMPLE LOGIC: Faqat 2 ta shart
+    const focusGood = focus >= 0.3 // Juda past - tiniq bo'lsa bas
+    const cornersGood = cornersFound >= 3 // 4 tadan 3 tasi ko'rinsa bas
     
-    // 5. Overall quality calculation
-    const overall = (focus * 0.5 + brightness * 0.3 + alignment.alignment * 0.2)
+    // Update state
+    const overall = focusGood && cornersGood ? 1.0 : 0.0 // Yoki 100% yoki 0%
     
-    // EvalBee Logic: ULTRA-LENIENT quality requirements for instant 2-second alignment
-    const focusGood = focus >= 0.4 // Even more reduced - ultra forgiving
-    const brightnessGood = brightness >= 0.15 && brightness <= 0.95 // Even wider range
-    const alignmentGood = alignment.paperDetected && alignment.alignment >= 0.3 // Ultra-low threshold
-    
-    // Update state only if significant change (prevent excessive re-renders)
-    if (Math.abs(qualityMetrics.overall - overall) > 0.05) {
-      const issues = []
-      const recommendations = []
-      
-      if (!focusGood) {
-        issues.push('Biroz yaqinroq qiling')
-        recommendations.push('📱 Kamerani biroz yaqinlashtiring')
-      }
-      if (!brightnessGood) {
-        if (brightness < 0.2) {
-          issues.push('Yorug\'lik kam')
-          recommendations.push('💡 Biroz yorug\'roq joy kerak')
-        } else {
-          issues.push('Juda yorqin')
-          recommendations.push('🌤️ Biroz soyaga o\'ting')
-        }
-      }
-      if (!alignmentGood) {
-        issues.push('Varaqni ramkaga qo\'ying')
-        recommendations.push('📄 Varaqni katta ramka ichiga qo\'ying')
-      }
-      
-      const newQualityMetrics = {
-        focus,
-        brightness,
-        contrast: alignment.alignment,
-        skew: 1 - alignment.alignment,
-        overall,
-        issues,
-        recommendations
-      }
-      
-      setQualityMetrics(newQualityMetrics)
-      setAlignmentStatus(alignment)
+    const newQualityMetrics = {
+      focus,
+      brightness: 0.5, // Brightness tekshirmaymiz
+      contrast: cornersFound / 4, // Nechta nuqta topildi
+      skew: 0,
+      overall,
+      issues: [],
+      recommendations: []
     }
     
-    // EvalBee Logic: STRICT capture conditions
-    const canCaptureNow = focusGood && brightnessGood && alignmentGood
+    const newAlignmentStatus = {
+      paperDetected: cornersGood,
+      withinFrame: true,
+      alignment: cornersFound / 4,
+      corners
+    }
+    
+    setQualityMetrics(newQualityMetrics)
+    setAlignmentStatus(newAlignmentStatus)
+    
+    // SUPER SIMPLE: Agar ikkalasi ham yaxshi bo'lsa - DARHOL rasm ol
+    const canCaptureNow = focusGood && cornersGood
     setCanCapture(canCaptureNow)
     
-    // AUTO-SCAN Logic - ULTRA-FAST for 2-second alignment
-    if (canCaptureNow && overall >= 0.5 && autoScanCountdown === 0) { // Even lower threshold
-      console.log('🎯 EvalBee: Good conditions detected, starting ultra-fast auto-scan')
-      setAutoScanCountdown(1) // Even shorter countdown
+    // INSTANT CAPTURE - hech qanday kutish yo'q!
+    if (canCaptureNow && autoScanCountdown === 0) {
+      console.log('🎯 EvalBee SIMPLE: Focus + 4 nuqta OK - DARHOL rasm olish!')
+      setAutoScanCountdown(1)
       
-      // Ultra-fast auto-capture - 0.3 seconds for instant alignment
+      // DARHOL rasm ol - 0.1 soniya
       setTimeout(() => {
-        if (canCapture && qualityMetrics.overall >= 0.4 && !isProcessing) { // Ultra-low threshold
-          console.log('📸 EvalBee: Ultra-fast auto-capturing frame')
+        if (canCapture && !isProcessing) {
+          console.log('📸 EvalBee SIMPLE: INSTANT capture!')
           captureImage()
         }
         setAutoScanCountdown(0)
-      }, 300) // Ultra-fast - 0.3 seconds
+      }, 100) // 0.1 soniya - darhol!
     }
     
-    // Draw guide overlay (throttled)
-    if (Math.random() > 0.7) {
-      drawEvalBeeGuide(alignment)
-    }
-  }, [isProcessing, isReady, qualityMetrics.overall, canCapture, autoScanCountdown])
+    // Simple guide
+    drawSimpleGuide(newAlignmentStatus)
+  }, [isProcessing, isReady, canCapture, autoScanCountdown])
 
   // EvalBee Method: Laplacian variance for focus detection
   const calculateLaplacianVariance = (grayscale: number[], width: number, height: number): number => {
@@ -336,69 +314,59 @@ const EvalBeeCameraScanner: React.FC<EvalBeeCameraScannerProps> = memo(({
     return Math.min(1, result / 1000) // Normalize to 0-1
   }
 
-  // EvalBee Method: Average brightness calculation
-  const calculateAverageBrightness = (grayscale: number[]): number => {
-    let sum = 0
-    const sampleStep = 25 // Sample every 25th pixel for performance
-    
-    for (let i = 0; i < grayscale.length; i += sampleStep) {
-      sum += grayscale[i]
-    }
-    
-    const count = Math.floor(grayscale.length / sampleStep)
-    return count > 0 ? (sum / count) / 255 : 0
-  }
 
-  // EvalBee Method: Paper detection in frame - ULTRA FORGIVING for 2-second alignment
-  const detectPaperInFrame = (grayscale: number[], width: number, height: number, sampleRate: number = 1): AlignmentStatus => {
-    // Ultra-large and extremely forgiving frame boundaries - almost full screen
-    const frameMargin = 0.03 // Only 3% margin - extremely forgiving
-    const frameLeft = Math.floor(width * frameMargin)
-    const frameRight = Math.floor(width * (1 - frameMargin))
-    const frameTop = Math.floor(height * frameMargin)
-    const frameBottom = Math.floor(height * (1 - frameMargin))
-    
-    // Ultra-lenient paper detection - accept almost anything paper-like
-    let paperPixels = 0
-    let totalChecked = 0
-    
-    // Sample even less frequently for maximum performance and forgiveness
-    for (let x = frameLeft; x < frameRight; x += 20) { // Even larger step size
-      for (let y = frameTop; y < frameBottom; y += 20) { // Even larger step size
-        const idx = y * width + x
-        if (idx < grayscale.length) {
-          const pixel = grayscale[idx]
-          
-          // Ultra-forgiving paper detection - accept very wide range
-          if (pixel > 100 && pixel < 255) { // Even wider range for paper detection
-            paperPixels++
-          }
-          totalChecked++
-        }
-      }
-    }
-    
-    const paperRatio = totalChecked > 0 ? paperPixels / totalChecked : 0
-    const paperDetected = paperRatio > 0.1 // Ultra-low threshold - extremely forgiving
-    const alignment = Math.min(1, paperRatio * 3) // Even more boost to alignment score
-    
-    // Mock corner detection - always show as detected if paper is present
-    const corners = [
-      { x: frameLeft * sampleRate, y: frameTop * sampleRate, detected: paperDetected, name: 'TL' },
-      { x: frameRight * sampleRate, y: frameTop * sampleRate, detected: paperDetected, name: 'TR' },
-      { x: frameLeft * sampleRate, y: frameBottom * sampleRate, detected: paperDetected, name: 'BL' },
-      { x: frameRight * sampleRate, y: frameBottom * sampleRate, detected: paperDetected, name: 'BR' }
+  // EvalBee SUPER SIMPLE: 4 ta nuqtani topish - boshqa hech narsa
+  const detectCornerMarkers = (grayscale: number[], width: number, height: number, sampleRate: number = 1): { x: number, y: number, detected: boolean, name: string }[] => {
+    // 4 ta burchakda qora nuqtalarni qidiramiz
+    const cornerRegions = [
+      { name: 'TL', x: 0.1, y: 0.1, detected: false }, // Top-Left
+      { name: 'TR', x: 0.9, y: 0.1, detected: false }, // Top-Right  
+      { name: 'BL', x: 0.1, y: 0.9, detected: false }, // Bottom-Left
+      { name: 'BR', x: 0.9, y: 0.9, detected: false }  // Bottom-Right
     ]
     
-    return {
-      paperDetected,
-      withinFrame: true,
-      alignment,
-      corners
-    }
+    // Har bir burchakda qora nuqta borligini tekshiramiz
+    cornerRegions.forEach(corner => {
+      const centerX = Math.floor(width * corner.x)
+      const centerY = Math.floor(height * corner.y)
+      const searchRadius = Math.min(width, height) * 0.05 // 5% radius
+      
+      let darkPixels = 0
+      let totalPixels = 0
+      
+      // Kichik doira ichida qora pixellarni qidiramiz
+      for (let dy = -searchRadius; dy <= searchRadius; dy += 3) {
+        for (let dx = -searchRadius; dx <= searchRadius; dx += 3) {
+          const x = centerX + dx
+          const y = centerY + dy
+          
+          if (x >= 0 && x < width && y >= 0 && y < height) {
+            const idx = Math.floor(y) * width + Math.floor(x)
+            if (idx < grayscale.length) {
+              const pixel = grayscale[idx]
+              if (pixel < 100) { // Qora pixel (100 dan past)
+                darkPixels++
+              }
+              totalPixels++
+            }
+          }
+        }
+      }
+      
+      // Agar 30% dan ko'p qora pixel bo'lsa - nuqta topildi
+      corner.detected = totalPixels > 0 && (darkPixels / totalPixels) > 0.3
+    })
+    
+    // Koordinatalarni qaytaramiz
+    return cornerRegions.map(corner => ({
+      x: corner.x * width * sampleRate,
+      y: corner.y * height * sampleRate,
+      detected: corner.detected,
+      name: corner.name
+    }))
   }
-  // EvalBee Guide: Simple alignment overlay (as specified in evalbee_camera_page.md)
-  const drawEvalBeeGuide = (alignment: AlignmentStatus) => {
+  // EvalBee SUPER SIMPLE Guide: Faqat 4 ta nuqta ko'rsatish
+  const drawSimpleGuide = (alignment: AlignmentStatus) => {
     if (!overlayCanvasRef.current) return
     
     const canvas = overlayCanvasRef.current
@@ -407,111 +375,45 @@ const EvalBeeCameraScanner: React.FC<EvalBeeCameraScannerProps> = memo(({
     
     ctx.clearRect(0, 0, canvas.width, canvas.height)
     
-    // EvalBee Method: Simple rectangular frame + corner markers - ULTRA-FORGIVING
-    const frameMargin = 0.03 // Ultra-small 3% margin - maximum space
-    const frameX = canvas.width * frameMargin
-    const frameY = canvas.height * frameMargin
-    const frameWidth = canvas.width * (1 - 2 * frameMargin)
-    const frameHeight = canvas.height * (1 - 2 * frameMargin)
-    
-    // Main frame color based on paper detection
-    const frameColor = alignment.paperDetected ? '#10B981' : '#EF4444'
-    const frameOpacity = alignment.paperDetected ? 0.9 : 0.7
-    
-    // Draw main rectangular frame
-    ctx.strokeStyle = frameColor
-    ctx.globalAlpha = frameOpacity
-    ctx.lineWidth = 4
-    ctx.shadowColor = frameColor
-    ctx.shadowBlur = 15
-    ctx.strokeRect(frameX, frameY, frameWidth, frameHeight)
-    
-    // Corner markers (L-shapes)
-    ctx.setLineDash([])
-    ctx.lineWidth = 6
-    ctx.globalAlpha = 1.0
-    const cornerSize = 60
-    
-    // Draw L-shaped corner markers
+    // SUPER SIMPLE: Faqat 4 ta doira - nuqtalar uchun
+    const cornerSize = 40
     const corners = [
-      { x: frameX, y: frameY, type: 'TL' },
-      { x: frameX + frameWidth, y: frameY, type: 'TR' },
-      { x: frameX, y: frameY + frameHeight, type: 'BL' },
-      { x: frameX + frameWidth, y: frameY + frameHeight, type: 'BR' }
+      { x: canvas.width * 0.1, y: canvas.height * 0.1, name: 'TL' },
+      { x: canvas.width * 0.9, y: canvas.height * 0.1, name: 'TR' },
+      { x: canvas.width * 0.1, y: canvas.height * 0.9, name: 'BL' },
+      { x: canvas.width * 0.9, y: canvas.height * 0.9, name: 'BR' }
     ]
     
-    corners.forEach(corner => {
-      ctx.strokeStyle = frameColor
-      ctx.shadowColor = frameColor
-      ctx.shadowBlur = 10
+    // Har bir burchakda doira chizamiz
+    corners.forEach((corner, index) => {
+      const detected = alignment.corners[index]?.detected || false
       
       ctx.beginPath()
-      if (corner.type === 'TL') {
-        ctx.moveTo(corner.x, corner.y + cornerSize)
-        ctx.lineTo(corner.x, corner.y)
-        ctx.lineTo(corner.x + cornerSize, corner.y)
-      } else if (corner.type === 'TR') {
-        ctx.moveTo(corner.x - cornerSize, corner.y)
-        ctx.lineTo(corner.x, corner.y)
-        ctx.lineTo(corner.x, corner.y + cornerSize)
-      } else if (corner.type === 'BL') {
-        ctx.moveTo(corner.x, corner.y - cornerSize)
-        ctx.lineTo(corner.x, corner.y)
-        ctx.lineTo(corner.x + cornerSize, corner.y)
-      } else if (corner.type === 'BR') {
-        ctx.moveTo(corner.x - cornerSize, corner.y)
-        ctx.lineTo(corner.x, corner.y)
-        ctx.lineTo(corner.x, corner.y - cornerSize)
-      }
+      ctx.arc(corner.x, corner.y, cornerSize, 0, 2 * Math.PI)
+      
+      // Rang: topilgan nuqta - yashil, topilmagan - qizil
+      ctx.strokeStyle = detected ? '#10B981' : '#EF4444'
+      ctx.fillStyle = detected ? 'rgba(16, 185, 129, 0.2)' : 'rgba(239, 68, 68, 0.2)'
+      ctx.lineWidth = 4
+      
+      ctx.fill()
       ctx.stroke()
+      
+      // Nuqta belgisi
+      ctx.fillStyle = detected ? '#10B981' : '#EF4444'
+      ctx.font = 'bold 16px sans-serif'
+      ctx.textAlign = 'center'
+      ctx.fillText(detected ? '✓' : '○', corner.x, corner.y + 6)
     })
     
-    // Reset effects
-    ctx.shadowBlur = 0
-    ctx.globalAlpha = 1.0
+    // Markazda oddiy xabar
+    const cornersFound = alignment.corners.filter(c => c.detected).length
+    const message = cornersFound >= 3 ? 'TAYYOR!' : `${cornersFound}/4 NUQTA`
     
-    // Center instruction based on paper detection
-    if (!alignment.paperDetected) {
-      // Semi-transparent background
-      ctx.fillStyle = 'rgba(0, 0, 0, 0.85)'
-      ctx.fillRect(canvas.width/2 - 180, canvas.height/2 - 60, 360, 120)
-      
-      // Border
-      ctx.strokeStyle = '#EF4444'
-      ctx.lineWidth = 3
-      ctx.shadowColor = '#EF4444'
-      ctx.shadowBlur = 15
-      ctx.strokeRect(canvas.width/2 - 180, canvas.height/2 - 60, 360, 120)
-      ctx.shadowBlur = 0
-      
-      // Text
-      ctx.fillStyle = 'white'
-      ctx.font = 'bold 20px sans-serif'
-      ctx.textAlign = 'center'
-      ctx.fillText('OMR varaqni ramkaga', canvas.width/2, canvas.height/2 - 20)
-      ctx.fillText('joylashtiring', canvas.width/2, canvas.height/2 + 10)
-      
-      ctx.font = '14px sans-serif'
-      ctx.fillStyle = '#FFB3B3'
-      ctx.fillText('Varaq ramkadan chiqmasin', canvas.width/2, canvas.height/2 + 35)
-    } else if (alignment.alignment < 0.8) {
-      // Alignment warning
-      ctx.fillStyle = 'rgba(0, 0, 0, 0.85)'
-      ctx.fillRect(canvas.width/2 - 120, canvas.height/2 - 40, 240, 80)
-      
-      ctx.strokeStyle = '#F59E0B'
-      ctx.lineWidth = 3
-      ctx.strokeRect(canvas.width/2 - 120, canvas.height/2 - 40, 240, 80)
-      
-      ctx.fillStyle = 'white'
-      ctx.font = 'bold 18px sans-serif'
-      ctx.textAlign = 'center'
-      ctx.fillText('Varaqni tekislang', canvas.width/2, canvas.height/2 - 5)
-      
-      ctx.font = '14px sans-serif'
-      ctx.fillStyle = '#FCD34D'
-      ctx.fillText('Qiyshaygan', canvas.width/2, canvas.height/2 + 20)
-    }
+    ctx.fillStyle = cornersFound >= 3 ? '#10B981' : '#EF4444'
+    ctx.font = 'bold 24px sans-serif'
+    ctx.textAlign = 'center'
+    ctx.fillText(message, canvas.width / 2, canvas.height / 2)
   }
 
   const captureImage = useCallback(async () => {
@@ -634,83 +536,61 @@ const EvalBeeCameraScanner: React.FC<EvalBeeCameraScannerProps> = memo(({
               style={{ transform: 'scaleX(-1)' }} // Match video mirror
             />
             
-            {/* Visible UI Frame Overlay - EASY ALIGNMENT */}
+            {/* SUPER SIMPLE UI: Faqat 4 ta doira - nuqtalar uchun */}
             <div className="absolute inset-0 z-15 pointer-events-none">
-              {/* Main Frame Border - Ultra-large and extremely forgiving */}
-              <div 
-                className={`absolute border-4 rounded-xl transition-all duration-300 ${
-                  alignmentStatus.paperDetected 
-                    ? 'border-green-400 shadow-lg shadow-green-400/50' 
-                    : 'border-blue-400 shadow-lg shadow-blue-400/50'
-                }`}
-                style={{
-                  left: '3%',    // Even larger - ultra-forgiving
-                  top: '5%',     // Even larger - ultra-forgiving  
-                  width: '94%',  // Almost full width - maximum space
-                  height: '90%', // Almost full height - maximum space
-                  borderStyle: 'dashed',
-                  borderWidth: '2px' // Thin border, less intrusive
-                }}
-              >
-                {/* Simplified Corner Markers - Less intimidating */}
-                <div className="absolute -top-2 -left-2">
-                  <div className={`w-8 h-8 border-l-3 border-t-3 rounded-tl-lg transition-all duration-300 ${
-                    alignmentStatus.paperDetected 
-                      ? 'border-green-400' 
-                      : 'border-blue-400'
-                  }`}></div>
-                </div>
-                <div className="absolute -top-2 -right-2">
-                  <div className={`w-8 h-8 border-r-3 border-t-3 rounded-tr-lg transition-all duration-300 ${
-                    alignmentStatus.paperDetected 
-                      ? 'border-green-400' 
-                      : 'border-blue-400'
-                  }`}></div>
-                </div>
-                <div className="absolute -bottom-2 -left-2">
-                  <div className={`w-8 h-8 border-l-3 border-b-3 rounded-bl-lg transition-all duration-300 ${
-                    alignmentStatus.paperDetected 
-                      ? 'border-green-400' 
-                      : 'border-blue-400'
-                  }`}></div>
-                </div>
-                <div className="absolute -bottom-2 -right-2">
-                  <div className={`w-8 h-8 border-r-3 border-b-3 rounded-br-lg transition-all duration-300 ${
-                    alignmentStatus.paperDetected 
-                      ? 'border-green-400' 
-                      : 'border-blue-400'
-                  }`}></div>
-                </div>
-                
-                {/* Friendly Frame Label */}
-                <div className="absolute -top-12 left-1/2 transform -translate-x-1/2">
-                  <div className={`px-6 py-2 rounded-full text-sm font-medium transition-all duration-300 ${
-                    alignmentStatus.paperDetected 
-                      ? 'bg-green-400 text-green-900 shadow-lg shadow-green-400/50' 
-                      : 'bg-blue-400 text-blue-900 shadow-lg shadow-blue-400/50'
-                  }`}>
-                    {alignmentStatus.paperDetected 
-                  ? '✅ PERFECT! TAYYOR' : '📄 KATTA MAYDONGA QOYING - OSON'
-                }
-                  </div>
+              {/* 4 ta burchakda doiralar */}
+              <div className="absolute" style={{ left: '10%', top: '10%' }}>
+                <div className={`w-20 h-20 rounded-full border-4 flex items-center justify-center text-2xl font-bold transition-all duration-300 ${
+                  alignmentStatus.corners[0]?.detected 
+                    ? 'border-green-400 bg-green-400/20 text-green-400' 
+                    : 'border-red-400 bg-red-400/20 text-red-400'
+                }`}>
+                  {alignmentStatus.corners[0]?.detected ? '✓' : '○'}
                 </div>
               </div>
               
-              {/* Minimal Center Guidelines - Less distracting */}
-              <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                {/* Small center indicator only */}
-                <div className={`absolute w-2 h-2 rounded-full transition-all duration-300 ${
-                  alignmentStatus.paperDetected ? 'bg-green-400' : 'bg-blue-400'
-                } opacity-40`}></div>
+              <div className="absolute" style={{ right: '10%', top: '10%' }}>
+                <div className={`w-20 h-20 rounded-full border-4 flex items-center justify-center text-2xl font-bold transition-all duration-300 ${
+                  alignmentStatus.corners[1]?.detected 
+                    ? 'border-green-400 bg-green-400/20 text-green-400' 
+                    : 'border-red-400 bg-red-400/20 text-red-400'
+                }`}>
+                  {alignmentStatus.corners[1]?.detected ? '✓' : '○'}
+                </div>
               </div>
               
-              {/* Minimal Scanning Area Overlay - Ultra-minimal */}
-              <div className="absolute inset-0 pointer-events-none">
-                {/* Ultra-light overlay outside scanning area */}
-                <div className="absolute top-0 left-0 right-0 bg-black/10" style={{ height: '5%' }}></div>
-                <div className="absolute bottom-0 left-0 right-0 bg-black/10" style={{ height: '5%' }}></div>
-                <div className="absolute left-0 bg-black/10" style={{ top: '5%', bottom: '5%', width: '3%' }}></div>
-                <div className="absolute right-0 bg-black/10" style={{ top: '5%', bottom: '5%', width: '3%' }}></div>
+              <div className="absolute" style={{ left: '10%', bottom: '10%' }}>
+                <div className={`w-20 h-20 rounded-full border-4 flex items-center justify-center text-2xl font-bold transition-all duration-300 ${
+                  alignmentStatus.corners[2]?.detected 
+                    ? 'border-green-400 bg-green-400/20 text-green-400' 
+                    : 'border-red-400 bg-red-400/20 text-red-400'
+                }`}>
+                  {alignmentStatus.corners[2]?.detected ? '✓' : '○'}
+                </div>
+              </div>
+              
+              <div className="absolute" style={{ right: '10%', bottom: '10%' }}>
+                <div className={`w-20 h-20 rounded-full border-4 flex items-center justify-center text-2xl font-bold transition-all duration-300 ${
+                  alignmentStatus.corners[3]?.detected 
+                    ? 'border-green-400 bg-green-400/20 text-green-400' 
+                    : 'border-red-400 bg-red-400/20 text-red-400'
+                }`}>
+                  {alignmentStatus.corners[3]?.detected ? '✓' : '○'}
+                </div>
+              </div>
+              
+              {/* Markazda oddiy status */}
+              <div className="absolute inset-0 flex items-center justify-center">
+                <div className={`px-8 py-4 rounded-full text-xl font-bold transition-all duration-300 ${
+                  alignmentStatus.corners.filter(c => c.detected).length >= 3
+                    ? 'bg-green-500/90 text-white' 
+                    : 'bg-red-500/90 text-white'
+                }`}>
+                  {alignmentStatus.corners.filter(c => c.detected).length >= 3 
+                    ? '✅ TAYYOR!' 
+                    : `${alignmentStatus.corners.filter(c => c.detected).length}/4 NUQTA`
+                  }
+                </div>
               </div>
             </div>
             
@@ -766,16 +646,16 @@ const EvalBeeCameraScanner: React.FC<EvalBeeCameraScannerProps> = memo(({
               </div>
             </div>
             
-            {/* Frame Status Indicator - ULTRA-ENCOURAGING */}
+            {/* Frame Status Indicator - SUPER SIMPLE */}
             <div className="absolute top-16 left-1/2 transform -translate-x-1/2 z-20">
               <div className={`px-4 py-2 rounded-lg text-sm font-medium transition-all duration-300 ${
-                alignmentStatus.paperDetected 
+                alignmentStatus.corners.filter(c => c.detected).length >= 3
                   ? 'bg-green-500/90 text-white' 
                   : 'bg-blue-500/90 text-white'
               }`}>
-                {alignmentStatus.paperDetected 
-                  ? '✅ Ajoyib! Deyarli butun ekran' 
-                  : '📄 Juda oson - katta maydon'
+                {alignmentStatus.corners.filter(c => c.detected).length >= 3
+                  ? '✅ 4 nuqta topildi - TAYYOR!' 
+                  : `📄 ${alignmentStatus.corners.filter(c => c.detected).length}/4 nuqta ko'rinib tursin`
                 }
               </div>
             </div>
@@ -785,55 +665,22 @@ const EvalBeeCameraScanner: React.FC<EvalBeeCameraScannerProps> = memo(({
 
       {/* Bottom Controls */}
       <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black via-black/80 to-transparent p-6 z-20">
-        {/* EvalBee Status Text - ENCOURAGING and EASY */}
+        {/* EvalBee SUPER SIMPLE Status - Faqat 2 ta holat */}
         <div className="text-center mb-6">
-          {!alignmentStatus.paperDetected ? (
+          {alignmentStatus.corners.filter(c => c.detected).length < 3 ? (
             <div className="space-y-2">
-              <p className="text-blue-400 text-lg font-medium">📄 Katta maydonga qo'ying</p>
-              <p className="text-white/70 text-sm">Juda oson - deyarli butun ekran</p>
+              <p className="text-blue-400 text-lg font-medium">📄 4 ta nuqtani ko'rsating</p>
+              <p className="text-white/70 text-sm">Varaq burchaklaridagi qora nuqtalar ko'rinsin</p>
             </div>
-          ) : qualityMetrics.focus < 0.5 ? (
+          ) : qualityMetrics.focus < 0.3 ? (
             <div className="space-y-2">
               <p className="text-yellow-400 text-lg font-medium">📱 Biroz yaqinroq qiling</p>
-              <p className="text-white/70 text-sm">Focus: {Math.round(qualityMetrics.focus * 100)}% - yaxshi bo'lyapti</p>
-            </div>
-          ) : qualityMetrics.brightness < 0.2 ? (
-            <div className="space-y-2">
-              <p className="text-yellow-400 text-lg font-medium">💡 Biroz yorug'roq joy</p>
-              <p className="text-white/70 text-sm">Yorug'lik: {Math.round(qualityMetrics.brightness * 100)}% - deyarli tayyor</p>
-            </div>
-          ) : qualityMetrics.brightness > 0.9 ? (
-            <div className="space-y-2">
-              <p className="text-yellow-400 text-lg font-medium">🌤️ Biroz soyaga o'ting</p>
-              <p className="text-white/70 text-sm">Yorug'lik: {Math.round(qualityMetrics.brightness * 100)}% - juda yorqin</p>
-            </div>
-          ) : alignmentStatus.alignment < 0.3 ? (
-            <div className="space-y-2">
-              <p className="text-blue-400 text-lg font-medium">📐 Varaqni to'g'rilab qo'ying</p>
-              <p className="text-white/70 text-sm">Tekislash: {Math.round(alignmentStatus.alignment * 100)}% - yaxshi</p>
-            </div>
-          ) : !canCapture ? (
-            <div className="space-y-2">
-              <p className="text-green-400 text-lg font-medium">⚡ Deyarli tayyor!</p>
-              <div className="flex justify-center gap-4 text-xs text-white/60">
-                <span>Focus: {Math.round(qualityMetrics.focus * 100)}%</span>
-                <span>Yorug'lik: {Math.round(qualityMetrics.brightness * 100)}%</span>
-                <span>Tekislash: {Math.round(alignmentStatus.alignment * 100)}%</span>
-              </div>
-            </div>
-          ) : qualityMetrics.overall >= 0.5 ? (
-            <div className="space-y-2">
-              <p className="text-green-400 text-lg font-medium">✨ Ajoyib! Tayyor</p>
-              {autoScanCountdown > 0 ? (
-                <p className="text-green-300 text-sm animate-pulse">Avtomatik suratga olish: {autoScanCountdown}s</p>
-              ) : (
-                <p className="text-green-300 text-sm">Avtomatik suratga olinadi</p>
-              )}
+              <p className="text-white/70 text-sm">Rasm tiniq bo'lishi kerak</p>
             </div>
           ) : (
             <div className="space-y-2">
-              <p className="text-blue-400 text-lg font-medium">📸 Suratga olish mumkin</p>
-              <p className="text-white/70 text-sm">Tugmani bosing</p>
+              <p className="text-green-400 text-lg font-medium">✨ TAYYOR - Darhol suratga olinadi!</p>
+              <p className="text-green-300 text-sm">Focus: ✓ | 4 nuqta: ✓</p>
             </div>
           )}
         </div>
@@ -844,7 +691,7 @@ const EvalBeeCameraScanner: React.FC<EvalBeeCameraScannerProps> = memo(({
             onClick={captureImage}
             disabled={!isReady || isProcessing || !canCapture}
             className={`relative p-4 rounded-full transition-all duration-300 ${
-              canCapture && qualityMetrics.overall >= 0.7
+              canCapture && qualityMetrics.overall >= 0.9
                 ? 'bg-green-500 hover:bg-green-600 scale-110 shadow-lg shadow-green-500/50' 
                 : canCapture
                   ? 'bg-blue-500 hover:bg-blue-600 shadow-lg shadow-blue-500/50'
@@ -867,24 +714,20 @@ const EvalBeeCameraScanner: React.FC<EvalBeeCameraScannerProps> = memo(({
           </button>
         </div>
 
-        {/* Quick Stats */}
-        {alignmentStatus.paperDetected && (
+        {/* SUPER SIMPLE Stats */}
+        {alignmentStatus.corners.filter(c => c.detected).length > 0 && (
           <div className="flex justify-center gap-6 mt-4 text-xs text-white/60">
             <div className="text-center">
-              <div className="text-white font-medium">{Math.round(qualityMetrics.focus * 100)}%</div>
+              <div className="text-white font-medium">{qualityMetrics.focus >= 0.3 ? '✓' : '○'}</div>
               <div>Focus</div>
             </div>
             <div className="text-center">
-              <div className="text-white font-medium">{Math.round(qualityMetrics.brightness * 100)}%</div>
-              <div>Yorug'lik</div>
-            </div>
-            <div className="text-center">
               <div className="text-white font-medium">{alignmentStatus.corners.filter(c => c.detected).length}/4</div>
-              <div>Tekislash</div>
+              <div>Nuqtalar</div>
             </div>
             <div className="text-center">
-              <div className="text-white font-medium">{Math.round(alignmentStatus.alignment * 100)}%</div>
-              <div>Sifat</div>
+              <div className="text-white font-medium">{canCapture ? 'TAYYOR' : 'KUTISH'}</div>
+              <div>Holat</div>
             </div>
           </div>
         )}
