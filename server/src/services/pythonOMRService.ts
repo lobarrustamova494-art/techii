@@ -55,18 +55,36 @@ export class PythonOMRService {
    */
   async isAvailable(): Promise<boolean> {
     try {
-      // First try HTTP server (production)
-      if (process.env.NODE_ENV === 'production' || process.env.PYTHON_OMR_URL) {
-        console.log(`🔍 Checking Python OMR server at: ${this.pythonOMRUrl}`)
+      // In production, ONLY use HTTP server
+      if (process.env.NODE_ENV === 'production') {
+        console.log(`🔍 Production mode: Checking Python OMR server at: ${this.pythonOMRUrl}`)
         const response = await fetch(`${this.pythonOMRUrl}/health`, {
-          method: 'GET'
+          method: 'GET',
+          timeout: 10000 // 10 second timeout
         })
         const isAvailable = response.ok
         console.log(`Python OMR server available: ${isAvailable}`)
         return isAvailable
       }
       
-      // Fallback to local subprocess (development)
+      // Development: Try HTTP first, then fallback to subprocess
+      if (process.env.PYTHON_OMR_URL) {
+        console.log(`🔍 Development mode: Checking Python OMR server at: ${this.pythonOMRUrl}`)
+        try {
+          const response = await fetch(`${this.pythonOMRUrl}/health`, {
+            method: 'GET',
+            timeout: 5000 // 5 second timeout
+          })
+          if (response.ok) {
+            console.log('Python OMR HTTP server available')
+            return true
+          }
+        } catch (httpError) {
+          console.log('HTTP server not available, checking subprocess...')
+        }
+      }
+      
+      // Fallback to local subprocess (development only)
       const processorPath = path.join(process.cwd(), '..', 'python_omr_checker', 'omr_processor.py')
       console.log(`🔍 Checking Python processor at: ${processorPath}`)
       const exists = fs.existsSync(processorPath)
@@ -135,12 +153,24 @@ export class PythonOMRService {
         throw new Error('Python OMR processor is not available')
       }
 
-      // Try HTTP server first (production)
-      if (process.env.NODE_ENV === 'production' || process.env.PYTHON_OMR_URL) {
+      // In production, ONLY use HTTP server
+      if (process.env.NODE_ENV === 'production') {
+        console.log('🚀 Production mode: Using HTTP server only')
         return await this.processOMRViaHTTP(imageBuffer, answerKey, examData, scoring, debug)
       }
+
+      // Development: Try HTTP first, then fallback to subprocess
+      if (process.env.PYTHON_OMR_URL) {
+        try {
+          console.log('🚀 Development mode: Trying HTTP server first')
+          return await this.processOMRViaHTTP(imageBuffer, answerKey, examData, scoring, debug)
+        } catch (httpError) {
+          console.log('HTTP server failed, falling back to subprocess:', httpError.message)
+        }
+      }
       
-      // Fallback to subprocess (development)
+      // Fallback to subprocess (development only)
+      console.log('🚀 Development mode: Using subprocess fallback')
       return await this.processOMRViaSubprocess(imageBuffer, answerKey, examData, scoring, debug)
 
     } catch (error: any) {

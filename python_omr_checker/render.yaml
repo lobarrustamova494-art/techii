@@ -5,7 +5,7 @@ services:
     env: python
     plan: starter # Upgraded for better performance with OpenCV
     region: oregon # Choose optimal region
-    buildCommand: pip install -r requirements.txt
+    buildCommand: pip install --upgrade pip && pip install -r requirements.txt
     startCommand: python run_server.py
     healthCheckPath: /health
     envVars:
