@@ -456,13 +456,10 @@ const EvalBeeCameraScanner: React.FC<EvalBeeCameraScannerProps> = memo(({
       videoHeight: video.videoHeight
     })
     
-    // Capture SINGLE frame with mirror correction
-    context.save()
-    context.scale(-1, 1) // Flip horizontally
-    context.drawImage(video, -canvas.width, 0, canvas.width, canvas.height)
-    context.restore()
+    // Capture SINGLE frame - TO'G'RI HOLAT (mirror yo'q)
+    context.drawImage(video, 0, 0, canvas.width, canvas.height)
 
-    console.log('🖼️ SINGLE frame captured with mirror correction')
+    console.log('🖼️ SINGLE frame captured - to\'g\'ri holatda')
 
     // Generate image data
     const finalImageData = canvas.toDataURL('image/jpeg', 0.85)
@@ -516,7 +513,7 @@ const EvalBeeCameraScanner: React.FC<EvalBeeCameraScannerProps> = memo(({
           </div>
         ) : (
           <>
-            {/* Video Element - Full Screen */}
+            {/* Video Element - Full Screen - TO'G'RI HOLAT */}
             <video
               ref={videoRef}
               autoPlay
@@ -524,16 +521,16 @@ const EvalBeeCameraScanner: React.FC<EvalBeeCameraScannerProps> = memo(({
               muted
               className="absolute inset-0 w-full h-full object-cover"
               style={{ 
-                transform: 'scaleX(-1)', // Mirror effect for better UX
+                // Mirror effect olib tashlandi - to'g'ri holat
                 backgroundColor: '#000'
               }}
             />
             
-            {/* Overlay Canvas for Guides */}
+            {/* Overlay Canvas for Guides - TO'G'RI HOLAT */}
             <canvas
               ref={overlayCanvasRef}
               className="absolute inset-0 w-full h-full pointer-events-none z-10"
-              style={{ transform: 'scaleX(-1)' }} // Match video mirror
+              // Mirror effect olib tashlandi - to'g'ri holat
             />
             
             {/* SUPER SIMPLE UI: Faqat 4 ta doira - nuqtalar uchun */}
@@ -605,7 +602,7 @@ const EvalBeeCameraScanner: React.FC<EvalBeeCameraScannerProps> = memo(({
                   className="rounded border border-green-400"
                   width={160}
                   height={120}
-                  style={{ transform: 'scaleX(-1)' }} // Match video mirror
+                  // Mirror effect olib tashlandi - to'g'ri holat
                 />
                 <div className="text-white text-xs text-center mt-1">
                   Suratga olinadi
