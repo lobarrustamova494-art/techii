@@ -7,7 +7,7 @@ interface EvalBeeCameraScannerProps {
   onCapture: (imageData: string, qualityMetrics: QualityMetrics) => void
   onClose: () => void
   isProcessing: boolean
-  answerKey: string[]
+  correctAnswers?: string[] // To'g'ri javoblar (exam-keys dan)
   onShowDebug?: () => void
 }
 
@@ -28,10 +28,21 @@ interface AlignmentStatus {
   corners: { x: number, y: number, detected?: boolean, name?: string }[]
 }
 
+interface DetectedBubble {
+  x: number
+  y: number
+  option: string
+  questionNumber: number
+  isFilled: boolean
+  isCorrect: boolean
+  confidence: number
+}
+
 const EvalBeeCameraScanner: React.FC<EvalBeeCameraScannerProps> = ({
   onCapture,
   onClose,
   isProcessing,
+  correctAnswers = [],
   onShowDebug
 }) => {
   const videoRef = useRef<HTMLVideoElement>(null)
@@ -65,6 +76,8 @@ const EvalBeeCameraScanner: React.FC<EvalBeeCameraScannerProps> = ({
   
   const [canCapture, setCanCapture] = useState(false)
   const [autoScanCountdown, setAutoScanCountdown] = useState(0)
+  const [detectedBubbles, setDetectedBubbles] = useState<DetectedBubble[]>([])
+  const [showBubbleOverlay, setShowBubbleOverlay] = useState(false)
 
   useEffect(() => {
     startCamera()
@@ -223,7 +236,13 @@ const EvalBeeCameraScanner: React.FC<EvalBeeCameraScannerProps> = ({
     // 3. Fast Alignment Check
     const alignment = detectPaperAlignment(grayscale, width, height)
     
-    // 4. Overall Quality (EvalBee method)
+    // 4. Bubble Detection (when paper is detected)
+    let bubbles: DetectedBubble[] = []
+    if (alignment.paperDetected && correctAnswers.length > 0) {
+      bubbles = detectBubbles(grayscale, width, height, alignment)
+    }
+    
+    // 5. Overall Quality (EvalBee method)
     const overall = (focus * 0.4 + brightness * 0.3 + alignment.alignment * 0.3)
     
     // Debug logging for mobile debugging
@@ -233,7 +252,8 @@ const EvalBeeCameraScanner: React.FC<EvalBeeCameraScannerProps> = ({
       alignment: Math.round(alignment.alignment * 100) + '%',
       overall: Math.round(overall * 100) + '%',
       detectedMarkers: alignment.corners.filter(c => c.detected).length,
-      paperDetected: alignment.paperDetected
+      paperDetected: alignment.paperDetected,
+      bubblesDetected: bubbles.length
     })
     
     // Update states
@@ -248,6 +268,8 @@ const EvalBeeCameraScanner: React.FC<EvalBeeCameraScannerProps> = ({
     })
     
     setAlignmentStatus(alignment)
+    setDetectedBubbles(bubbles)
+    setShowBubbleOverlay(alignment.paperDetected && bubbles.length > 0)
     
     // EvalBee Logic: Strict requirements for capture based on 4 corner markers
     const detectedMarkers = alignment.corners.filter(c => c.detected).length
@@ -289,8 +311,8 @@ const EvalBeeCameraScanner: React.FC<EvalBeeCameraScannerProps> = ({
       setAutoScanCountdown(0)
     }
     
-    // Draw simple guide overlay
-    drawSimpleGuide(alignment)
+    // Draw guide overlay with bubbles
+    drawGuideWithBubbles(alignment, bubbles)
     
     // Update preview canvas
     updatePreview()
@@ -389,6 +411,84 @@ const EvalBeeCameraScanner: React.FC<EvalBeeCameraScannerProps> = ({
     }
   }
 
+  // Bubble detection funksiyasi
+  const detectBubbles = (grayscale: number[], width: number, height: number, alignment: AlignmentStatus): DetectedBubble[] => {
+    const bubbles: DetectedBubble[] = []
+    
+    if (!alignment.paperDetected || correctAnswers.length === 0) return bubbles
+    
+    // OMR sheet layout parameters (simplified for real-time)
+    const questionsPerColumn = Math.ceil(correctAnswers.length / 3) // 3 columns
+    const questionHeight = Math.floor(height * 0.6 / questionsPerColumn) // 60% of height for questions
+    const startY = height * 0.2 // Start 20% from top
+    const columnWidth = width * 0.25 // Each column 25% width
+    const startX = width * 0.15 // Start 15% from left
+    
+    const bubbleRadius = 8
+    const optionSpacing = 25
+    const options = ['A', 'B', 'C', 'D', 'E']
+    
+    // Detect bubbles for each question
+    for (let q = 0; q < Math.min(correctAnswers.length, 30); q++) { // Limit to 30 questions for performance
+      const column = Math.floor(q / questionsPerColumn)
+      const rowInColumn = q % questionsPerColumn
+      
+      const questionX = startX + column * columnWidth
+      const questionY = startY + rowInColumn * questionHeight
+      
+      // Check each option bubble for this question
+      for (let optIndex = 0; optIndex < options.length; optIndex++) {
+        const option = options[optIndex]
+        const bubbleX = questionX + optIndex * optionSpacing
+        const bubbleY = questionY
+        
+        // Skip if bubble is outside image bounds
+        if (bubbleX < bubbleRadius || bubbleX >= width - bubbleRadius || 
+            bubbleY < bubbleRadius || bubbleY >= height - bubbleRadius) {
+          continue
+        }
+        
+        // Check if bubble is filled (dark pixels in circular area)
+        let darkPixels = 0
+        let totalPixels = 0
+        
+        for (let dy = -bubbleRadius; dy <= bubbleRadius; dy++) {
+          for (let dx = -bubbleRadius; dx <= bubbleRadius; dx++) {
+            if (dx * dx + dy * dy <= bubbleRadius * bubbleRadius) {
+              const x = Math.floor(bubbleX + dx)
+              const y = Math.floor(bubbleY + dy)
+              
+              if (x >= 0 && x < width && y >= 0 && y < height) {
+                const idx = y * width + x
+                const pixel = grayscale[idx]
+                
+                if (pixel < 120) darkPixels++ // Dark threshold for filled bubble
+                totalPixels++
+              }
+            }
+          }
+        }
+        
+        const fillRatio = totalPixels > 0 ? darkPixels / totalPixels : 0
+        const isFilled = fillRatio > 0.4 // 40% dark = filled
+        const isCorrect = correctAnswers[q] === option
+        const confidence = Math.min(1, fillRatio * 2) // Convert fill ratio to confidence
+        
+        bubbles.push({
+          x: bubbleX,
+          y: bubbleY,
+          option,
+          questionNumber: q + 1,
+          isFilled,
+          isCorrect,
+          confidence
+        })
+      }
+    }
+    
+    return bubbles
+  }
+
   const generateIssues = (focus: number, brightness: number, alignment: AlignmentStatus): string[] => {
     const issues = []
     
@@ -413,8 +513,8 @@ const EvalBeeCameraScanner: React.FC<EvalBeeCameraScannerProps> = ({
     return recommendations
   }
 
-  // Simple guide overlay - shows paper frame and basic alignment
-  const drawSimpleGuide = (alignment: AlignmentStatus) => {
+  // Guide overlay with bubble visualization
+  const drawGuideWithBubbles = (alignment: AlignmentStatus, bubbles: DetectedBubble[]) => {
     if (!overlayCanvasRef.current) return
     
     const canvas = overlayCanvasRef.current
@@ -491,6 +591,56 @@ const EvalBeeCameraScanner: React.FC<EvalBeeCameraScannerProps> = ({
     // Reset shadow
     ctx.shadowBlur = 0
     ctx.globalAlpha = 1.0
+    
+    // Draw bubble overlays when paper is detected
+    if (alignment.paperDetected && showBubbleOverlay && bubbles.length > 0) {
+      bubbles.forEach(bubble => {
+        const rectSize = 20
+        const rectX = bubble.x - rectSize / 2
+        const rectY = bubble.y - rectSize / 2
+        
+        // Determine colors based on bubble status
+        if (bubble.isFilled) {
+          if (bubble.isCorrect) {
+            // To'g'ri javob - yashil to'rtburchak
+            ctx.fillStyle = 'rgba(16, 185, 129, 0.7)' // Green with transparency
+            ctx.strokeStyle = '#10B981'
+          } else {
+            // Noto'g'ri javob - qizil to'rtburchak
+            ctx.fillStyle = 'rgba(239, 68, 68, 0.7)' // Red with transparency
+            ctx.strokeStyle = '#EF4444'
+          }
+        } else if (bubble.isCorrect) {
+          // To'g'ri javob lekin belgilanmagan - yashil border
+          ctx.fillStyle = 'rgba(16, 185, 129, 0.3)'
+          ctx.strokeStyle = '#10B981'
+        } else {
+          // Oddiy bubble - shaffof
+          ctx.fillStyle = 'rgba(156, 163, 175, 0.3)'
+          ctx.strokeStyle = '#9CA3AF'
+        }
+        
+        // Draw rectangle
+        ctx.lineWidth = 2
+        ctx.shadowColor = ctx.strokeStyle
+        ctx.shadowBlur = 5
+        
+        ctx.fillRect(rectX, rectY, rectSize, rectSize)
+        ctx.strokeRect(rectX, rectY, rectSize, rectSize)
+        
+        // Draw option letter
+        ctx.fillStyle = 'white'
+        ctx.font = 'bold 12px sans-serif'
+        ctx.textAlign = 'center'
+        ctx.textBaseline = 'middle'
+        ctx.shadowBlur = 2
+        ctx.shadowColor = 'black'
+        ctx.fillText(bubble.option, bubble.x, bubble.y)
+        
+        // Reset shadow
+        ctx.shadowBlur = 0
+      })
+    }
     
     // Center instruction (only when no paper detected)
     if (!alignment.paperDetected) {
@@ -668,6 +818,32 @@ const EvalBeeCameraScanner: React.FC<EvalBeeCameraScannerProps> = ({
               </div>
             )}
             
+            {/* Bubble Detection Legend */}
+            {showBubbleOverlay && detectedBubbles.length > 0 && (
+              <div className="absolute bottom-20 left-4 bg-black/90 rounded-lg p-3 z-20">
+                <div className="text-white text-xs font-bold mb-2">
+                  BUBBLE DETECTION
+                </div>
+                <div className="space-y-1 text-xs">
+                  <div className="flex items-center gap-2">
+                    <div className="w-4 h-4 bg-green-500 rounded border border-green-400"></div>
+                    <span className="text-white">To'g'ri javob</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <div className="w-4 h-4 bg-red-500 rounded border border-red-400"></div>
+                    <span className="text-white">Noto'g'ri javob</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <div className="w-4 h-4 bg-gray-400 rounded border border-gray-300"></div>
+                    <span className="text-white">Bo'sh</span>
+                  </div>
+                </div>
+                <div className="text-white/70 text-xs mt-2">
+                  {detectedBubbles.filter(b => b.isFilled).length} belgilangan
+                </div>
+              </div>
+            )}
+            
             {/* Top Controls */}
             <div className="absolute top-4 right-4 flex items-center gap-2 z-20">
               {onShowDebug && (
@@ -734,11 +910,21 @@ const EvalBeeCameraScanner: React.FC<EvalBeeCameraScannerProps> = ({
               {autoScanCountdown > 0 && (
                 <p className="text-green-300 text-sm">Avtomatik suratga olish: {autoScanCountdown}s</p>
               )}
+              {showBubbleOverlay && (
+                <p className="text-blue-300 text-sm">
+                  🎯 {detectedBubbles.filter(b => b.isFilled && b.isCorrect).length} to'g'ri, {detectedBubbles.filter(b => b.isFilled && !b.isCorrect).length} noto'g'ri
+                </p>
+              )}
             </div>
           ) : (
             <div className="space-y-2">
               <p className="text-blue-400 text-lg font-medium">📸 Suratga olish mumkin</p>
               <p className="text-white/70 text-sm">Tugmani bosing yoki kutib turing</p>
+              {showBubbleOverlay && (
+                <p className="text-blue-300 text-sm">
+                  🎯 {detectedBubbles.filter(b => b.isFilled && b.isCorrect).length} to'g'ri, {detectedBubbles.filter(b => b.isFilled && !b.isCorrect).length} noto'g'ri
+                </p>
+              )}
             </div>
           )}
         </div>

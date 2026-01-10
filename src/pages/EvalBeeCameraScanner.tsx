@@ -107,6 +107,46 @@ const EvalBeeCameraScannerPage: React.FC = () => {
     }
   }
 
+  // Extract correct answers from exam data (same logic as ExamDetail)
+  const getCorrectAnswers = (exam: any): string[] => {
+    const correctAnswers: string[] = []
+    
+    // First priority: Use answerKey if it exists and is properly set
+    if (exam.answerKey && exam.answerKey.length > 0) {
+      console.log('Using answerKey from exam-keys page:', exam.answerKey)
+      return exam.answerKey.map((key: string) => {
+        // Handle comma-separated multiple answers (take first one for display)
+        if (typeof key === 'string' && key.includes(',')) {
+          return key.split(',')[0].trim()
+        }
+        return key || 'A'
+      })
+    }
+    
+    // Second priority: Extract from exam subjects structure
+    console.log('Using correctAnswers from exam subjects structure')
+    if (exam.subjects) {
+      exam.subjects.forEach((subject: any) => {
+        if (subject.sections) {
+          subject.sections.forEach((section: any) => {
+            if (section.questions) {
+              section.questions.forEach((question: any) => {
+                correctAnswers.push(question.correctAnswer || 'A')
+              })
+            } else {
+              // If no questions array, generate default answers based on question count
+              for (let i = 0; i < section.questionCount; i++) {
+                correctAnswers.push('A') // Default to 'A' if no correct answer specified
+              }
+            }
+          })
+        }
+      })
+    }
+    
+    return correctAnswers
+  }
+
   const handleCameraCapture = async (imageData: string, qualityMetrics: QualityMetrics) => {
     setCapturedImage(imageData)
     setCaptureQuality(qualityMetrics)
@@ -308,7 +348,7 @@ const EvalBeeCameraScannerPage: React.FC = () => {
         onCapture={handleCameraCapture}
         onClose={() => setShowCamera(false)}
         isProcessing={processing}
-        answerKey={exam?.answerKey || []}
+        correctAnswers={exam ? getCorrectAnswers(exam) : []}
         onShowDebug={() => setShowDebugModal(true)}
       />
     )
