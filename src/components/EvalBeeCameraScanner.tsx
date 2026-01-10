@@ -177,10 +177,20 @@ const EvalBeeCameraScanner: React.FC<EvalBeeCameraScannerProps> = memo(({
     }
   }
 
-  // EvalBee Core: Lightweight Real-time Analysis (NO HEAVY OpenCV)
-  const startRealTimeAnalysis = () => {
+  // EvalBee Core: Lightweight Real-time Analysis (NO HEAVY OpenCV) - OPTIMIZED
+  const startRealTimeAnalysis = useCallback(() => {
+    let frameCount = 0
+    
     const analyzeFrame = () => {
       if (!videoRef.current || !canvasRef.current || isProcessing) {
+        animationFrameRef.current = requestAnimationFrame(analyzeFrame)
+        return
+      }
+
+      frameCount++
+      
+      // Skip frames for better performance - analyze every 5th frame
+      if (frameCount % 5 !== 0) {
         animationFrameRef.current = requestAnimationFrame(analyzeFrame)
         return
       }
@@ -208,20 +218,20 @@ const EvalBeeCameraScanner: React.FC<EvalBeeCameraScannerProps> = memo(({
     }
     
     analyzeFrame()
-  }
+  }, [isProcessing])
 
-  // EvalBee Core: Fast Analysis (grayscale + basic checks only) - OPTIMIZED
-  const performLightweightAnalysis = (imageData: ImageData) => {
+  // EvalBee Core: Fast Analysis (grayscale + basic checks only) - HEAVILY OPTIMIZED
+  const performLightweightAnalysis = useCallback((imageData: ImageData) => {
     const { data, width, height } = imageData
     
     // Skip analysis if processing or not ready
     if (isProcessing || !isReady) return
     
-    // Throttle analysis to every 3rd frame for better performance
-    if (Math.random() > 0.33) return
+    // Throttle analysis to every 10th call for better performance
+    if (Math.random() > 0.1) return
     
-    // Convert to grayscale (lightweight) - sample every 4th pixel
-    const sampleRate = 4
+    // Convert to grayscale (lightweight) - sample every 8th pixel for extreme performance
+    const sampleRate = 8
     const sampledWidth = Math.floor(width / sampleRate)
     const sampledHeight = Math.floor(height / sampleRate)
     const grayscale = new Array(sampledWidth * sampledHeight)
@@ -246,28 +256,27 @@ const EvalBeeCameraScanner: React.FC<EvalBeeCameraScannerProps> = memo(({
     // 3. Fast Alignment Check
     const alignment = detectPaperAlignment(grayscale, sampledWidth, sampledHeight, sampleRate)
     
-    // 4. Bubble Detection (only when paper detected and every 10th frame)
+    // 4. Bubble Detection (only when paper detected and every 20th frame)
     let bubbles: DetectedBubble[] = []
-    if (alignment.paperDetected && correctAnswers.length > 0 && Math.random() > 0.9) {
+    if (alignment.paperDetected && correctAnswers.length > 0 && Math.random() > 0.95) {
       bubbles = detectBubbles(grayscale, sampledWidth, sampledHeight, alignment, sampleRate)
     }
     
     // 5. Overall Quality (EvalBee method)
     const overall = (focus * 0.4 + brightness * 0.3 + alignment.alignment * 0.3)
     
-    // Batch state updates to prevent excessive re-renders
-    const newQualityMetrics = {
-      focus,
-      brightness,
-      contrast: alignment.alignment,
-      skew: 1 - alignment.alignment,
-      overall,
-      issues: generateIssues(focus, brightness, alignment),
-      recommendations: generateRecommendations(focus, brightness, alignment)
-    }
-    
-    // Only update if significant change
-    if (Math.abs(qualityMetrics.overall - overall) > 0.05) {
+    // Batch state updates to prevent excessive re-renders - only update if significant change
+    if (Math.abs(qualityMetrics.overall - overall) > 0.1) {
+      const newQualityMetrics = {
+        focus,
+        brightness,
+        contrast: alignment.alignment,
+        skew: 1 - alignment.alignment,
+        overall,
+        issues: generateIssues(focus, brightness, alignment),
+        recommendations: generateRecommendations(focus, brightness, alignment)
+      }
+      
       setQualityMetrics(newQualityMetrics)
       setAlignmentStatus(alignment)
       
@@ -300,11 +309,11 @@ const EvalBeeCameraScanner: React.FC<EvalBeeCameraScannerProps> = memo(({
       }, 3000)
     }
     
-    // Draw guide overlay (throttled)
-    if (Math.random() > 0.5) {
+    // Draw guide overlay (throttled to every 3rd call)
+    if (Math.random() > 0.66) {
       drawGuideWithBubbles(alignment, bubbles)
     }
-  }
+  }, [isProcessing, isReady, correctAnswers, qualityMetrics.overall, canCapture, autoScanCountdown])
 
   // Fast focus calculation (optimized)
   const calculateFastFocus = (grayscale: number[], width: number, height: number): number => {

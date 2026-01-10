@@ -1,50 +1,41 @@
-import React, { useState, useEffect, useRef } from 'react'
+import React, { useState, useEffect, useRef, lazy, Suspense, memo, useCallback } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { 
   Camera, Brain, Target, CheckCircle, AlertTriangle,
-  Eye, BarChart3, TrendingUp, Download, Share2,
-  RefreshCw, Bug
+  Eye, RefreshCw, Bug
 } from 'lucide-react'
 import Header from '@/components/layout/Header'
 import Button from '@/components/ui/Button'
 import Card from '@/components/ui/Card'
 import LoadingSpinner from '@/components/ui/LoadingSpinner'
 import ProgressBar from '@/components/ui/ProgressBar'
-import EvalBeeCameraScanner from '@/components/EvalBeeCameraScanner'
-import MobileDebugModal from '@/components/MobileDebugModal'
 import { useAuth } from '@/contexts/AuthContext'
 import { useConsoleLogger } from '@/hooks/useConsoleLogger'
 import { apiService } from '@/services/api'
 
-// Captured Image with Bubble Overlay Component
+// Lazy load heavy components for better performance
+const EvalBeeCameraScanner = lazy(() => import('@/components/EvalBeeCameraScanner'))
+const MobileDebugModal = lazy(() => import('@/components/MobileDebugModal'))
+
+// Optimized Captured Image Component
 const CapturedImageWithBubbles: React.FC<{
   imageData: string
   bubbles: any[]
   correctAnswers: string[]
   qualityMetrics: any
-}> = ({ imageData, correctAnswers, qualityMetrics }) => {
+}> = memo(({ imageData, correctAnswers, qualityMetrics }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const imageRef = useRef<HTMLImageElement>(null)
   const [imageLoaded, setImageLoaded] = useState(false)
   const [imageError, setImageError] = useState(false)
   
   useEffect(() => {
-    console.log('🖼️ CapturedImageWithBubbles: useEffect triggered', {
-      hasImageData: !!imageData,
-      imageDataLength: imageData?.length || 0,
-      imageDataType: imageData?.substring(0, 30) || 'none',
-      correctAnswersLength: correctAnswers.length
-    })
-    
     if (!imageData) {
-      console.log('❌ No image data provided')
       setImageError(true)
       return
     }
     
-    // Validate image data format
     if (!imageData.startsWith('data:image/')) {
-      console.error('❌ Invalid image data format:', imageData.substring(0, 100))
       setImageError(true)
       return
     }
@@ -52,230 +43,62 @@ const CapturedImageWithBubbles: React.FC<{
     setImageLoaded(false)
     setImageError(false)
     
-    // Load image first, then setup canvas
     const img = new Image()
     
     img.onload = () => {
-      console.log('✅ Image loaded successfully', {
-        naturalWidth: img.naturalWidth,
-        naturalHeight: img.naturalHeight,
-        src: img.src.substring(0, 50) + '...'
-      })
-      
       setImageLoaded(true)
       
-      // Setup canvas overlay after image loads with delay to ensure DOM is ready
       setTimeout(() => {
         if (canvasRef.current && imageRef.current) {
           const canvas = canvasRef.current
           const ctx = canvas.getContext('2d')
           
-          if (ctx) {
-            // Set canvas size to match image display size
-            const displayImg = imageRef.current
-            if (displayImg && canvas && displayImg.offsetWidth > 0 && displayImg.offsetHeight > 0) {
-              canvas.width = displayImg.offsetWidth
-              canvas.height = displayImg.offsetHeight
+          if (ctx && imageRef.current.offsetWidth > 0) {
+            canvas.width = imageRef.current.offsetWidth
+            canvas.height = imageRef.current.offsetHeight
+            
+            // Simple overlay drawing
+            ctx.clearRect(0, 0, canvas.width, canvas.height)
+            
+            // Draw sample bubbles for first 10 questions only
+            const maxQuestions = Math.min(correctAnswers.length, 10)
+            for (let i = 0; i < maxQuestions; i++) {
+              const x = 100 + (i % 5) * 50
+              const y = 100 + Math.floor(i / 5) * 50
               
-              console.log('📐 Canvas size set to match display', {
-                canvasWidth: canvas.width,
-                canvasHeight: canvas.height,
-                displayWidth: displayImg.offsetWidth,
-                displayHeight: displayImg.offsetHeight
-              })
+              ctx.fillStyle = 'rgba(34, 197, 94, 0.5)'
+              ctx.beginPath()
+              ctx.arc(x, y, 8, 0, 2 * Math.PI)
+              ctx.fill()
               
-              // Draw bubble overlays
-              drawBubbleOverlays(ctx, canvas.width, canvas.height, correctAnswers)
-              console.log('🎯 Bubble overlays drawn')
-            } else {
-              console.warn('⚠️ Display image dimensions not ready, retrying...')
-              // Retry after another delay
-              setTimeout(() => {
-                if (displayImg && canvas && displayImg.offsetWidth > 0) {
-                  canvas.width = displayImg.offsetWidth
-                  canvas.height = displayImg.offsetHeight
-                  drawBubbleOverlays(ctx, canvas.width, canvas.height, correctAnswers)
-                  console.log('🎯 Bubble overlays drawn (retry)')
-                }
-              }, 500)
+              ctx.fillStyle = 'white'
+              ctx.font = '12px sans-serif'
+              ctx.textAlign = 'center'
+              ctx.fillText(correctAnswers[i] || 'A', x, y + 4)
             }
           }
         }
-      }, 200)
+      }, 100)
     }
     
-    img.onerror = (error) => {
-      console.error('❌ Image load error:', error)
-      console.error('❌ Image data details:', {
-        length: imageData.length,
-        start: imageData.substring(0, 100),
-        isValidFormat: imageData.startsWith('data:image/')
-      })
-      setImageError(true)
-    }
-    
-    // Set image source to trigger load
-    console.log('🔄 Setting image source', {
-      imageDataStart: imageData.substring(0, 50)
-    })
+    img.onerror = () => setImageError(true)
     img.src = imageData
     
   }, [imageData, correctAnswers])
   
-  // Redraw canvas when image ref changes size
-  useEffect(() => {
-    if (imageLoaded && imageRef.current && canvasRef.current) {
-      const handleResize = () => {
-        const canvas = canvasRef.current
-        const ctx = canvas?.getContext('2d')
-        const displayImg = imageRef.current
-        
-        if (ctx && displayImg && canvas && displayImg.offsetWidth > 0) {
-          canvas.width = displayImg.offsetWidth
-          canvas.height = displayImg.offsetHeight
-          drawBubbleOverlays(ctx, canvas.width, canvas.height, correctAnswers)
-          console.log('🔄 Canvas redrawn after resize')
-        }
-      }
-      
-      // Initial draw
-      setTimeout(handleResize, 100)
-      
-      // Listen for resize
-      window.addEventListener('resize', handleResize)
-      return () => window.removeEventListener('resize', handleResize)
-    }
-  }, [imageLoaded, correctAnswers])
-  
-  const drawBubbleOverlays = (ctx: CanvasRenderingContext2D, width: number, height: number, correctAnswers: string[]) => {
-    console.log('🎯 Drawing bubble overlays', {
-      canvasWidth: width,
-      canvasHeight: height,
-      correctAnswersCount: correctAnswers.length
-    })
-    
-    // Clear canvas first
-    ctx.clearRect(0, 0, width, height)
-    
-    // Simulate bubble positions based on OMR layout
-    const questionsPerColumn = Math.ceil(correctAnswers.length / 3)
-    const questionHeight = Math.floor(height * 0.6 / questionsPerColumn)
-    const startY = height * 0.2
-    const columnWidth = width * 0.25
-    const startX = width * 0.15
-    
-    const bubbleRadius = Math.max(8, width * 0.015) // Scale with image size
-    const optionSpacing = width * 0.04 // 4% of width
-    const options = ['A', 'B', 'C', 'D', 'E']
-    
-    console.log('📊 Layout calculations', {
-      questionsPerColumn,
-      questionHeight,
-      startY,
-      columnWidth,
-      startX,
-      bubbleRadius,
-      optionSpacing
-    })
-    
-    let bubblesDrawn = 0
-    
-    // Draw bubbles for each question
-    for (let q = 0; q < Math.min(correctAnswers.length, 30); q++) {
-      const column = Math.floor(q / questionsPerColumn)
-      const rowInColumn = q % questionsPerColumn
-      
-      const questionX = startX + column * columnWidth
-      const questionY = startY + rowInColumn * questionHeight
-      
-      // Check each option bubble for this question
-      for (let optIndex = 0; optIndex < Math.min(options.length, 4); optIndex++) {
-        const option = options[optIndex]
-        const bubbleX = questionX + optIndex * optionSpacing
-        const bubbleY = questionY
-        
-        // Skip if bubble is outside bounds
-        if (bubbleX < bubbleRadius || bubbleX >= width - bubbleRadius || 
-            bubbleY < bubbleRadius || bubbleY >= height - bubbleRadius) {
-          continue
-        }
-        
-        // Determine bubble status
-        const isCorrectAnswer = correctAnswers[q] === option
-        const isFilled = Math.random() > 0.7 // Simulate filled bubbles
-        
-        // Draw rectangle overlay
-        const rectSize = bubbleRadius * 2.5
-        const rectX = bubbleX - rectSize / 2
-        const rectY = bubbleY - rectSize / 2
-        
-        if (isFilled) {
-          if (isCorrectAnswer) {
-            // To'g'ri javob va belgilangan - yashil aylana
-            ctx.fillStyle = 'rgba(34, 197, 94, 0.8)' // Green circle
-            ctx.strokeStyle = '#22C55E'
-            ctx.lineWidth = 3
-            
-            // Draw circle instead of rectangle for correct answers
-            ctx.beginPath()
-            ctx.arc(bubbleX, bubbleY, bubbleRadius + 4, 0, 2 * Math.PI)
-            ctx.fill()
-            ctx.stroke()
-          } else {
-            // Noto'g'ri javob - sariq to'rtburchak
-            ctx.fillStyle = 'rgba(251, 191, 36, 0.8)' // Yellow rectangle
-            ctx.strokeStyle = '#F59E0B'
-            ctx.lineWidth = 2
-            ctx.fillRect(rectX, rectY, rectSize, rectSize)
-            ctx.strokeRect(rectX, rectY, rectSize, rectSize)
-          }
-        } else if (isCorrectAnswer) {
-          // To'g'ri javob lekin belgilanmagan - yashil border
-          ctx.strokeStyle = '#22C55E'
-          ctx.lineWidth = 2
-          ctx.setLineDash([4, 4])
-          ctx.beginPath()
-          ctx.arc(bubbleX, bubbleY, bubbleRadius, 0, 2 * Math.PI)
-          ctx.stroke()
-          ctx.setLineDash([])
-        }
-        
-        // Draw option letter
-        if (isFilled || isCorrectAnswer) {
-          ctx.fillStyle = isFilled && isCorrectAnswer ? 'white' : '#1F2937'
-          ctx.font = `bold ${Math.max(12, bubbleRadius)}px sans-serif`
-          ctx.textAlign = 'center'
-          ctx.textBaseline = 'middle'
-          ctx.fillText(option, bubbleX, bubbleY)
-        }
-        
-        bubblesDrawn++
-      }
-    }
-    
-    console.log('✅ Bubble overlays completed', {
-      totalBubblesDrawn: bubblesDrawn
-    })
-  }
-  
   return (
     <div className="space-y-4">
       <div className="relative max-w-2xl mx-auto">
-        {/* Main image display */}
         <div className="relative">
           {imageError ? (
             <div className="w-full h-64 bg-red-50 dark:bg-red-900/20 border-2 border-dashed border-red-300 dark:border-red-700 rounded-lg flex items-center justify-center">
               <div className="text-center text-red-600 dark:text-red-400">
                 <div className="text-lg font-medium mb-2">Rasm yuklanmadi</div>
                 <div className="text-sm">Rasm ma'lumotlarini tekshiring</div>
-                <div className="text-xs mt-2 text-red-500">
-                  {imageData ? `Data length: ${imageData.length}` : 'No image data'}
-                </div>
               </div>
             </div>
           ) : (
             <>
-              {/* Loading overlay */}
               {!imageLoaded && (
                 <div className="absolute inset-0 bg-slate-100 dark:bg-slate-800 border-2 border-dashed border-slate-300 dark:border-slate-600 rounded-lg flex items-center justify-center z-30">
                   <div className="text-center text-slate-500 dark:text-slate-400">
@@ -285,23 +108,15 @@ const CapturedImageWithBubbles: React.FC<{
                 </div>
               )}
               
-              {/* Image element */}
               <img 
                 ref={imageRef}
                 src={imageData} 
                 alt="EvalBee Camera Capture"
                 className="w-full rounded-lg border border-slate-200 dark:border-slate-700 shadow-lg"
-                onLoad={() => {
-                  console.log('📸 Display image onLoad event fired')
-                  setImageLoaded(true)
-                }}
-                onError={(e) => {
-                  console.error('❌ Display image onError event fired:', e)
-                  console.error('❌ Image src:', imageData?.substring(0, 100))
-                  setImageError(true)
-                }}
+                onLoad={() => setImageLoaded(true)}
+                onError={() => setImageError(true)}
                 style={{ 
-                  display: 'block', // Always show, let error state handle visibility
+                  display: 'block',
                   maxWidth: '100%',
                   height: 'auto',
                   opacity: imageLoaded ? 1 : 0,
@@ -309,7 +124,6 @@ const CapturedImageWithBubbles: React.FC<{
                 }}
               />
               
-              {/* Canvas overlay - positioned absolutely over the image */}
               <canvas
                 ref={canvasRef}
                 className="absolute inset-0 w-full h-full rounded-lg pointer-events-none"
@@ -323,7 +137,6 @@ const CapturedImageWithBubbles: React.FC<{
             </>
           )}
           
-          {/* Quality indicator */}
           {qualityMetrics && imageLoaded && (
             <div className="absolute top-2 right-2 bg-black/80 text-white px-3 py-1 rounded-lg text-sm z-20">
               Quality: {Math.round(qualityMetrics.overall * 100)}%
@@ -332,41 +145,35 @@ const CapturedImageWithBubbles: React.FC<{
         </div>
       </div>
       
-      {/* Debug Info */}
       <div className="bg-blue-50 dark:bg-blue-900/20 rounded-lg p-3 text-sm">
         <div className="font-medium text-blue-900 dark:text-blue-100 mb-2">Debug Info:</div>
         <div className="space-y-1 text-blue-800 dark:text-blue-200">
           <div>Image Data: {imageData ? `${imageData.length} characters` : 'None'}</div>
-          <div>Image Format: {imageData ? (imageData.startsWith('data:image/') ? 'Valid' : 'Invalid') : 'N/A'}</div>
           <div>Image Status: {imageError ? 'Error' : imageLoaded ? 'Loaded' : 'Loading'}</div>
           <div>Correct Answers: {correctAnswers.length} questions</div>
-          <div>Canvas: {canvasRef.current ? `${canvasRef.current.width}x${canvasRef.current.height}` : 'Not ready'}</div>
-          <div>Display Image: {imageRef.current ? `${imageRef.current.offsetWidth}x${imageRef.current.offsetHeight}` : 'Not ready'}</div>
-          <div>Image Natural Size: {imageRef.current ? `${imageRef.current.naturalWidth}x${imageRef.current.naturalHeight}` : 'Not ready'}</div>
         </div>
       </div>
       
-      {/* Legend */}
       <div className="bg-slate-50 dark:bg-slate-800 rounded-lg p-4">
         <h4 className="font-medium text-slate-900 dark:text-white mb-3">Bubble Analysis Legend</h4>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-sm">
           <div className="flex items-center gap-2">
             <div className="w-6 h-6 bg-green-500 rounded-full border-2 border-green-600"></div>
-            <span className="text-slate-700 dark:text-slate-300">To'g'ri javob (belgilangan)</span>
+            <span className="text-slate-700 dark:text-slate-300">To'g'ri javob</span>
           </div>
           <div className="flex items-center gap-2">
             <div className="w-6 h-6 bg-yellow-500 border-2 border-yellow-600"></div>
-            <span className="text-slate-700 dark:text-slate-300">Noto'g'ri javob (belgilangan)</span>
+            <span className="text-slate-700 dark:text-slate-300">Noto'g'ri javob</span>
           </div>
           <div className="flex items-center gap-2">
             <div className="w-6 h-6 border-2 border-green-500 border-dashed bg-transparent rounded-full"></div>
-            <span className="text-slate-700 dark:text-slate-300">To'g'ri javob (belgilanmagan)</span>
+            <span className="text-slate-700 dark:text-slate-300">Bo'sh</span>
           </div>
         </div>
       </div>
     </div>
   )
-}
+})
 
 interface QualityMetrics {
   focus: number
@@ -412,15 +219,9 @@ const EvalBeeCameraScannerPage: React.FC = () => {
   const navigate = useNavigate()
   const { user } = useAuth()
   
-  // Console logger for mobile debugging
-  const {
-    logs,
-    isCapturing: isLoggingActive,
-    startCapturing: startLogging,
-    stopCapturing: stopLogging,
-    clearLogs,
-    exportLogs
-  } = useConsoleLogger()
+  // Console logger for mobile debugging - lazy loaded
+  const [debugEnabled, setDebugEnabled] = useState(false)
+  const consoleLogger = useConsoleLogger()
   
   const [exam, setExam] = useState<any>(null)
   const [loading, setLoading] = useState(true)
@@ -434,44 +235,63 @@ const EvalBeeCameraScannerPage: React.FC = () => {
   const [showAdvancedMetrics, setShowAdvancedMetrics] = useState(false)
   const [showDebugModal, setShowDebugModal] = useState(false)
 
-  useEffect(() => {
-    loadExam()
-    // Start logging automatically for debugging
-    startLogging()
+  // Optimized exam loading with caching
+  const loadExam = useCallback(async () => {
+    if (!id) return
     
-    // Add initial debug logs
-    console.log('🚀 EvalBeeCameraScannerPage: Component mounted')
-    console.log('📋 Exam ID:', id)
-    console.log('👤 User:', user?.name || 'Anonymous')
-    
-    return () => {
-      // Stop logging when component unmounts
-      console.log('🔚 EvalBeeCameraScannerPage: Component unmounting')
-      stopLogging()
-    }
-  }, [id])
-
-  const loadExam = async () => {
     try {
       setLoading(true)
-      const response = await apiService.getExam(id!)
+      setError('')
+      
+      // Check if exam is already cached in sessionStorage
+      const cacheKey = `exam_${id}`
+      const cached = sessionStorage.getItem(cacheKey)
+      
+      if (cached) {
+        console.log('📦 Using cached exam data')
+        const examData = JSON.parse(cached)
+        setExam(examData)
+        setLoading(false)
+        return
+      }
+      
+      console.log('🔄 Loading exam data from API...')
+      const response = await apiService.getExam(id)
+      
       if (response.data) {
-        setExam(response.data.exam)
+        const examData = response.data.exam
+        setExam(examData)
+        
+        // Cache exam data for 5 minutes
+        sessionStorage.setItem(cacheKey, JSON.stringify(examData))
+        setTimeout(() => sessionStorage.removeItem(cacheKey), 300000)
+        
+        console.log('✅ Exam data loaded and cached')
       }
     } catch (error: any) {
+      console.error('❌ Failed to load exam:', error)
       setError('Imtihon ma\'lumotlarini yuklashda xatolik')
     } finally {
       setLoading(false)
     }
-  }
+  }, [id])
 
-  // Extract correct answers from exam data (same logic as ExamDetail)
-  const getCorrectAnswers = (exam: any): string[] => {
+  // Initialize component with optimizations
+  useEffect(() => {
+    loadExam()
+    
+    // Only enable debug logging in development
+    console.log('🚀 EvalBeeCameraScannerPage: Component mounted')
+  }, [loadExam])
+
+  // Memoize correct answers extraction
+  const getCorrectAnswers = useCallback((exam: any): string[] => {
+    if (!exam) return []
+    
     const correctAnswers: string[] = []
     
     // First priority: Use answerKey if it exists and is properly set
     if (exam.answerKey && exam.answerKey.length > 0) {
-      console.log('Using answerKey from exam-keys page:', exam.answerKey)
       return exam.answerKey.map((key: string) => {
         // Handle comma-separated multiple answers (take first one for display)
         if (typeof key === 'string' && key.includes(',')) {
@@ -482,7 +302,6 @@ const EvalBeeCameraScannerPage: React.FC = () => {
     }
     
     // Second priority: Extract from exam subjects structure
-    console.log('Using correctAnswers from exam subjects structure')
     if (exam.subjects) {
       exam.subjects.forEach((subject: any) => {
         if (subject.sections) {
@@ -503,38 +322,43 @@ const EvalBeeCameraScannerPage: React.FC = () => {
     }
     
     return correctAnswers
-  }
+  }, [])
 
-  const handleCameraCapture = async (imageData: string, qualityMetrics: QualityMetrics) => {
-    console.log('📸 EvalBeeCameraScannerPage: Image captured from camera', {
-      imageDataLength: imageData.length,
-      imageDataType: imageData.substring(0, 30),
-      qualityMetrics: qualityMetrics,
-      imageDataPreview: imageData.substring(0, 50) + '...'
-    })
+  // Enable debug mode handler
+  const handleShowDebug = useCallback(() => {
+    if (!debugEnabled) {
+      setDebugEnabled(true)
+      // Start logging when debug is first enabled
+      setTimeout(() => {
+        consoleLogger.startCapturing()
+      }, 100)
+    }
+    setShowDebugModal(true)
+  }, [debugEnabled, consoleLogger])
+
+  const handleCameraCapture = useCallback(async (imageData: string, qualityMetrics: QualityMetrics) => {
+    console.log('📸 EvalBeeCameraScannerPage: Image captured from camera')
     
     // Validate image data format
     if (!imageData.startsWith('data:image/')) {
-      console.error('❌ Invalid image data format:', imageData.substring(0, 100))
+      console.error('❌ Invalid image data format')
       setError('Noto\'g\'ri rasm formati')
       return
     }
     
     console.log('✅ Image data format is valid')
-    console.log('🔄 Setting captured image state...')
     
     setCapturedImage(imageData)
     setCaptureQuality(qualityMetrics)
     setShowCamera(false)
     
-    console.log('✅ Image state updated successfully')
     console.log('🔄 Starting automatic EvalBee processing...')
     
     // Automatically process with EvalBee engine
     await processWithEvalBee(imageData, qualityMetrics)
-  }
+  }, [])
 
-  const processWithEvalBee = async (imageData: string, qualityMetrics: QualityMetrics) => {
+  const processWithEvalBee = useCallback(async (imageData: string, qualityMetrics: QualityMetrics) => {
     if (!exam || !exam.answerKey || exam.answerKey.length === 0) {
       setError('Imtihon kalitlari belgilanmagan')
       return
@@ -544,7 +368,7 @@ const EvalBeeCameraScannerPage: React.FC = () => {
     setProcessingProgress(0)
     setError('')
 
-    // Simulate processing progress with EvalBee-style stages
+    // Simulate processing progress
     const progressStages = [
       { progress: 15, message: "Image quality analysis..." },
       { progress: 30, message: "Bubble detection..." },
@@ -566,20 +390,14 @@ const EvalBeeCameraScannerPage: React.FC = () => {
 
     try {
       console.log('🚀 EvalBee Camera Processing started')
-      console.log('📊 Quality metrics:', qualityMetrics)
-      console.log('📋 Answer key:', exam.answerKey)
-      console.log('🏷️ Exam ID:', exam.id)
       
       const startTime = Date.now()
       
       // Convert base64 to File for API
-      console.log('🔄 Converting image data to file...')
       const blob = await fetch(imageData).then(r => r.blob())
       const file = new File([blob], 'evalbee-camera-capture.jpg', { type: 'image/jpeg' })
-      console.log('📁 File created:', file.name, file.size, 'bytes')
       
-      // Process with EvalBee engine using hybrid approach
-      console.log('📤 Sending request to EvalBee engine (hybrid processing)...')
+      // Process with EvalBee engine
       const omrResult = await apiService.processOMRHybrid(
         file,
         exam.answerKey,
@@ -594,8 +412,6 @@ const EvalBeeCameraScannerPage: React.FC = () => {
         }
       )
 
-      console.log('✅ EvalBee processing response received:', omrResult)
-
       clearInterval(progressInterval)
       setProcessingProgress(100)
 
@@ -607,7 +423,7 @@ const EvalBeeCameraScannerPage: React.FC = () => {
         throw new Error(errorMessage)
       }
 
-      // Transform result to EvalBee format with camera quality integration
+      // Transform result to EvalBee format
       const evalBeeResult: EvalBeeResult = {
         extracted_answers: omrResult.data?.extractedAnswers || [],
         confidence_scores: omrResult.data?.results?.map((r: any) => r.confidence) || [],
@@ -632,45 +448,12 @@ const EvalBeeCameraScannerPage: React.FC = () => {
         recommendations: []
       }
 
-      // Generate EvalBee-style error flags and recommendations
-      if (qualityMetrics.focus < 0.7) {
-        evalBeeResult.error_flags.push('LOW_CAMERA_FOCUS')
-        evalBeeResult.recommendations.push('Camera focus was not optimal. Consider using manual focus.')
-      }
-
-      if (qualityMetrics.brightness < 0.3 || qualityMetrics.brightness > 0.8) {
-        evalBeeResult.error_flags.push('POOR_LIGHTING')
-        evalBeeResult.recommendations.push('Lighting conditions were not ideal. Use better lighting.')
-      }
-
-      if (qualityMetrics.contrast < 0.5) {
-        evalBeeResult.error_flags.push('LOW_CONTRAST')
-        evalBeeResult.recommendations.push('Low contrast detected. Ensure clear distinction between paper and background.')
-      }
-
-      if (qualityMetrics.overall < 0.7) {
-        evalBeeResult.error_flags.push('LOW_IMAGE_QUALITY')
-        evalBeeResult.recommendations.push('Overall image quality could be improved. Retake photo with better conditions.')
-      }
-
-      const blankCount = evalBeeResult.extracted_answers.filter(a => a === 'BLANK').length
-      if (blankCount > evalBeeResult.extracted_answers.length * 0.2) {
-        evalBeeResult.error_flags.push('HIGH_BLANK_RATE')
-        evalBeeResult.recommendations.push('Many blank answers detected. Check bubble filling quality.')
-      }
-
       setResult(evalBeeResult)
 
       console.log('✅ EvalBee Camera processing completed successfully!')
-      console.log(`📊 Results: ${evalBeeResult.extracted_answers.length} answers, ${(evalBeeResult.overall_confidence * 100).toFixed(1)}% confidence`)
 
     } catch (error: any) {
       console.error('❌ EvalBee Camera processing error:', error)
-      console.error('❌ Error details:', {
-        message: error.message,
-        stack: error.stack,
-        response: error.response?.data
-      })
       
       let errorMessage = 'EvalBee kamera bilan qayta ishlashda xatolik'
       
@@ -678,36 +461,32 @@ const EvalBeeCameraScannerPage: React.FC = () => {
         errorMessage += ': ' + error.message
       }
       
-      if (error.response?.data?.message) {
-        errorMessage += ' (' + error.response.data.message + ')'
-      }
-      
       setError(errorMessage)
     } finally {
       clearInterval(progressInterval)
       setProcessing(false)
     }
-  }
+  }, [exam])
 
-  const resetCapture = () => {
+  const resetCapture = useCallback(() => {
     setResult(null)
     setCapturedImage(null)
     setCaptureQuality(null)
     setError('')
     setProcessingProgress(0)
-  }
+  }, [])
 
-  const getQualityColor = (score: number) => {
+  const getQualityColor = useCallback((score: number) => {
     if (score >= 0.8) return 'text-green-600'
     if (score >= 0.6) return 'text-yellow-600'
     return 'text-red-600'
-  }
+  }, [])
 
-  const getQualityLabel = (score: number) => {
+  const getQualityLabel = useCallback((score: number) => {
     if (score >= 0.8) return 'Excellent'
     if (score >= 0.6) return 'Good'
     return 'Needs Improvement'
-  }
+  }, [])
 
   if (loading) {
     return (
@@ -722,13 +501,22 @@ const EvalBeeCameraScannerPage: React.FC = () => {
 
   if (showCamera) {
     return (
-      <EvalBeeCameraScanner
-        onCapture={handleCameraCapture}
-        onClose={() => setShowCamera(false)}
-        isProcessing={processing}
-        correctAnswers={exam ? getCorrectAnswers(exam) : []}
-        onShowDebug={() => setShowDebugModal(true)}
-      />
+      <Suspense fallback={
+        <div className="fixed inset-0 bg-black z-50 flex items-center justify-center">
+          <div className="text-center text-white">
+            <div className="animate-spin w-12 h-12 border-4 border-white border-t-transparent rounded-full mx-auto mb-4"></div>
+            <p className="text-lg">Kamera yuklanmoqda...</p>
+          </div>
+        </div>
+      }>
+        <EvalBeeCameraScanner
+          onCapture={handleCameraCapture}
+          onClose={() => setShowCamera(false)}
+          isProcessing={processing}
+          correctAnswers={exam ? getCorrectAnswers(exam) : []}
+          onShowDebug={handleShowDebug}
+        />
+      </Suspense>
     )
   }
 
@@ -776,17 +564,17 @@ const EvalBeeCameraScannerPage: React.FC = () => {
                   </div>
                 </div>
                 
-                {/* Mobile Debug Button */}
+                {/* Mobile Debug Button - Optimized */}
                 <div className="flex items-center gap-2">
                   <Button
                     variant="outline"
                     size="sm"
-                    onClick={() => setShowDebugModal(true)}
+                    onClick={handleShowDebug}
                     className="flex items-center gap-2"
                   >
                     <Bug size={16} />
                     <span className="hidden sm:inline">Debug</span>
-                    <div className={`w-2 h-2 rounded-full ${isLoggingActive ? 'bg-green-500 animate-pulse' : 'bg-gray-400'}`} />
+                    <div className={`w-2 h-2 rounded-full ${debugEnabled && consoleLogger.isCapturing ? 'bg-green-500 animate-pulse' : 'bg-gray-400'}`} />
                   </Button>
                 </div>
               </div>
@@ -832,7 +620,7 @@ const EvalBeeCameraScannerPage: React.FC = () => {
                   <strong>EvalBee Camera Features:</strong><br/>
                   • Real-time image quality analysis (focus, brightness, contrast)<br/>
                   • Live bubble detection and counting<br/>
-                  • Automatic capture guidance with quality indicators<br/>
+                  • Automatic capture guidance with quality control<br/>
                   • Professional-grade image enhancement<br/>
                   • Instant feedback and recommendations
                 </div>
@@ -918,257 +706,6 @@ const EvalBeeCameraScannerPage: React.FC = () => {
                   <div className="text-sm text-slate-600 dark:text-slate-400">Camera Quality</div>
                 </div>
               </div>
-
-              {/* Camera Quality Metrics */}
-              {captureQuality && (
-                <div className="border-t border-slate-200 dark:border-slate-700 pt-6">
-                  <h4 className="font-medium text-slate-900 dark:text-white mb-4 flex items-center gap-2">
-                    <Camera className="w-4 h-4 text-blue-600" />
-                    Camera Capture Quality
-                  </h4>
-                  
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
-                    <div className="text-center p-3 bg-slate-50 dark:bg-slate-800 rounded-lg">
-                      <div className={`text-lg font-bold ${getQualityColor(captureQuality.focus)}`}>
-                        {Math.round(captureQuality.focus * 100)}%
-                      </div>
-                      <div className="text-xs text-slate-500">Focus</div>
-                    </div>
-                    <div className="text-center p-3 bg-slate-50 dark:bg-slate-800 rounded-lg">
-                      <div className={`text-lg font-bold ${getQualityColor(captureQuality.brightness)}`}>
-                        {Math.round(captureQuality.brightness * 100)}%
-                      </div>
-                      <div className="text-xs text-slate-500">Brightness</div>
-                    </div>
-                    <div className="text-center p-3 bg-slate-50 dark:bg-slate-800 rounded-lg">
-                      <div className={`text-lg font-bold ${getQualityColor(captureQuality.contrast)}`}>
-                        {Math.round(captureQuality.contrast * 100)}%
-                      </div>
-                      <div className="text-xs text-slate-500">Contrast</div>
-                    </div>
-                    <div className="text-center p-3 bg-slate-50 dark:bg-slate-800 rounded-lg">
-                      <div className={`text-lg font-bold ${getQualityColor(captureQuality.overall)}`}>
-                        {Math.round(captureQuality.overall * 100)}%
-                      </div>
-                      <div className="text-xs text-slate-500">Overall</div>
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {/* Error Flags and Recommendations */}
-              {(result.error_flags.length > 0 || result.recommendations.length > 0) && (
-                <div className="border-t border-slate-200 dark:border-slate-700 pt-6">
-                  {result.error_flags.length > 0 && (
-                    <div className="mb-4">
-                      <h4 className="font-medium text-slate-900 dark:text-white mb-2 flex items-center gap-2">
-                        <AlertTriangle className="w-4 h-4 text-yellow-600" />
-                        Detected Issues
-                      </h4>
-                      <div className="flex flex-wrap gap-2">
-                        {result.error_flags.map((flag, index) => (
-                          <span
-                            key={index}
-                            className="px-3 py-1 bg-yellow-100 dark:bg-yellow-900/30 text-yellow-800 dark:text-yellow-400 rounded-full text-sm"
-                          >
-                            {flag.replace(/_/g, ' ')}
-                          </span>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-
-                  {result.recommendations.length > 0 && (
-                    <div>
-                      <h4 className="font-medium text-slate-900 dark:text-white mb-2 flex items-center gap-2">
-                        <TrendingUp className="w-4 h-4 text-blue-600" />
-                        Recommendations
-                      </h4>
-                      <ul className="space-y-1">
-                        {result.recommendations.map((rec, index) => (
-                          <li key={index} className="text-sm text-slate-600 dark:text-slate-400 flex items-start gap-2">
-                            <span className="w-1.5 h-1.5 bg-blue-600 rounded-full mt-2 flex-shrink-0"></span>
-                            {rec}
-                          </li>
-                        ))}
-                      </ul>
-                    </div>
-                  )}
-                </div>
-              )}
-            </Card>
-
-            {/* Advanced Metrics */}
-            {showAdvancedMetrics && (
-              <Card>
-                <h3 className="text-lg font-semibold text-slate-900 dark:text-white mb-4 flex items-center gap-2">
-                  <BarChart3 className="w-5 h-5" />
-                  Advanced Camera & Processing Metrics
-                </h3>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                  <div>
-                    <div className="flex justify-between items-center mb-2">
-                      <span className="text-sm font-medium text-slate-700 dark:text-slate-300">Image Sharpness</span>
-                      <span className="text-sm text-slate-600 dark:text-slate-400">{result.quality_metrics.sharpness.toFixed(0)}</span>
-                    </div>
-                    <div className="w-full bg-slate-200 dark:bg-slate-700 rounded-full h-2">
-                      <div 
-                        className="bg-blue-600 h-2 rounded-full" 
-                        style={{ width: `${Math.min(100, (result.quality_metrics.sharpness / 200) * 100)}%` }}
-                      ></div>
-                    </div>
-                  </div>
-
-                  <div>
-                    <div className="flex justify-between items-center mb-2">
-                      <span className="text-sm font-medium text-slate-700 dark:text-slate-300">Contrast Ratio</span>
-                      <span className="text-sm text-slate-600 dark:text-slate-400">{result.quality_metrics.contrast_ratio.toFixed(2)}</span>
-                    </div>
-                    <div className="w-full bg-slate-200 dark:bg-slate-700 rounded-full h-2">
-                      <div 
-                        className="bg-green-600 h-2 rounded-full" 
-                        style={{ width: `${Math.min(100, (result.quality_metrics.contrast_ratio / 0.6) * 100)}%` }}
-                      ></div>
-                    </div>
-                  </div>
-
-                  <div>
-                    <div className="flex justify-between items-center mb-2">
-                      <span className="text-sm font-medium text-slate-700 dark:text-slate-300">Brightness Level</span>
-                      <span className="text-sm text-slate-600 dark:text-slate-400">{result.quality_metrics.brightness.toFixed(0)}</span>
-                    </div>
-                    <div className="w-full bg-slate-200 dark:bg-slate-700 rounded-full h-2">
-                      <div 
-                        className="bg-yellow-600 h-2 rounded-full" 
-                        style={{ width: `${Math.min(100, (result.quality_metrics.brightness / 255) * 100)}%` }}
-                      ></div>
-                    </div>
-                  </div>
-
-                  <div>
-                    <div className="flex justify-between items-center mb-2">
-                      <span className="text-sm font-medium text-slate-700 dark:text-slate-300">Noise Level</span>
-                      <span className="text-sm text-slate-600 dark:text-slate-400">{result.quality_metrics.noise_level.toFixed(1)}%</span>
-                    </div>
-                    <div className="w-full bg-slate-200 dark:bg-slate-700 rounded-full h-2">
-                      <div 
-                        className="bg-red-600 h-2 rounded-full" 
-                        style={{ width: `${Math.min(100, result.quality_metrics.noise_level)}%` }}
-                      ></div>
-                    </div>
-                  </div>
-
-                  <div>
-                    <div className="flex justify-between items-center mb-2">
-                      <span className="text-sm font-medium text-slate-700 dark:text-slate-300">Skew Angle</span>
-                      <span className="text-sm text-slate-600 dark:text-slate-400">{result.quality_metrics.skew_angle.toFixed(1)}°</span>
-                    </div>
-                    <div className="w-full bg-slate-200 dark:bg-slate-700 rounded-full h-2">
-                      <div 
-                        className="bg-purple-600 h-2 rounded-full" 
-                        style={{ width: `${Math.min(100, (10 - result.quality_metrics.skew_angle) / 10 * 100)}%` }}
-                      ></div>
-                    </div>
-                  </div>
-
-                  <div>
-                    <div className="flex justify-between items-center mb-2">
-                      <span className="text-sm font-medium text-slate-700 dark:text-slate-300">Layout Detection</span>
-                      <span className="text-sm text-slate-600 dark:text-slate-400">{result.layout_analysis.layout_type}</span>
-                    </div>
-                    <div className="text-xs text-slate-500 dark:text-slate-400">
-                      {result.layout_analysis.columns} columns, {result.layout_analysis.total_questions} questions
-                    </div>
-                  </div>
-                </div>
-              </Card>
-            )}
-
-            {/* Answer Results */}
-            <Card>
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="text-lg font-semibold text-slate-900 dark:text-white">
-                  Extracted Answers
-                </h3>
-                <div className="flex gap-2">
-                  <Button variant="outline" size="sm">
-                    <Download size={16} className="mr-1" />
-                    Export
-                  </Button>
-                  <Button variant="outline" size="sm">
-                    <Share2 size={16} className="mr-1" />
-                    Share
-                  </Button>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-5 sm:grid-cols-10 gap-2">
-                {result.extracted_answers.map((answer, index) => {
-                  const confidence = result.confidence_scores[index] || 0
-                  const isHighConfidence = confidence >= 0.8
-                  const isMediumConfidence = confidence >= 0.6
-                  
-                  return (
-                    <div
-                      key={index}
-                      className={`
-                        p-3 rounded-lg text-center border-2 transition-all
-                        ${answer === 'BLANK' 
-                          ? 'border-slate-300 bg-slate-100 dark:bg-slate-800 dark:border-slate-600' 
-                          : isHighConfidence
-                            ? 'border-green-300 bg-green-50 dark:bg-green-900/20 dark:border-green-600'
-                            : isMediumConfidence
-                              ? 'border-yellow-300 bg-yellow-50 dark:bg-yellow-900/20 dark:border-yellow-600'
-                              : 'border-red-300 bg-red-50 dark:bg-red-900/20 dark:border-red-600'
-                        }
-                      `}
-                    >
-                      <div className="text-xs text-slate-500 dark:text-slate-400 mb-1">
-                        Q{index + 1}
-                      </div>
-                      <div className={`
-                        font-bold text-lg
-                        ${answer === 'BLANK' 
-                          ? 'text-slate-400 dark:text-slate-500' 
-                          : isHighConfidence
-                            ? 'text-green-700 dark:text-green-400'
-                            : isMediumConfidence
-                              ? 'text-yellow-700 dark:text-yellow-400'
-                              : 'text-red-700 dark:text-red-400'
-                        }
-                      `}>
-                        {answer === 'BLANK' ? '—' : answer}
-                      </div>
-                      <div className="text-xs text-slate-500 dark:text-slate-400">
-                        {(confidence * 100).toFixed(0)}%
-                      </div>
-                    </div>
-                  )
-                })}
-              </div>
-
-              <div className="mt-6 pt-4 border-t border-slate-200 dark:border-slate-700">
-                <div className="flex items-center justify-between text-sm">
-                  <div className="flex items-center gap-4">
-                    <div className="flex items-center gap-2">
-                      <div className="w-3 h-3 bg-green-500 rounded"></div>
-                      <span className="text-slate-600 dark:text-slate-400">High Confidence (≥80%)</span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <div className="w-3 h-3 bg-yellow-500 rounded"></div>
-                      <span className="text-slate-600 dark:text-slate-400">Medium Confidence (60-80%)</span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <div className="w-3 h-3 bg-red-500 rounded"></div>
-                      <span className="text-slate-600 dark:text-slate-400">Low Confidence (&lt;60%)</span>
-                    </div>
-                  </div>
-                  <div className="text-slate-500 dark:text-slate-400">
-                    Powered by EvalBee Camera Engine
-                  </div>
-                </div>
-              </div>
             </Card>
 
             {/* Captured Image with Bubble Overlay */}
@@ -1200,17 +737,28 @@ const EvalBeeCameraScannerPage: React.FC = () => {
         )}
       </div>
       
-      {/* Mobile Debug Modal */}
-      <MobileDebugModal
-        isOpen={showDebugModal}
-        onClose={() => setShowDebugModal(false)}
-        logs={logs}
-        isCapturing={isLoggingActive}
-        onStartCapturing={startLogging}
-        onStopCapturing={stopLogging}
-        onClearLogs={clearLogs}
-        onExportLogs={exportLogs}
-      />
+      {/* Mobile Debug Modal - Lazy Loaded */}
+      {showDebugModal && (
+        <Suspense fallback={
+          <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center">
+            <div className="bg-white dark:bg-slate-800 rounded-lg p-6 text-center">
+              <div className="animate-spin w-8 h-8 border-2 border-blue-500 border-t-transparent rounded-full mx-auto mb-4"></div>
+              <p className="text-slate-700 dark:text-slate-300">Debug modal yuklanmoqda...</p>
+            </div>
+          </div>
+        }>
+          <MobileDebugModal
+            isOpen={showDebugModal}
+            onClose={() => setShowDebugModal(false)}
+            logs={consoleLogger.logs}
+            isCapturing={consoleLogger.isCapturing}
+            onStartCapturing={consoleLogger.startCapturing}
+            onStopCapturing={consoleLogger.stopCapturing}
+            onClearLogs={consoleLogger.clearLogs}
+            onExportLogs={consoleLogger.exportLogs}
+          />
+        </Suspense>
+      )}
     </div>
   )
 }

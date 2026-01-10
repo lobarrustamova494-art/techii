@@ -1,12 +1,13 @@
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
-import path from 'path'
+import path from 'node:path'
+import { fileURLToPath } from 'node:url'
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url))
 
 export default defineConfig({
   plugins: [
     react({
-      // Enable React Fast Refresh
-      fastRefresh: true,
       // Optimize JSX runtime
       jsxRuntime: 'automatic'
     })
@@ -24,34 +25,54 @@ export default defineConfig({
     outDir: 'dist',
     sourcemap: false,
     minify: 'terser',
-    // Optimize chunk splitting
+    target: 'es2020',
+    // Optimize chunk size limits
+    chunkSizeWarningLimit: 800,
+    // Enable tree shaking
     rollupOptions: {
       input: {
         main: path.resolve(__dirname, 'index.html')
       },
       output: {
-        // Better chunk splitting for optimal loading
-        manualChunks: {
+        // Aggressive chunk splitting for optimal loading
+        manualChunks: (id: string) => {
           // Core React libraries
-          'react-vendor': ['react', 'react-dom'],
+          if (id.indexOf('react') !== -1 || id.indexOf('react-dom') !== -1) {
+            return 'react-vendor'
+          }
           // Router
-          'router': ['react-router-dom'],
+          if (id.indexOf('react-router-dom') !== -1) {
+            return 'router'
+          }
           // UI libraries
-          'ui-vendor': ['lucide-react', 'clsx', 'tailwind-merge'],
-          // Heavy libraries
-          'pdf-vendor': ['jspdf', 'html2canvas'],
+          if (id.indexOf('lucide-react') !== -1 || id.indexOf('clsx') !== -1 || id.indexOf('tailwind-merge') !== -1) {
+            return 'ui-vendor'
+          }
+          // Heavy PDF libraries - separate chunks (lazy loaded)
+          if (id.indexOf('jspdf') !== -1) {
+            return 'pdf-jspdf'
+          }
+          if (id.indexOf('html2canvas') !== -1) {
+            return 'pdf-html2canvas'
+          }
           // API and utilities
-          'utils': ['axios', 'form-data']
+          if (id.indexOf('axios') !== -1 || id.indexOf('form-data') !== -1) {
+            return 'api-vendor'
+          }
+          // Large components - separate chunks
+          if (id.indexOf('EvalBeeCameraScanner') !== -1) {
+            return 'camera-scanner'
+          }
+          if (id.indexOf('MobileDebugModal') !== -1) {
+            return 'debug-modal'
+          }
+          // Node modules
+          if (id.indexOf('node_modules') !== -1) {
+            return 'vendor'
+          }
         },
         // Optimize chunk names
-        chunkFileNames: (chunkInfo) => {
-          const facadeModuleId = chunkInfo.facadeModuleId
-          if (facadeModuleId) {
-            const name = path.basename(facadeModuleId, path.extname(facadeModuleId))
-            return `chunks/${name}-[hash].js`
-          }
-          return 'chunks/[name]-[hash].js'
-        },
+        chunkFileNames: 'chunks/[name]-[hash].js',
         // Optimize asset names
         assetFileNames: (assetInfo) => {
           const info = assetInfo.name?.split('.') || []
@@ -66,22 +87,28 @@ export default defineConfig({
         }
       }
     },
-    // Optimize terser settings
+    // Optimize terser settings for better compression
     terserOptions: {
       compress: {
         drop_console: false, // Keep console.log for debugging
         drop_debugger: true,
-        pure_funcs: ['console.debug'] // Only remove console.debug
+        pure_funcs: ['console.debug'], // Only remove console.debug
+        passes: 2, // Multiple passes for better compression
+        unsafe_arrows: true,
+        unsafe_methods: true,
+        unsafe_proto: true
       },
       mangle: {
         safari10: true
+      },
+      format: {
+        comments: false
       }
     },
-    chunkSizeWarningLimit: 1000,
     // Enable CSS code splitting
     cssCodeSplit: true,
     // Optimize asset inlining
-    assetsInlineLimit: 4096
+    assetsInlineLimit: 2048 // Reduced inline limit
   },
   // Optimize dependencies
   optimizeDeps: {
@@ -91,14 +118,14 @@ export default defineConfig({
       'react-router-dom',
       'lucide-react',
       'clsx',
-      'tailwind-merge'
+      'tailwind-merge',
+      'axios'
     ],
     exclude: [
       'jspdf',
       'html2canvas'
     ]
   },
-  publicDir: 'public',
   define: {
     __APP_VERSION__: JSON.stringify('2.0.0'),
     __BUILD_TIME__: JSON.stringify(new Date().toISOString())

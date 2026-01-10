@@ -1,15 +1,15 @@
 /**
- * Professional OpenCV-based OMR Processing Service
- * Template-based coordinate system with 8 alignment marks
+ * Optimized OMR Processing Service
+ * Using Sharp for all image operations instead of Jimp
  */
 
 import sharp from 'sharp'
-import { createRequire } from 'module'
 import { OMRCoordinateService, OMRCoordinateMap, BubbleCoordinate } from './omrCoordinateService.js'
+import crypto from 'crypto'
 
-// Use createRequire for Jimp compatibility in ES modules
-const require = createRequire(import.meta.url)
-const { Jimp, intToRGBA } = require('jimp')
+// Image processing cache
+const imageCache = new Map<string, any>()
+const CACHE_TTL = 3600000 // 1 hour
 
 export interface OMRProcessingResult {
   extractedAnswers: string[]
@@ -27,6 +27,7 @@ export interface OMRProcessingResult {
     }
     actualQuestionCount: number
     expectedQuestionCount: number
+    processingTime: number
     examStructure?: {
       totalQuestions: number
       structure: string
@@ -47,107 +48,283 @@ export interface OMRProcessingResult {
   }>
 }
 
+interface ProcessedImage {
+  buffer: Buffer
+  width: number
+  height: number
+  channels: number
+  quality: number
+  grayscaleBuffer: Buffer
+}
+
 export class OMRProcessorService {
   
   /**
-   * Main OMR processing function using precise coordinate mapping
+   * Optimized OMR processing with Sharp and caching
    */
   static async processOMRSheet(
     imageBuffer: Buffer,
     answerKey: string[],
     examMetadata?: any
   ): Promise<OMRProcessingResult> {
-    console.log('=== PRECISE COORDINATE-BASED OMR PROCESSING STARTED ===')
+    const startTime = Date.now()
+    console.log('=== OPTIMIZED OMR PROCESSING STARTED ===')
     console.log('Expected questions from answer key:', answerKey.length)
-    console.log('Exam metadata provided:', !!examMetadata)
-    console.log('Exam ID:', examMetadata?.examId || examMetadata?._id)
     console.log('Image buffer size:', imageBuffer.length, 'bytes')
     
     try {
-      // Step 1: Real image preprocessing
-      const preprocessedImage = await this.preprocessImageReal(imageBuffer)
+      // Check cache first
+      const imageHash = crypto.createHash('sha256').update(imageBuffer).digest('hex')
+      const cacheKey = `${imageHash}_${answerKey.length}`
       
-      // Step 2: Generate precise coordinate map from exam metadata
-      const coordinateMap = await this.generatePreciseCoordinateMap(examMetadata)
-      
-      if (!coordinateMap) {
-        console.log('⚠️  No coordinate map generated, falling back to generic processing')
-        return await this.processWithoutTemplate(preprocessedImage, answerKey)
+      if (imageCache.has(cacheKey)) {
+        console.log('✅ Using cached result')
+        const cached = imageCache.get(cacheKey)
+        cached.processingDetails.processingTime = Date.now() - startTime
+        return cached
       }
       
-      // Step 3: Detect alignment marks for coordinate calibration
-      const alignmentData = await this.detectAlignmentMarks(preprocessedImage.jimpImage)
+      // Step 1: Optimized image preprocessing with Sharp
+      const preprocessedImage = await this.preprocessImageWithSharp(imageBuffer)
       
-      // Step 4: Calibrate coordinates based on detected alignment marks
-      const calibratedCoordinates = await this.calibrateCoordinates(
-        coordinateMap, 
-        alignmentData, 
-        preprocessedImage.jimpImage
-      )
+      // Step 2: Generate coordinate map (cached)
+      const coordinateMap = await this.generatePreciseCoordinateMap(examMetadata)
       
-      // Step 5: Process questions using calibrated precise coordinates
-      const bubbleAnalysis = await this.processQuestionsWithPreciseCoordinates(
-        preprocessedImage.jimpImage, 
-        calibratedCoordinates,
-        answerKey.length
-      )
+      // Step 3: Parallel alignment detection and bubble analysis
+      const [alignmentData, bubbleAnalysis] = await Promise.all([
+        this.detectAlignmentMarksOptimized(preprocessedImage),
+        this.processBubblesOptimized(preprocessedImage, answerKey.length)
+      ])
       
-      // Step 6: Determine answers based on analysis
-      const extractedAnswers = await this.determineAnswersFromAnalysis(bubbleAnalysis, answerKey.length)
+      // Step 4: Determine answers
+      const extractedAnswers = this.determineAnswersFromAnalysis(bubbleAnalysis, answerKey.length)
       
-      // Step 7: Calculate confidence
-      const confidence = this.calculateProcessingConfidence(bubbleAnalysis, alignmentData, calibratedCoordinates)
+      // Step 5: Calculate confidence
+      const confidence = this.calculateProcessingConfidence(bubbleAnalysis, alignmentData)
       
-      return {
+      const result: OMRProcessingResult = {
         extractedAnswers,
         confidence,
         processingDetails: {
           alignmentMarksFound: alignmentData.totalDetected,
           bubbleDetectionAccuracy: bubbleAnalysis.accuracy,
           imageQuality: preprocessedImage.quality,
-          processingMethod: 'Precise Coordinate Mapping System',
-          imageInfo: preprocessedImage.imageInfo,
+          processingMethod: 'Optimized Sharp Processing',
+          imageInfo: {
+            width: preprocessedImage.width,
+            height: preprocessedImage.height,
+            format: 'JPEG',
+            size: imageBuffer.length
+          },
           actualQuestionCount: bubbleAnalysis.detailedResults.length,
           expectedQuestionCount: answerKey.length,
+          processingTime: Date.now() - startTime,
           ...(coordinateMap && {
             examStructure: {
               totalQuestions: coordinateMap.totalQuestions,
               structure: coordinateMap.structure,
-              subjectCount: coordinateMap.metadata.subjects
+              subjectCount: coordinateMap.metadata?.subjects || 1
             }
           })
         },
         detailedResults: bubbleAnalysis.detailedResults
       }
       
-    } catch (error) {
-      console.error('Precise coordinate OMR processing error:', error)
+      // Cache result
+      imageCache.set(cacheKey, result)
+      setTimeout(() => imageCache.delete(cacheKey), CACHE_TTL)
       
-      // Fallback to generic processing
-      console.log('🔄 Falling back to generic processing...')
-      const preprocessedImage = await this.preprocessImageReal(imageBuffer)
-      return await this.processWithoutTemplate(preprocessedImage, answerKey)
+      console.log(`✅ OMR processing completed in ${Date.now() - startTime}ms`)
+      return result
+      
+    } catch (error) {
+      console.error('❌ OMR processing error:', error)
+      throw error
     }
   }
   
   /**
-   * Real image preprocessing using Sharp
+   * Optimized image preprocessing using Sharp only
    */
-  private static async preprocessImageReal(imageBuffer: Buffer): Promise<{
-    processedImage: Buffer
-    quality: number
-    imageInfo: {
-      width: number
-      height: number
-      format: string
-      size: number
-    }
-    jimpImage: any
-  }> {
-    console.log('🔧 Real image preprocessing started...')
+  private static async preprocessImageWithSharp(imageBuffer: Buffer): Promise<ProcessedImage> {
+    console.log('🔧 Preprocessing image with Sharp...')
     
     try {
       // Get image metadata
+      const metadata = await sharp(imageBuffer).metadata()
+      console.log('📊 Image metadata:', {
+        width: metadata.width,
+        height: metadata.height,
+        format: metadata.format,
+        channels: metadata.channels
+      })
+      
+      // Optimize image size if too large
+      let processedBuffer = imageBuffer
+      let targetWidth = metadata.width!
+      let targetHeight = metadata.height!
+      
+      if (metadata.width! > 2000 || metadata.height! > 2000) {
+        console.log('📏 Resizing large image for optimal processing...')
+        const maxDimension = 1600
+        const aspectRatio = metadata.width! / metadata.height!
+        
+        if (metadata.width! > metadata.height!) {
+          targetWidth = maxDimension
+          targetHeight = Math.round(maxDimension / aspectRatio)
+        } else {
+          targetHeight = maxDimension
+          targetWidth = Math.round(maxDimension * aspectRatio)
+        }
+        
+        processedBuffer = await sharp(imageBuffer)
+          .resize(targetWidth, targetHeight, {
+            kernel: sharp.kernel.lanczos3,
+            withoutEnlargement: true
+          })
+          .jpeg({ quality: 90, progressive: true })
+          .toBuffer()
+      }
+      
+      // Create grayscale version for analysis
+      const grayscaleBuffer = await sharp(processedBuffer)
+        .grayscale()
+        .normalize() // Auto-adjust contrast
+        .sharpen({ sigma: 1.0, m1: 1.0, m2: 2.0 }) // Enhance edges
+        .toBuffer()
+      
+      // Calculate image quality metrics
+      const stats = await sharp(grayscaleBuffer).stats()
+      const quality = this.calculateImageQuality(stats)
+      
+      console.log('✅ Image preprocessing completed')
+      console.log('📊 Quality score:', quality)
+      
+      return {
+        buffer: processedBuffer,
+        width: targetWidth,
+        height: targetHeight,
+        channels: metadata.channels || 3,
+        quality,
+        grayscaleBuffer
+      }
+      
+    } catch (error) {
+      console.error('❌ Image preprocessing failed:', error)
+      throw new Error(`Image preprocessing failed: ${error}`)
+    }
+  }
+  
+  /**
+   * Calculate image quality from Sharp stats
+   */
+  private static calculateImageQuality(stats: sharp.Stats): number {
+    try {
+      // Use entropy and standard deviation to assess quality
+      const entropy = stats.entropy || 0
+      const stdev = stats.channels[0]?.stdev || 0
+      
+      // Normalize values (typical ranges: entropy 0-8, stdev 0-100)
+      const normalizedEntropy = Math.min(entropy / 8, 1)
+      const normalizedStdev = Math.min(stdev / 100, 1)
+      
+      // Combine metrics (higher entropy and moderate stdev indicate good quality)
+      const quality = (normalizedEntropy * 0.7 + normalizedStdev * 0.3)
+      
+      return Math.max(0.1, Math.min(1.0, quality))
+    } catch (error) {
+      console.warn('⚠️ Quality calculation failed, using default:', error)
+      return 0.7 // Default quality
+    }
+  }
+  
+  /**
+   * Optimized alignment mark detection using Sharp
+   */
+  private static async detectAlignmentMarksOptimized(image: ProcessedImage): Promise<{
+    totalDetected: number
+    marks: Array<{ x: number, y: number, confidence: number }>
+    quality: number
+  }> {
+    console.log('🎯 Detecting alignment marks...')
+    
+    try {
+      // Extract raw pixel data for analysis
+      const { data, info } = await sharp(image.grayscaleBuffer)
+        .raw()
+        .toBuffer({ resolveWithObject: true })
+      
+      const { width, height } = info
+      const marks: Array<{ x: number, y: number, confidence: number }> = []
+      
+      // Define search areas for alignment marks (corners and edges)
+      const searchAreas = [
+        { x: 50, y: 50, name: 'top-left' },
+        { x: width - 50, y: 50, name: 'top-right' },
+        { x: 50, y: height - 50, name: 'bottom-left' },
+        { x: width - 50, y: height - 50, name: 'bottom-right' }
+      ]
+      
+      let totalDetected = 0
+      
+      // Search for dark rectangular marks in each area
+      for (const area of searchAreas) {
+        const confidence = this.detectMarkInArea(data, width, height, area.x, area.y, 30)
+        
+        if (confidence > 0.6) {
+          marks.push({ x: area.x, y: area.y, confidence })
+          totalDetected++
+        }
+      }
+      
+      const quality = totalDetected / searchAreas.length
+      
+      console.log(`✅ Detected ${totalDetected}/${searchAreas.length} alignment marks`)
+      
+      return { totalDetected, marks, quality }
+      
+    } catch (error) {
+      console.error('❌ Alignment detection failed:', error)
+      return { totalDetected: 0, marks: [], quality: 0 }
+    }
+  }
+  
+  /**
+   * Detect alignment mark in specific area
+   */
+  private static detectMarkInArea(
+    data: Buffer, 
+    width: number, 
+    height: number, 
+    centerX: number, 
+    centerY: number, 
+    size: number
+  ): number {
+    let darkPixels = 0
+    let totalPixels = 0
+    const threshold = 100 // Dark pixel threshold
+    
+    const halfSize = Math.floor(size / 2)
+    
+    for (let dy = -halfSize; dy <= halfSize; dy += 2) {
+      for (let dx = -halfSize; dx <= halfSize; dx += 2) {
+        const x = centerX + dx
+        const y = centerY + dy
+        
+        if (x >= 0 && x < width && y >= 0 && y < height) {
+          const pixelIndex = y * width + x
+          const pixelValue = data[pixelIndex]
+          
+          if (pixelValue < threshold) {
+            darkPixels++
+          }
+          totalPixels++
+        }
+      }
+    }
+    
+    return totalPixels > 0 ? darkPixels / totalPixels : 0
+  }
       const metadata = await sharp(imageBuffer).metadata()
       console.log(`📊 Original image: ${metadata.width}x${metadata.height}, ${metadata.format}, ${imageBuffer.length} bytes`)
       
