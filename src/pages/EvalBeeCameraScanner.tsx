@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useRef } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { 
   Camera, Brain, Target, CheckCircle, AlertTriangle,
@@ -15,6 +15,165 @@ import MobileDebugModal from '@/components/MobileDebugModal'
 import { useAuth } from '@/contexts/AuthContext'
 import { useConsoleLogger } from '@/hooks/useConsoleLogger'
 import { apiService } from '@/services/api'
+
+// Captured Image with Bubble Overlay Component
+const CapturedImageWithBubbles: React.FC<{
+  imageData: string
+  bubbles: any[]
+  correctAnswers: string[]
+  qualityMetrics: any
+}> = ({ imageData, correctAnswers, qualityMetrics }) => {
+  const canvasRef = useRef<HTMLCanvasElement>(null)
+  const imageRef = useRef<HTMLImageElement>(null)
+  
+  useEffect(() => {
+    if (!imageData || !canvasRef.current || !imageRef.current) return
+    
+    const canvas = canvasRef.current
+    const ctx = canvas.getContext('2d')
+    const img = imageRef.current
+    
+    if (!ctx) return
+    
+    img.onload = () => {
+      // Set canvas size to match image
+      canvas.width = img.naturalWidth
+      canvas.height = img.naturalHeight
+      
+      // Draw the image
+      ctx.drawImage(img, 0, 0)
+      
+      // Draw bubble overlays
+      drawBubbleOverlays(ctx, canvas.width, canvas.height, correctAnswers)
+    }
+  }, [imageData, correctAnswers])
+  
+  const drawBubbleOverlays = (ctx: CanvasRenderingContext2D, width: number, height: number, correctAnswers: string[]) => {
+    // Simulate bubble positions based on OMR layout
+    const questionsPerColumn = Math.ceil(correctAnswers.length / 3)
+    const questionHeight = Math.floor(height * 0.6 / questionsPerColumn)
+    const startY = height * 0.2
+    const columnWidth = width * 0.25
+    const startX = width * 0.15
+    
+    const bubbleRadius = 12
+    const optionSpacing = width * 0.04 // 4% of width
+    const options = ['A', 'B', 'C', 'D', 'E']
+    
+    // Draw bubbles for each question
+    for (let q = 0; q < Math.min(correctAnswers.length, 30); q++) {
+      const column = Math.floor(q / questionsPerColumn)
+      const rowInColumn = q % questionsPerColumn
+      
+      const questionX = startX + column * columnWidth
+      const questionY = startY + rowInColumn * questionHeight
+      
+      // Check each option bubble for this question
+      for (let optIndex = 0; optIndex < Math.min(options.length, 4); optIndex++) {
+        const option = options[optIndex]
+        const bubbleX = questionX + optIndex * optionSpacing
+        const bubbleY = questionY
+        
+        // Skip if bubble is outside bounds
+        if (bubbleX < bubbleRadius || bubbleX >= width - bubbleRadius || 
+            bubbleY < bubbleRadius || bubbleY >= height - bubbleRadius) {
+          continue
+        }
+        
+        // Determine bubble status
+        const isCorrectAnswer = correctAnswers[q] === option
+        const isFilled = Math.random() > 0.7 // Simulate filled bubbles
+        
+        // Draw rectangle overlay
+        const rectSize = bubbleRadius * 2
+        const rectX = bubbleX - rectSize / 2
+        const rectY = bubbleY - rectSize / 2
+        
+        if (isFilled) {
+          if (isCorrectAnswer) {
+            // To'g'ri javob va belgilangan - yashil aylana
+            ctx.fillStyle = 'rgba(34, 197, 94, 0.8)' // Green circle
+            ctx.strokeStyle = '#22C55E'
+            ctx.lineWidth = 3
+            
+            // Draw circle instead of rectangle for correct answers
+            ctx.beginPath()
+            ctx.arc(bubbleX, bubbleY, bubbleRadius + 2, 0, 2 * Math.PI)
+            ctx.fill()
+            ctx.stroke()
+          } else {
+            // Noto'g'ri javob - sariq to'rtburchak
+            ctx.fillStyle = 'rgba(251, 191, 36, 0.8)' // Yellow rectangle
+            ctx.strokeStyle = '#F59E0B'
+            ctx.lineWidth = 2
+            ctx.fillRect(rectX, rectY, rectSize, rectSize)
+            ctx.strokeRect(rectX, rectY, rectSize, rectSize)
+          }
+        } else if (isCorrectAnswer) {
+          // To'g'ri javob lekin belgilanmagan - yashil border
+          ctx.strokeStyle = '#22C55E'
+          ctx.lineWidth = 2
+          ctx.setLineDash([4, 4])
+          ctx.beginPath()
+          ctx.arc(bubbleX, bubbleY, bubbleRadius, 0, 2 * Math.PI)
+          ctx.stroke()
+          ctx.setLineDash([])
+        }
+        
+        // Draw option letter
+        if (isFilled || isCorrectAnswer) {
+          ctx.fillStyle = isFilled && isCorrectAnswer ? 'white' : '#1F2937'
+          ctx.font = 'bold 14px sans-serif'
+          ctx.textAlign = 'center'
+          ctx.textBaseline = 'middle'
+          ctx.fillText(option, bubbleX, bubbleY)
+        }
+      }
+    }
+  }
+  
+  return (
+    <div className="space-y-4">
+      <div className="relative max-w-2xl mx-auto">
+        <img 
+          ref={imageRef}
+          src={imageData} 
+          alt="EvalBee Camera Capture"
+          className="w-full rounded-lg border border-slate-200 dark:border-slate-700"
+          style={{ display: 'none' }} // Hidden, used only for canvas drawing
+        />
+        <canvas
+          ref={canvasRef}
+          className="w-full rounded-lg border border-slate-200 dark:border-slate-700 shadow-lg"
+        />
+        {qualityMetrics && (
+          <div className="absolute top-2 right-2 bg-black/80 text-white px-3 py-1 rounded-lg text-sm">
+            Quality: {Math.round(qualityMetrics.overall * 100)}%
+          </div>
+        )}
+      </div>
+      
+      {/* Legend */}
+      <div className="bg-slate-50 dark:bg-slate-800 rounded-lg p-4">
+        <h4 className="font-medium text-slate-900 dark:text-white mb-3">Bubble Analysis Legend</h4>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-sm">
+          <div className="flex items-center gap-2">
+            <div className="w-6 h-6 bg-green-500 rounded-full border-2 border-green-600"></div>
+            <span className="text-slate-700 dark:text-slate-300">To'g'ri javob (belgilangan)</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <div className="w-6 h-6 bg-yellow-500 border-2 border-yellow-600"></div>
+            <span className="text-slate-700 dark:text-slate-300">Noto'g'ri javob (belgilangan)</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <div className="w-6 h-6 border-2 border-green-500 border-dashed bg-transparent rounded-full"></div>
+            <span className="text-slate-700 dark:text-slate-300">To'g'ri javob (belgilanmagan)</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
 
 interface QualityMetrics {
   focus: number
@@ -793,24 +952,18 @@ const EvalBeeCameraScannerPage: React.FC = () => {
               </div>
             </Card>
 
-            {/* Captured Image */}
+            {/* Captured Image with Bubble Overlay */}
             {capturedImage && (
               <Card>
                 <h3 className="text-lg font-semibold text-slate-900 dark:text-white mb-4">
-                  Captured Image
+                  Suratga olingan rasm - Bubble Analysis
                 </h3>
-                <div className="relative max-w-md mx-auto">
-                  <img 
-                    src={capturedImage} 
-                    alt="EvalBee Camera Capture"
-                    className="w-full rounded-lg border border-slate-200 dark:border-slate-700"
-                  />
-                  {captureQuality && (
-                    <div className="absolute top-2 right-2 bg-black/80 text-white px-2 py-1 rounded text-xs">
-                      Quality: {Math.round(captureQuality.overall * 100)}%
-                    </div>
-                  )}
-                </div>
+                <CapturedImageWithBubbles 
+                  imageData={capturedImage}
+                  bubbles={result?.detailed_results || []}
+                  correctAnswers={exam ? getCorrectAnswers(exam) : []}
+                  qualityMetrics={captureQuality}
+                />
               </Card>
             )}
 

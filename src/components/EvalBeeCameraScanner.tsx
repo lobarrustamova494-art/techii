@@ -708,9 +708,14 @@ const EvalBeeCameraScanner: React.FC<EvalBeeCameraScannerProps> = memo(({
 
     canvas.width = video.videoWidth
     canvas.height = video.videoHeight
-    context.drawImage(video, 0, 0, canvas.width, canvas.height)
+    
+    // Fix mirror effect - flip image horizontally to get correct orientation
+    context.save()
+    context.scale(-1, 1) // Flip horizontally
+    context.drawImage(video, -canvas.width, 0, canvas.width, canvas.height)
+    context.restore()
 
-    const finalImageData = canvas.toDataURL('image/jpeg', 0.85) // Reduced quality for better performance
+    const finalImageData = canvas.toDataURL('image/jpeg', 0.85)
     
     console.log('✅ EvalBee Camera: Image capture completed successfully')
     
