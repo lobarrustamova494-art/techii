@@ -32,44 +32,129 @@ export const useConsoleLogger = () => {
     setLogs(prev => [...prev.slice(-99), logEntry]) // Keep last 100 logs
   }, [])
 
+  // Global error handler
+  const handleGlobalError = useCallback((event: ErrorEvent) => {
+    if (isCapturing) {
+      addLog('error', `Global Error: ${event.message}`, {
+        filename: event.filename,
+        lineno: event.lineno,
+        colno: event.colno,
+        error: event.error?.toString()
+      })
+    }
+  }, [isCapturing, addLog])
+
+  // Unhandled promise rejection handler
+  const handleUnhandledRejection = useCallback((event: PromiseRejectionEvent) => {
+    if (isCapturing) {
+      addLog('error', `Unhandled Promise Rejection: ${event.reason}`, {
+        reason: event.reason,
+        promise: event.promise
+      })
+    }
+  }, [isCapturing, addLog])
+
   const startCapturing = useCallback(() => {
     if (isCapturing) return
 
+    console.log('🎯 Console Logger: Starting log capture')
     setIsCapturing(true)
     
-    // Override console methods
+    // Override console methods to capture all logs
     console.log = (...args) => {
       originalConsole.log(...args)
-      addLog('log', args.map(arg => typeof arg === 'object' ? JSON.stringify(arg, null, 2) : String(arg)).join(' '))
+      const message = args.map(arg => {
+        if (typeof arg === 'object') {
+          try {
+            return JSON.stringify(arg, null, 2)
+          } catch (e) {
+            return String(arg)
+          }
+        }
+        return String(arg)
+      }).join(' ')
+      addLog('log', message, args.length > 1 ? args.slice(1) : undefined)
     }
 
     console.info = (...args) => {
       originalConsole.info(...args)
-      addLog('info', args.map(arg => typeof arg === 'object' ? JSON.stringify(arg, null, 2) : String(arg)).join(' '))
+      const message = args.map(arg => {
+        if (typeof arg === 'object') {
+          try {
+            return JSON.stringify(arg, null, 2)
+          } catch (e) {
+            return String(arg)
+          }
+        }
+        return String(arg)
+      }).join(' ')
+      addLog('info', message, args.length > 1 ? args.slice(1) : undefined)
     }
 
     console.warn = (...args) => {
       originalConsole.warn(...args)
-      addLog('warn', args.map(arg => typeof arg === 'object' ? JSON.stringify(arg, null, 2) : String(arg)).join(' '))
+      const message = args.map(arg => {
+        if (typeof arg === 'object') {
+          try {
+            return JSON.stringify(arg, null, 2)
+          } catch (e) {
+            return String(arg)
+          }
+        }
+        return String(arg)
+      }).join(' ')
+      addLog('warn', message, args.length > 1 ? args.slice(1) : undefined)
     }
 
     console.error = (...args) => {
       originalConsole.error(...args)
-      addLog('error', args.map(arg => typeof arg === 'object' ? JSON.stringify(arg, null, 2) : String(arg)).join(' '))
+      const message = args.map(arg => {
+        if (typeof arg === 'object') {
+          try {
+            return JSON.stringify(arg, null, 2)
+          } catch (e) {
+            return String(arg)
+          }
+        }
+        return String(arg)
+      }).join(' ')
+      addLog('error', message, args.length > 1 ? args.slice(1) : undefined)
     }
-  }, [isCapturing, addLog])
+    
+    // Capture existing console history if available
+    if (window.console && (window.console as any)._history) {
+      (window.console as any)._history.forEach((entry: any) => {
+        addLog(entry.level || 'log', entry.message || String(entry))
+      })
+    }
+    
+    // Add global error listeners
+    window.addEventListener('error', handleGlobalError)
+    window.addEventListener('unhandledrejection', handleUnhandledRejection)
+    
+    // Add initial log to confirm capture is working
+    addLog('info', 'Console logging started - all logs will be captured here')
+  }, [isCapturing, addLog, handleGlobalError, handleUnhandledRejection])
 
   const stopCapturing = useCallback(() => {
     if (!isCapturing) return
 
+    console.log('🛑 Console Logger: Stopping log capture')
     setIsCapturing(false)
+    
+    // Remove global error listeners
+    window.removeEventListener('error', handleGlobalError)
+    window.removeEventListener('unhandledrejection', handleUnhandledRejection)
     
     // Restore original console methods
     console.log = originalConsole.log
     console.info = originalConsole.info
     console.warn = originalConsole.warn
     console.error = originalConsole.error
-  }, [isCapturing])
+    
+    // Add final log using original console
+    originalConsole.log('Console logging stopped')
+  }, [isCapturing, handleGlobalError, handleUnhandledRejection])
 
   const clearLogs = useCallback(() => {
     setLogs([])
@@ -94,9 +179,12 @@ export const useConsoleLogger = () => {
   // Cleanup on unmount
   useEffect(() => {
     return () => {
+      // Remove event listeners and restore console
+      window.removeEventListener('error', handleGlobalError)
+      window.removeEventListener('unhandledrejection', handleUnhandledRejection)
       stopCapturing()
     }
-  }, [stopCapturing])
+  }, [stopCapturing, handleGlobalError, handleUnhandledRejection])
 
   return {
     logs,

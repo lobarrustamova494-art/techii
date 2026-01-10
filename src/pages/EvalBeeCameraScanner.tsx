@@ -25,30 +25,138 @@ const CapturedImageWithBubbles: React.FC<{
 }> = ({ imageData, correctAnswers, qualityMetrics }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const imageRef = useRef<HTMLImageElement>(null)
+  const [imageLoaded, setImageLoaded] = useState(false)
+  const [imageError, setImageError] = useState(false)
   
   useEffect(() => {
-    if (!imageData || !canvasRef.current || !imageRef.current) return
+    console.log('🖼️ CapturedImageWithBubbles: useEffect triggered', {
+      hasImageData: !!imageData,
+      imageDataLength: imageData?.length || 0,
+      imageDataType: imageData?.substring(0, 30) || 'none',
+      correctAnswersLength: correctAnswers.length
+    })
     
-    const canvas = canvasRef.current
-    const ctx = canvas.getContext('2d')
-    const img = imageRef.current
+    if (!imageData) {
+      console.log('❌ No image data provided')
+      setImageError(true)
+      return
+    }
     
-    if (!ctx) return
+    // Validate image data format
+    if (!imageData.startsWith('data:image/')) {
+      console.error('❌ Invalid image data format:', imageData.substring(0, 100))
+      setImageError(true)
+      return
+    }
+    
+    setImageLoaded(false)
+    setImageError(false)
+    
+    // Load image first, then setup canvas
+    const img = new Image()
     
     img.onload = () => {
-      // Set canvas size to match image
-      canvas.width = img.naturalWidth
-      canvas.height = img.naturalHeight
+      console.log('✅ Image loaded successfully', {
+        naturalWidth: img.naturalWidth,
+        naturalHeight: img.naturalHeight,
+        src: img.src.substring(0, 50) + '...'
+      })
       
-      // Draw the image
-      ctx.drawImage(img, 0, 0)
+      setImageLoaded(true)
       
-      // Draw bubble overlays
-      drawBubbleOverlays(ctx, canvas.width, canvas.height, correctAnswers)
+      // Setup canvas overlay after image loads with delay to ensure DOM is ready
+      setTimeout(() => {
+        if (canvasRef.current && imageRef.current) {
+          const canvas = canvasRef.current
+          const ctx = canvas.getContext('2d')
+          
+          if (ctx) {
+            // Set canvas size to match image display size
+            const displayImg = imageRef.current
+            if (displayImg && canvas && displayImg.offsetWidth > 0 && displayImg.offsetHeight > 0) {
+              canvas.width = displayImg.offsetWidth
+              canvas.height = displayImg.offsetHeight
+              
+              console.log('📐 Canvas size set to match display', {
+                canvasWidth: canvas.width,
+                canvasHeight: canvas.height,
+                displayWidth: displayImg.offsetWidth,
+                displayHeight: displayImg.offsetHeight
+              })
+              
+              // Draw bubble overlays
+              drawBubbleOverlays(ctx, canvas.width, canvas.height, correctAnswers)
+              console.log('🎯 Bubble overlays drawn')
+            } else {
+              console.warn('⚠️ Display image dimensions not ready, retrying...')
+              // Retry after another delay
+              setTimeout(() => {
+                if (displayImg && canvas && displayImg.offsetWidth > 0) {
+                  canvas.width = displayImg.offsetWidth
+                  canvas.height = displayImg.offsetHeight
+                  drawBubbleOverlays(ctx, canvas.width, canvas.height, correctAnswers)
+                  console.log('🎯 Bubble overlays drawn (retry)')
+                }
+              }, 500)
+            }
+          }
+        }
+      }, 200)
     }
+    
+    img.onerror = (error) => {
+      console.error('❌ Image load error:', error)
+      console.error('❌ Image data details:', {
+        length: imageData.length,
+        start: imageData.substring(0, 100),
+        isValidFormat: imageData.startsWith('data:image/')
+      })
+      setImageError(true)
+    }
+    
+    // Set image source to trigger load
+    console.log('🔄 Setting image source', {
+      imageDataStart: imageData.substring(0, 50)
+    })
+    img.src = imageData
+    
   }, [imageData, correctAnswers])
   
+  // Redraw canvas when image ref changes size
+  useEffect(() => {
+    if (imageLoaded && imageRef.current && canvasRef.current) {
+      const handleResize = () => {
+        const canvas = canvasRef.current
+        const ctx = canvas?.getContext('2d')
+        const displayImg = imageRef.current
+        
+        if (ctx && displayImg && canvas && displayImg.offsetWidth > 0) {
+          canvas.width = displayImg.offsetWidth
+          canvas.height = displayImg.offsetHeight
+          drawBubbleOverlays(ctx, canvas.width, canvas.height, correctAnswers)
+          console.log('🔄 Canvas redrawn after resize')
+        }
+      }
+      
+      // Initial draw
+      setTimeout(handleResize, 100)
+      
+      // Listen for resize
+      window.addEventListener('resize', handleResize)
+      return () => window.removeEventListener('resize', handleResize)
+    }
+  }, [imageLoaded, correctAnswers])
+  
   const drawBubbleOverlays = (ctx: CanvasRenderingContext2D, width: number, height: number, correctAnswers: string[]) => {
+    console.log('🎯 Drawing bubble overlays', {
+      canvasWidth: width,
+      canvasHeight: height,
+      correctAnswersCount: correctAnswers.length
+    })
+    
+    // Clear canvas first
+    ctx.clearRect(0, 0, width, height)
+    
     // Simulate bubble positions based on OMR layout
     const questionsPerColumn = Math.ceil(correctAnswers.length / 3)
     const questionHeight = Math.floor(height * 0.6 / questionsPerColumn)
@@ -56,9 +164,21 @@ const CapturedImageWithBubbles: React.FC<{
     const columnWidth = width * 0.25
     const startX = width * 0.15
     
-    const bubbleRadius = 12
+    const bubbleRadius = Math.max(8, width * 0.015) // Scale with image size
     const optionSpacing = width * 0.04 // 4% of width
     const options = ['A', 'B', 'C', 'D', 'E']
+    
+    console.log('📊 Layout calculations', {
+      questionsPerColumn,
+      questionHeight,
+      startY,
+      columnWidth,
+      startX,
+      bubbleRadius,
+      optionSpacing
+    })
+    
+    let bubblesDrawn = 0
     
     // Draw bubbles for each question
     for (let q = 0; q < Math.min(correctAnswers.length, 30); q++) {
@@ -85,7 +205,7 @@ const CapturedImageWithBubbles: React.FC<{
         const isFilled = Math.random() > 0.7 // Simulate filled bubbles
         
         // Draw rectangle overlay
-        const rectSize = bubbleRadius * 2
+        const rectSize = bubbleRadius * 2.5
         const rectX = bubbleX - rectSize / 2
         const rectY = bubbleY - rectSize / 2
         
@@ -98,7 +218,7 @@ const CapturedImageWithBubbles: React.FC<{
             
             // Draw circle instead of rectangle for correct answers
             ctx.beginPath()
-            ctx.arc(bubbleX, bubbleY, bubbleRadius + 2, 0, 2 * Math.PI)
+            ctx.arc(bubbleX, bubbleY, bubbleRadius + 4, 0, 2 * Math.PI)
             ctx.fill()
             ctx.stroke()
           } else {
@@ -123,34 +243,107 @@ const CapturedImageWithBubbles: React.FC<{
         // Draw option letter
         if (isFilled || isCorrectAnswer) {
           ctx.fillStyle = isFilled && isCorrectAnswer ? 'white' : '#1F2937'
-          ctx.font = 'bold 14px sans-serif'
+          ctx.font = `bold ${Math.max(12, bubbleRadius)}px sans-serif`
           ctx.textAlign = 'center'
           ctx.textBaseline = 'middle'
           ctx.fillText(option, bubbleX, bubbleY)
         }
+        
+        bubblesDrawn++
       }
     }
+    
+    console.log('✅ Bubble overlays completed', {
+      totalBubblesDrawn: bubblesDrawn
+    })
   }
   
   return (
     <div className="space-y-4">
       <div className="relative max-w-2xl mx-auto">
-        <img 
-          ref={imageRef}
-          src={imageData} 
-          alt="EvalBee Camera Capture"
-          className="w-full rounded-lg border border-slate-200 dark:border-slate-700"
-          style={{ display: 'none' }} // Hidden, used only for canvas drawing
-        />
-        <canvas
-          ref={canvasRef}
-          className="w-full rounded-lg border border-slate-200 dark:border-slate-700 shadow-lg"
-        />
-        {qualityMetrics && (
-          <div className="absolute top-2 right-2 bg-black/80 text-white px-3 py-1 rounded-lg text-sm">
-            Quality: {Math.round(qualityMetrics.overall * 100)}%
-          </div>
-        )}
+        {/* Main image display */}
+        <div className="relative">
+          {imageError ? (
+            <div className="w-full h-64 bg-red-50 dark:bg-red-900/20 border-2 border-dashed border-red-300 dark:border-red-700 rounded-lg flex items-center justify-center">
+              <div className="text-center text-red-600 dark:text-red-400">
+                <div className="text-lg font-medium mb-2">Rasm yuklanmadi</div>
+                <div className="text-sm">Rasm ma'lumotlarini tekshiring</div>
+                <div className="text-xs mt-2 text-red-500">
+                  {imageData ? `Data length: ${imageData.length}` : 'No image data'}
+                </div>
+              </div>
+            </div>
+          ) : (
+            <>
+              {/* Loading overlay */}
+              {!imageLoaded && (
+                <div className="absolute inset-0 bg-slate-100 dark:bg-slate-800 border-2 border-dashed border-slate-300 dark:border-slate-600 rounded-lg flex items-center justify-center z-30">
+                  <div className="text-center text-slate-500 dark:text-slate-400">
+                    <div className="animate-spin w-8 h-8 border-2 border-blue-500 border-t-transparent rounded-full mx-auto mb-2"></div>
+                    <div className="text-sm">Rasm yuklanmoqda...</div>
+                  </div>
+                </div>
+              )}
+              
+              {/* Image element */}
+              <img 
+                ref={imageRef}
+                src={imageData} 
+                alt="EvalBee Camera Capture"
+                className="w-full rounded-lg border border-slate-200 dark:border-slate-700 shadow-lg"
+                onLoad={() => {
+                  console.log('📸 Display image onLoad event fired')
+                  setImageLoaded(true)
+                }}
+                onError={(e) => {
+                  console.error('❌ Display image onError event fired:', e)
+                  console.error('❌ Image src:', imageData?.substring(0, 100))
+                  setImageError(true)
+                }}
+                style={{ 
+                  display: 'block', // Always show, let error state handle visibility
+                  maxWidth: '100%',
+                  height: 'auto',
+                  opacity: imageLoaded ? 1 : 0,
+                  transition: 'opacity 0.3s ease-in-out'
+                }}
+              />
+              
+              {/* Canvas overlay - positioned absolutely over the image */}
+              <canvas
+                ref={canvasRef}
+                className="absolute inset-0 w-full h-full rounded-lg pointer-events-none"
+                style={{ 
+                  background: 'transparent',
+                  zIndex: 10,
+                  opacity: imageLoaded ? 1 : 0,
+                  transition: 'opacity 0.3s ease-in-out'
+                }}
+              />
+            </>
+          )}
+          
+          {/* Quality indicator */}
+          {qualityMetrics && imageLoaded && (
+            <div className="absolute top-2 right-2 bg-black/80 text-white px-3 py-1 rounded-lg text-sm z-20">
+              Quality: {Math.round(qualityMetrics.overall * 100)}%
+            </div>
+          )}
+        </div>
+      </div>
+      
+      {/* Debug Info */}
+      <div className="bg-blue-50 dark:bg-blue-900/20 rounded-lg p-3 text-sm">
+        <div className="font-medium text-blue-900 dark:text-blue-100 mb-2">Debug Info:</div>
+        <div className="space-y-1 text-blue-800 dark:text-blue-200">
+          <div>Image Data: {imageData ? `${imageData.length} characters` : 'None'}</div>
+          <div>Image Format: {imageData ? (imageData.startsWith('data:image/') ? 'Valid' : 'Invalid') : 'N/A'}</div>
+          <div>Image Status: {imageError ? 'Error' : imageLoaded ? 'Loaded' : 'Loading'}</div>
+          <div>Correct Answers: {correctAnswers.length} questions</div>
+          <div>Canvas: {canvasRef.current ? `${canvasRef.current.width}x${canvasRef.current.height}` : 'Not ready'}</div>
+          <div>Display Image: {imageRef.current ? `${imageRef.current.offsetWidth}x${imageRef.current.offsetHeight}` : 'Not ready'}</div>
+          <div>Image Natural Size: {imageRef.current ? `${imageRef.current.naturalWidth}x${imageRef.current.naturalHeight}` : 'Not ready'}</div>
+        </div>
       </div>
       
       {/* Legend */}
@@ -246,8 +439,14 @@ const EvalBeeCameraScannerPage: React.FC = () => {
     // Start logging automatically for debugging
     startLogging()
     
+    // Add initial debug logs
+    console.log('🚀 EvalBeeCameraScannerPage: Component mounted')
+    console.log('📋 Exam ID:', id)
+    console.log('👤 User:', user?.name || 'Anonymous')
+    
     return () => {
       // Stop logging when component unmounts
+      console.log('🔚 EvalBeeCameraScannerPage: Component unmounting')
       stopLogging()
     }
   }, [id])
@@ -307,9 +506,29 @@ const EvalBeeCameraScannerPage: React.FC = () => {
   }
 
   const handleCameraCapture = async (imageData: string, qualityMetrics: QualityMetrics) => {
+    console.log('📸 EvalBeeCameraScannerPage: Image captured from camera', {
+      imageDataLength: imageData.length,
+      imageDataType: imageData.substring(0, 30),
+      qualityMetrics: qualityMetrics,
+      imageDataPreview: imageData.substring(0, 50) + '...'
+    })
+    
+    // Validate image data format
+    if (!imageData.startsWith('data:image/')) {
+      console.error('❌ Invalid image data format:', imageData.substring(0, 100))
+      setError('Noto\'g\'ri rasm formati')
+      return
+    }
+    
+    console.log('✅ Image data format is valid')
+    console.log('🔄 Setting captured image state...')
+    
     setCapturedImage(imageData)
     setCaptureQuality(qualityMetrics)
     setShowCamera(false)
+    
+    console.log('✅ Image state updated successfully')
+    console.log('🔄 Starting automatic EvalBee processing...')
     
     // Automatically process with EvalBee engine
     await processWithEvalBee(imageData, qualityMetrics)

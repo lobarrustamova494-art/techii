@@ -692,7 +692,15 @@ const EvalBeeCameraScanner: React.FC<EvalBeeCameraScannerProps> = memo(({
   }
 
   const captureImage = useCallback(async () => {
-    if (!videoRef.current || !canvasRef.current || !isReady || !canCapture) return
+    if (!videoRef.current || !canvasRef.current || !isReady || !canCapture) {
+      console.log('❌ Cannot capture image', {
+        hasVideo: !!videoRef.current,
+        hasCanvas: !!canvasRef.current,
+        isReady,
+        canCapture
+      })
+      return
+    }
 
     console.log('📸 EvalBee Camera: Starting image capture...')
 
@@ -704,10 +712,20 @@ const EvalBeeCameraScanner: React.FC<EvalBeeCameraScannerProps> = memo(({
     const canvas = canvasRef.current
     const context = canvas.getContext('2d')
 
-    if (!context) return
+    if (!context) {
+      console.error('❌ Could not get canvas context')
+      return
+    }
 
     canvas.width = video.videoWidth
     canvas.height = video.videoHeight
+    
+    console.log('📐 Canvas dimensions set', {
+      width: canvas.width,
+      height: canvas.height,
+      videoWidth: video.videoWidth,
+      videoHeight: video.videoHeight
+    })
     
     // Fix mirror effect - flip image horizontally to get correct orientation
     context.save()
@@ -715,10 +733,34 @@ const EvalBeeCameraScanner: React.FC<EvalBeeCameraScannerProps> = memo(({
     context.drawImage(video, -canvas.width, 0, canvas.width, canvas.height)
     context.restore()
 
+    console.log('🖼️ Image drawn to canvas with mirror correction')
+
+    // Generate image data
     const finalImageData = canvas.toDataURL('image/jpeg', 0.85)
     
-    console.log('✅ EvalBee Camera: Image capture completed successfully')
+    console.log('✅ EvalBee Camera: Image capture completed successfully', {
+      imageDataLength: finalImageData.length,
+      imageDataStart: finalImageData.substring(0, 50),
+      qualityMetrics: qualityMetrics
+    })
     
+    // Validate the generated image data
+    if (!finalImageData || finalImageData.length < 1000) {
+      console.error('❌ Generated image data is too small or empty', {
+        length: finalImageData?.length || 0,
+        data: finalImageData?.substring(0, 100) || 'none'
+      })
+      return
+    }
+    
+    if (!finalImageData.startsWith('data:image/')) {
+      console.error('❌ Generated image data has invalid format', {
+        start: finalImageData.substring(0, 50)
+      })
+      return
+    }
+    
+    console.log('✅ Image data validation passed, calling onCapture')
     onCapture(finalImageData, qualityMetrics)
   }, [videoRef, canvasRef, isReady, canCapture, qualityMetrics, onCapture])
 

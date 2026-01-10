@@ -32,6 +32,14 @@ const MobileDebugModal: React.FC<MobileDebugModalProps> = ({
 }) => {
   const [copiedLogId, setCopiedLogId] = React.useState<string | null>(null)
   const [copiedAll, setCopiedAll] = React.useState(false)
+  const logsEndRef = React.useRef<HTMLDivElement>(null)
+
+  // Auto-scroll to bottom when new logs are added
+  React.useEffect(() => {
+    if (logsEndRef.current && logs.length > 0) {
+      logsEndRef.current.scrollIntoView({ behavior: 'smooth' })
+    }
+  }, [logs.length])
 
   if (!isOpen) return null
 
@@ -188,54 +196,66 @@ const MobileDebugModal: React.FC<MobileDebugModalProps> = ({
               </div>
             </div>
           ) : (
-            logs.map((log) => (
-              <div
-                key={log.id}
-                className={`p-3 rounded-lg border ${getLogBgColor(log.level)}`}
-              >
-                <div className="flex items-start gap-3">
-                  <div className="flex-shrink-0 mt-0.5">
-                    {getLogIcon(log.level)}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 mb-1">
-                      <span className="text-xs font-medium text-slate-600 dark:text-slate-400 uppercase">
-                        {log.level}
-                      </span>
-                      <span className="text-xs text-slate-500 dark:text-slate-500">
-                        {log.timestamp}
-                      </span>
+            <div className="space-y-2">
+              {logs.map((log) => (
+                <div
+                  key={log.id}
+                  className={`p-3 rounded-lg border ${getLogBgColor(log.level)}`}
+                >
+                  <div className="flex items-start gap-3">
+                    <div className="flex-shrink-0 mt-0.5">
+                      {getLogIcon(log.level)}
                     </div>
-                    <div className="text-sm text-slate-900 dark:text-white break-words">
-                      {log.message}
-                    </div>
-                    {log.data && (
-                      <details className="mt-2">
-                        <summary className="text-xs text-slate-600 dark:text-slate-400 cursor-pointer hover:text-slate-800 dark:hover:text-slate-200">
-                          Show data
-                        </summary>
-                        <pre className="mt-1 text-xs bg-slate-100 dark:bg-slate-800 p-2 rounded overflow-x-auto text-slate-700 dark:text-slate-300">
-                          {typeof log.data === 'string' ? log.data : JSON.stringify(log.data, null, 2)}
-                        </pre>
-                      </details>
-                    )}
-                  </div>
-                  <div className="flex-shrink-0">
-                    <button
-                      onClick={() => copyLogToClipboard(log)}
-                      className="p-1.5 hover:bg-slate-200 dark:hover:bg-slate-700 rounded transition-colors"
-                      title="Copy this log"
-                    >
-                      {copiedLogId === log.id ? (
-                        <CopyCheck className="w-4 h-4 text-green-600" />
-                      ) : (
-                        <Copy className="w-4 h-4 text-slate-500 hover:text-slate-700 dark:hover:text-slate-300" />
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 mb-1">
+                        <span className="text-xs font-medium text-slate-600 dark:text-slate-400 uppercase">
+                          {log.level}
+                        </span>
+                        <span className="text-xs text-slate-500 dark:text-slate-500">
+                          {log.timestamp}
+                        </span>
+                      </div>
+                      <div className="text-sm text-slate-900 dark:text-white break-words whitespace-pre-wrap">
+                        {log.message}
+                      </div>
+                      {log.data && (
+                        <details className="mt-2">
+                          <summary className="text-xs text-slate-600 dark:text-slate-400 cursor-pointer hover:text-slate-800 dark:hover:text-slate-200">
+                            Show data ({typeof log.data === 'object' ? 'object' : typeof log.data})
+                          </summary>
+                          <pre className="mt-1 text-xs bg-slate-100 dark:bg-slate-800 p-2 rounded overflow-x-auto text-slate-700 dark:text-slate-300 max-h-40 overflow-y-auto">
+                            {typeof log.data === 'string' ? log.data : JSON.stringify(log.data, null, 2)}
+                          </pre>
+                        </details>
                       )}
-                    </button>
+                    </div>
+                    <div className="flex-shrink-0">
+                      <button
+                        onClick={() => copyLogToClipboard(log)}
+                        className="p-1.5 hover:bg-slate-200 dark:hover:bg-slate-700 rounded transition-colors"
+                        title="Copy this log"
+                      >
+                        {copiedLogId === log.id ? (
+                          <CopyCheck className="w-4 h-4 text-green-600" />
+                        ) : (
+                          <Copy className="w-4 h-4 text-slate-500 hover:text-slate-700 dark:hover:text-slate-300" />
+                        )}
+                      </button>
+                    </div>
                   </div>
                 </div>
+              ))}
+              
+              {/* Auto-scroll to bottom indicator */}
+              <div className="text-center py-2">
+                <div className="text-xs text-slate-400 dark:text-slate-500">
+                  {logs.length} total logs • Scroll up to see older logs
+                </div>
               </div>
-            ))
+              
+              {/* Invisible element for auto-scroll */}
+              <div ref={logsEndRef} />
+            </div>
           )}
         </div>
 
