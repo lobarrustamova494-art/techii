@@ -243,10 +243,10 @@ const EvalBeeCameraScanner: React.FC<EvalBeeCameraScannerProps> = memo(({
     // 5. Overall quality calculation
     const overall = (focus * 0.5 + brightness * 0.3 + alignment.alignment * 0.2)
     
-    // EvalBee Logic: STRICT quality requirements
-    const focusGood = focus >= 0.7
-    const brightnessGood = brightness >= 0.3 && brightness <= 0.8
-    const alignmentGood = alignment.paperDetected && alignment.alignment >= 0.8
+    // EvalBee Logic: ULTRA-LENIENT quality requirements for instant 2-second alignment
+    const focusGood = focus >= 0.4 // Even more reduced - ultra forgiving
+    const brightnessGood = brightness >= 0.15 && brightness <= 0.95 // Even wider range
+    const alignmentGood = alignment.paperDetected && alignment.alignment >= 0.3 // Ultra-low threshold
     
     // Update state only if significant change (prevent excessive re-renders)
     if (Math.abs(qualityMetrics.overall - overall) > 0.05) {
@@ -254,21 +254,21 @@ const EvalBeeCameraScanner: React.FC<EvalBeeCameraScannerProps> = memo(({
       const recommendations = []
       
       if (!focusGood) {
-        issues.push('Rasm aniq emas')
-        recommendations.push('📱 Kamerani yaqinlashtiring va fokusni sozlang')
+        issues.push('Biroz yaqinroq qiling')
+        recommendations.push('📱 Kamerani biroz yaqinlashtiring')
       }
       if (!brightnessGood) {
-        if (brightness < 0.3) {
+        if (brightness < 0.2) {
           issues.push('Yorug\'lik kam')
-          recommendations.push('💡 Ko\'proq yorug\'lik kerak')
+          recommendations.push('💡 Biroz yorug\'roq joy kerak')
         } else {
           issues.push('Juda yorqin')
-          recommendations.push('🌤️ Yorug\'likni kamaytiring')
+          recommendations.push('🌤️ Biroz soyaga o\'ting')
         }
       }
       if (!alignmentGood) {
-        issues.push('Varaq noto\'g\'ri joylashgan')
-        recommendations.push('📄 Varaqni ramkaga to\'g\'ri joylashtiring')
+        issues.push('Varaqni ramkaga qo\'ying')
+        recommendations.push('📄 Varaqni katta ramka ichiga qo\'ying')
       }
       
       const newQualityMetrics = {
@@ -289,19 +289,19 @@ const EvalBeeCameraScanner: React.FC<EvalBeeCameraScannerProps> = memo(({
     const canCaptureNow = focusGood && brightnessGood && alignmentGood
     setCanCapture(canCaptureNow)
     
-    // AUTO-SCAN Logic (as specified in document)
-    if (canCaptureNow && overall >= 0.9 && autoScanCountdown === 0) {
-      console.log('🎯 EvalBee: Perfect conditions detected, starting auto-scan countdown')
-      setAutoScanCountdown(3)
+    // AUTO-SCAN Logic - ULTRA-FAST for 2-second alignment
+    if (canCaptureNow && overall >= 0.5 && autoScanCountdown === 0) { // Even lower threshold
+      console.log('🎯 EvalBee: Good conditions detected, starting ultra-fast auto-scan')
+      setAutoScanCountdown(1) // Even shorter countdown
       
-      // Auto-capture after 0.5-1 second (as specified)
+      // Ultra-fast auto-capture - 0.3 seconds for instant alignment
       setTimeout(() => {
-        if (canCapture && qualityMetrics.overall >= 0.9 && !isProcessing) {
-          console.log('📸 EvalBee: Auto-capturing perfect frame')
+        if (canCapture && qualityMetrics.overall >= 0.4 && !isProcessing) { // Ultra-low threshold
+          console.log('📸 EvalBee: Ultra-fast auto-capturing frame')
           captureImage()
         }
         setAutoScanCountdown(0)
-      }, 800) // 0.8 seconds as specified
+      }, 300) // Ultra-fast - 0.3 seconds
     }
     
     // Draw guide overlay (throttled)
@@ -349,40 +349,40 @@ const EvalBeeCameraScanner: React.FC<EvalBeeCameraScannerProps> = memo(({
     return count > 0 ? (sum / count) / 255 : 0
   }
 
-  // EvalBee Method: Paper detection in frame
+  // EvalBee Method: Paper detection in frame - ULTRA FORGIVING for 2-second alignment
   const detectPaperInFrame = (grayscale: number[], width: number, height: number, sampleRate: number = 1): AlignmentStatus => {
-    // Define frame boundaries for paper detection
-    const frameMargin = 0.1 // 10% margin
+    // Ultra-large and extremely forgiving frame boundaries - almost full screen
+    const frameMargin = 0.03 // Only 3% margin - extremely forgiving
     const frameLeft = Math.floor(width * frameMargin)
     const frameRight = Math.floor(width * (1 - frameMargin))
     const frameTop = Math.floor(height * frameMargin)
     const frameBottom = Math.floor(height * (1 - frameMargin))
     
-    // Check if paper edges are within frame
-    let edgePixels = 0
+    // Ultra-lenient paper detection - accept almost anything paper-like
+    let paperPixels = 0
     let totalChecked = 0
     
-    // Sample frame edges for paper detection
-    for (let x = frameLeft; x < frameRight; x += 5) {
-      for (let y = frameTop; y < frameBottom; y += 5) {
+    // Sample even less frequently for maximum performance and forgiveness
+    for (let x = frameLeft; x < frameRight; x += 20) { // Even larger step size
+      for (let y = frameTop; y < frameBottom; y += 20) { // Even larger step size
         const idx = y * width + x
         if (idx < grayscale.length) {
           const pixel = grayscale[idx]
           
-          // Look for paper edges (moderate contrast)
-          if (pixel > 180 && pixel < 240) { // Paper-like brightness
-            edgePixels++
+          // Ultra-forgiving paper detection - accept very wide range
+          if (pixel > 100 && pixel < 255) { // Even wider range for paper detection
+            paperPixels++
           }
           totalChecked++
         }
       }
     }
     
-    const paperRatio = totalChecked > 0 ? edgePixels / totalChecked : 0
-    const paperDetected = paperRatio > 0.3
-    const alignment = paperRatio
+    const paperRatio = totalChecked > 0 ? paperPixels / totalChecked : 0
+    const paperDetected = paperRatio > 0.1 // Ultra-low threshold - extremely forgiving
+    const alignment = Math.min(1, paperRatio * 3) // Even more boost to alignment score
     
-    // Mock corner detection for compatibility
+    // Mock corner detection - always show as detected if paper is present
     const corners = [
       { x: frameLeft * sampleRate, y: frameTop * sampleRate, detected: paperDetected, name: 'TL' },
       { x: frameRight * sampleRate, y: frameTop * sampleRate, detected: paperDetected, name: 'TR' },
@@ -407,8 +407,8 @@ const EvalBeeCameraScanner: React.FC<EvalBeeCameraScannerProps> = memo(({
     
     ctx.clearRect(0, 0, canvas.width, canvas.height)
     
-    // EvalBee Method: Simple rectangular frame + corner markers
-    const frameMargin = 0.1 // 10% margin as specified
+    // EvalBee Method: Simple rectangular frame + corner markers - ULTRA-FORGIVING
+    const frameMargin = 0.03 // Ultra-small 3% margin - maximum space
     const frameX = canvas.width * frameMargin
     const frameY = canvas.height * frameMargin
     const frameWidth = canvas.width * (1 - 2 * frameMargin)
@@ -634,93 +634,83 @@ const EvalBeeCameraScanner: React.FC<EvalBeeCameraScannerProps> = memo(({
               style={{ transform: 'scaleX(-1)' }} // Match video mirror
             />
             
-            {/* Visible UI Frame Overlay */}
+            {/* Visible UI Frame Overlay - EASY ALIGNMENT */}
             <div className="absolute inset-0 z-15 pointer-events-none">
-              {/* Main Frame Border */}
+              {/* Main Frame Border - Ultra-large and extremely forgiving */}
               <div 
-                className={`absolute border-4 rounded-lg transition-all duration-300 ${
+                className={`absolute border-4 rounded-xl transition-all duration-300 ${
                   alignmentStatus.paperDetected 
                     ? 'border-green-400 shadow-lg shadow-green-400/50' 
-                    : 'border-red-400 shadow-lg shadow-red-400/50'
+                    : 'border-blue-400 shadow-lg shadow-blue-400/50'
                 }`}
                 style={{
-                  left: '10%',
-                  top: '10%',
-                  width: '80%',
-                  height: '80%',
+                  left: '3%',    // Even larger - ultra-forgiving
+                  top: '5%',     // Even larger - ultra-forgiving  
+                  width: '94%',  // Almost full width - maximum space
+                  height: '90%', // Almost full height - maximum space
                   borderStyle: 'dashed',
-                  borderWidth: '3px'
+                  borderWidth: '2px' // Thin border, less intrusive
                 }}
               >
-                {/* Corner Markers with Animation */}
-                <div className="absolute -top-3 -left-3">
-                  <div className={`w-16 h-16 border-l-4 border-t-4 rounded-tl-lg transition-all duration-300 ${
+                {/* Simplified Corner Markers - Less intimidating */}
+                <div className="absolute -top-2 -left-2">
+                  <div className={`w-8 h-8 border-l-3 border-t-3 rounded-tl-lg transition-all duration-300 ${
                     alignmentStatus.paperDetected 
-                      ? 'border-green-400 shadow-lg shadow-green-400/50' 
-                      : 'border-red-400 shadow-lg shadow-red-400/50 animate-pulse'
+                      ? 'border-green-400' 
+                      : 'border-blue-400'
                   }`}></div>
                 </div>
-                <div className="absolute -top-3 -right-3">
-                  <div className={`w-16 h-16 border-r-4 border-t-4 rounded-tr-lg transition-all duration-300 ${
+                <div className="absolute -top-2 -right-2">
+                  <div className={`w-8 h-8 border-r-3 border-t-3 rounded-tr-lg transition-all duration-300 ${
                     alignmentStatus.paperDetected 
-                      ? 'border-green-400 shadow-lg shadow-green-400/50' 
-                      : 'border-red-400 shadow-lg shadow-red-400/50 animate-pulse'
+                      ? 'border-green-400' 
+                      : 'border-blue-400'
                   }`}></div>
                 </div>
-                <div className="absolute -bottom-3 -left-3">
-                  <div className={`w-16 h-16 border-l-4 border-b-4 rounded-bl-lg transition-all duration-300 ${
+                <div className="absolute -bottom-2 -left-2">
+                  <div className={`w-8 h-8 border-l-3 border-b-3 rounded-bl-lg transition-all duration-300 ${
                     alignmentStatus.paperDetected 
-                      ? 'border-green-400 shadow-lg shadow-green-400/50' 
-                      : 'border-red-400 shadow-lg shadow-red-400/50 animate-pulse'
+                      ? 'border-green-400' 
+                      : 'border-blue-400'
                   }`}></div>
                 </div>
-                <div className="absolute -bottom-3 -right-3">
-                  <div className={`w-16 h-16 border-r-4 border-b-4 rounded-br-lg transition-all duration-300 ${
+                <div className="absolute -bottom-2 -right-2">
+                  <div className={`w-8 h-8 border-r-3 border-b-3 rounded-br-lg transition-all duration-300 ${
                     alignmentStatus.paperDetected 
-                      ? 'border-green-400 shadow-lg shadow-green-400/50' 
-                      : 'border-red-400 shadow-lg shadow-red-400/50 animate-pulse'
+                      ? 'border-green-400' 
+                      : 'border-blue-400'
                   }`}></div>
                 </div>
                 
-                {/* Frame Label */}
-                <div className="absolute -top-10 left-1/2 transform -translate-x-1/2">
-                  <div className={`px-4 py-2 rounded-full text-sm font-bold transition-all duration-300 ${
+                {/* Friendly Frame Label */}
+                <div className="absolute -top-12 left-1/2 transform -translate-x-1/2">
+                  <div className={`px-6 py-2 rounded-full text-sm font-medium transition-all duration-300 ${
                     alignmentStatus.paperDetected 
                       ? 'bg-green-400 text-green-900 shadow-lg shadow-green-400/50' 
-                      : 'bg-red-400 text-red-900 shadow-lg shadow-red-400/50 animate-pulse'
+                      : 'bg-blue-400 text-blue-900 shadow-lg shadow-blue-400/50'
                   }`}>
-                    {alignmentStatus.paperDetected ? '✅ RAMKA ICHIDA' : '📄 RAMKAGA JOYLASHTIRING'}
+                    {alignmentStatus.paperDetected 
+                  ? '✅ PERFECT! TAYYOR' : '📄 KATTA MAYDONGA QOYING - OSON'
+                }
                   </div>
                 </div>
               </div>
               
-              {/* Center Guidelines */}
+              {/* Minimal Center Guidelines - Less distracting */}
               <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                {/* Horizontal center line */}
-                <div className={`absolute w-20 h-0.5 transition-all duration-300 ${
-                  alignmentStatus.paperDetected ? 'bg-green-400' : 'bg-white'
-                } opacity-60`}></div>
-                {/* Vertical center line */}
-                <div className={`absolute h-20 w-0.5 transition-all duration-300 ${
-                  alignmentStatus.paperDetected ? 'bg-green-400' : 'bg-white'
-                } opacity-60`}></div>
-                
-                {/* Center circle */}
-                <div className={`absolute w-4 h-4 rounded-full transition-all duration-300 ${
-                  alignmentStatus.paperDetected ? 'bg-green-400' : 'bg-white'
-                } opacity-60`}></div>
+                {/* Small center indicator only */}
+                <div className={`absolute w-2 h-2 rounded-full transition-all duration-300 ${
+                  alignmentStatus.paperDetected ? 'bg-green-400' : 'bg-blue-400'
+                } opacity-40`}></div>
               </div>
               
-              {/* Scanning Area Overlay */}
+              {/* Minimal Scanning Area Overlay - Ultra-minimal */}
               <div className="absolute inset-0 pointer-events-none">
-                {/* Top overlay */}
-                <div className="absolute top-0 left-0 right-0 bg-black/40" style={{ height: '10%' }}></div>
-                {/* Bottom overlay */}
-                <div className="absolute bottom-0 left-0 right-0 bg-black/40" style={{ height: '10%' }}></div>
-                {/* Left overlay */}
-                <div className="absolute left-0 bg-black/40" style={{ top: '10%', bottom: '10%', width: '10%' }}></div>
-                {/* Right overlay */}
-                <div className="absolute right-0 bg-black/40" style={{ top: '10%', bottom: '10%', width: '10%' }}></div>
+                {/* Ultra-light overlay outside scanning area */}
+                <div className="absolute top-0 left-0 right-0 bg-black/10" style={{ height: '5%' }}></div>
+                <div className="absolute bottom-0 left-0 right-0 bg-black/10" style={{ height: '5%' }}></div>
+                <div className="absolute left-0 bg-black/10" style={{ top: '5%', bottom: '5%', width: '3%' }}></div>
+                <div className="absolute right-0 bg-black/10" style={{ top: '5%', bottom: '5%', width: '3%' }}></div>
               </div>
             </div>
             
@@ -776,16 +766,16 @@ const EvalBeeCameraScanner: React.FC<EvalBeeCameraScannerProps> = memo(({
               </div>
             </div>
             
-            {/* Frame Status Indicator */}
+            {/* Frame Status Indicator - ULTRA-ENCOURAGING */}
             <div className="absolute top-16 left-1/2 transform -translate-x-1/2 z-20">
               <div className={`px-4 py-2 rounded-lg text-sm font-medium transition-all duration-300 ${
                 alignmentStatus.paperDetected 
                   ? 'bg-green-500/90 text-white' 
-                  : 'bg-red-500/90 text-white'
+                  : 'bg-blue-500/90 text-white'
               }`}>
                 {alignmentStatus.paperDetected 
-                  ? '✅ Ramka ichida' 
-                  : '❌ Ramkaga joylashtiring'
+                  ? '✅ Ajoyib! Deyarli butun ekran' 
+                  : '📄 Juda oson - katta maydon'
                 }
               </div>
             </div>
@@ -795,45 +785,45 @@ const EvalBeeCameraScanner: React.FC<EvalBeeCameraScannerProps> = memo(({
 
       {/* Bottom Controls */}
       <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black via-black/80 to-transparent p-6 z-20">
-        {/* EvalBee Status Text (as specified in evalbee_camera_page.md) */}
+        {/* EvalBee Status Text - ENCOURAGING and EASY */}
         <div className="text-center mb-6">
           {!alignmentStatus.paperDetected ? (
             <div className="space-y-2">
-              <p className="text-red-400 text-lg font-medium">📄 Varaqni ramkaga joylashtiring</p>
-              <p className="text-white/70 text-sm">Varaq ramkadan chiqmasin</p>
+              <p className="text-blue-400 text-lg font-medium">📄 Katta maydonga qo'ying</p>
+              <p className="text-white/70 text-sm">Juda oson - deyarli butun ekran</p>
             </div>
-          ) : qualityMetrics.focus < 0.7 ? (
+          ) : qualityMetrics.focus < 0.5 ? (
             <div className="space-y-2">
-              <p className="text-yellow-400 text-lg font-medium">📱 Kamerani yaqinlashtiring</p>
-              <p className="text-white/70 text-sm">Rasm aniq emas - Focus: {Math.round(qualityMetrics.focus * 100)}%</p>
+              <p className="text-yellow-400 text-lg font-medium">📱 Biroz yaqinroq qiling</p>
+              <p className="text-white/70 text-sm">Focus: {Math.round(qualityMetrics.focus * 100)}% - yaxshi bo'lyapti</p>
             </div>
-          ) : qualityMetrics.brightness < 0.3 ? (
+          ) : qualityMetrics.brightness < 0.2 ? (
             <div className="space-y-2">
-              <p className="text-yellow-400 text-lg font-medium">💡 Yorug'likni sozlang</p>
-              <p className="text-white/70 text-sm">Juda qorong'i - Yorug'lik: {Math.round(qualityMetrics.brightness * 100)}%</p>
+              <p className="text-yellow-400 text-lg font-medium">💡 Biroz yorug'roq joy</p>
+              <p className="text-white/70 text-sm">Yorug'lik: {Math.round(qualityMetrics.brightness * 100)}% - deyarli tayyor</p>
             </div>
-          ) : qualityMetrics.brightness > 0.8 ? (
+          ) : qualityMetrics.brightness > 0.9 ? (
             <div className="space-y-2">
-              <p className="text-yellow-400 text-lg font-medium">🌤️ Yorug'likni kamaytiring</p>
-              <p className="text-white/70 text-sm">Juda yorqin - Yorug'lik: {Math.round(qualityMetrics.brightness * 100)}%</p>
+              <p className="text-yellow-400 text-lg font-medium">🌤️ Biroz soyaga o'ting</p>
+              <p className="text-white/70 text-sm">Yorug'lik: {Math.round(qualityMetrics.brightness * 100)}% - juda yorqin</p>
             </div>
-          ) : alignmentStatus.alignment < 0.8 ? (
+          ) : alignmentStatus.alignment < 0.3 ? (
             <div className="space-y-2">
-              <p className="text-yellow-400 text-lg font-medium">📐 Varaqni tekislang</p>
-              <p className="text-white/70 text-sm">Qiyshaygan - Tekislash: {Math.round(alignmentStatus.alignment * 100)}%</p>
+              <p className="text-blue-400 text-lg font-medium">📐 Varaqni to'g'rilab qo'ying</p>
+              <p className="text-white/70 text-sm">Tekislash: {Math.round(alignmentStatus.alignment * 100)}% - yaxshi</p>
             </div>
           ) : !canCapture ? (
             <div className="space-y-2">
-              <p className="text-yellow-400 text-lg font-medium">⚡ Sharoitlarni yaxshilang</p>
+              <p className="text-green-400 text-lg font-medium">⚡ Deyarli tayyor!</p>
               <div className="flex justify-center gap-4 text-xs text-white/60">
                 <span>Focus: {Math.round(qualityMetrics.focus * 100)}%</span>
                 <span>Yorug'lik: {Math.round(qualityMetrics.brightness * 100)}%</span>
                 <span>Tekislash: {Math.round(alignmentStatus.alignment * 100)}%</span>
               </div>
             </div>
-          ) : qualityMetrics.overall >= 0.9 ? (
+          ) : qualityMetrics.overall >= 0.5 ? (
             <div className="space-y-2">
-              <p className="text-green-400 text-lg font-medium">✨ Mukammal sharoitlar!</p>
+              <p className="text-green-400 text-lg font-medium">✨ Ajoyib! Tayyor</p>
               {autoScanCountdown > 0 ? (
                 <p className="text-green-300 text-sm animate-pulse">Avtomatik suratga olish: {autoScanCountdown}s</p>
               ) : (
@@ -854,7 +844,7 @@ const EvalBeeCameraScanner: React.FC<EvalBeeCameraScannerProps> = memo(({
             onClick={captureImage}
             disabled={!isReady || isProcessing || !canCapture}
             className={`relative p-4 rounded-full transition-all duration-300 ${
-              canCapture && qualityMetrics.overall >= 0.9
+              canCapture && qualityMetrics.overall >= 0.7
                 ? 'bg-green-500 hover:bg-green-600 scale-110 shadow-lg shadow-green-500/50' 
                 : canCapture
                   ? 'bg-blue-500 hover:bg-blue-600 shadow-lg shadow-blue-500/50'
