@@ -58,23 +58,40 @@ export class PythonOMRService {
       // In production, ONLY use HTTP server
       if (process.env.NODE_ENV === 'production') {
         console.log(`🔍 Production mode: Checking Python OMR server at: ${this.pythonOMRUrl}`)
-        const response = await fetch(`${this.pythonOMRUrl}/health`, {
-          method: 'GET',
-          timeout: 10000 // 10 second timeout
-        })
-        const isAvailable = response.ok
-        console.log(`Python OMR server available: ${isAvailable}`)
-        return isAvailable
+        
+        // Create AbortController for timeout
+        const controller = new AbortController()
+        const timeoutId = setTimeout(() => controller.abort(), 10000) // 10 second timeout
+        
+        try {
+          const response = await fetch(`${this.pythonOMRUrl}/health`, {
+            method: 'GET',
+            signal: controller.signal
+          })
+          clearTimeout(timeoutId)
+          const isAvailable = response.ok
+          console.log(`Python OMR server available: ${isAvailable}`)
+          return isAvailable
+        } catch (fetchError) {
+          clearTimeout(timeoutId)
+          throw fetchError
+        }
       }
       
       // Development: Try HTTP first, then fallback to subprocess
       if (process.env.PYTHON_OMR_URL) {
         console.log(`🔍 Development mode: Checking Python OMR server at: ${this.pythonOMRUrl}`)
         try {
+          // Create AbortController for timeout
+          const controller = new AbortController()
+          const timeoutId = setTimeout(() => controller.abort(), 5000) // 5 second timeout
+          
           const response = await fetch(`${this.pythonOMRUrl}/health`, {
             method: 'GET',
-            timeout: 5000 // 5 second timeout
+            signal: controller.signal
           })
+          clearTimeout(timeoutId)
+          
           if (response.ok) {
             console.log('Python OMR HTTP server available')
             return true
@@ -164,7 +181,7 @@ export class PythonOMRService {
         try {
           console.log('🚀 Development mode: Trying HTTP server first')
           return await this.processOMRViaHTTP(imageBuffer, answerKey, examData, scoring, debug)
-        } catch (httpError) {
+        } catch (httpError: any) {
           console.log('HTTP server failed, falling back to subprocess:', httpError.message)
         }
       }
