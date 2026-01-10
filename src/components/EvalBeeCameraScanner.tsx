@@ -93,14 +93,18 @@ const EvalBeeCameraScanner: React.FC<EvalBeeCameraScannerProps> = ({
       setError('')
       console.log('🎥 EvalBee Camera: Starting camera initialization...')
       
-      // EvalBee-style camera constraints - optimized for documents
+      // EvalBee-style camera constraints - optimized for documents with better quality
       const constraints = {
         video: {
           facingMode: facingMode,
-          width: { ideal: 1920, min: 1280 }, // Moderate resolution for real-time
+          width: { ideal: 1920, min: 1280 },
           height: { ideal: 1440, min: 960 },
-          frameRate: { ideal: 30, min: 15 },
-          aspectRatio: { ideal: 4/3 }
+          frameRate: { ideal: 30, min: 20 },
+          aspectRatio: { ideal: 4/3 },
+          // Enhanced settings for better image quality
+          focusMode: 'continuous',
+          exposureMode: 'continuous',
+          whiteBalanceMode: 'continuous'
         }
       }
 
@@ -113,15 +117,32 @@ const EvalBeeCameraScanner: React.FC<EvalBeeCameraScannerProps> = ({
 
       if (videoRef.current) {
         videoRef.current.srcObject = mediaStream
+        
+        // Enhanced video settings
         videoRef.current.onloadedmetadata = () => {
           console.log('📺 Video metadata loaded, camera ready for analysis')
+          console.log(`📐 Video dimensions: ${videoRef.current?.videoWidth}x${videoRef.current?.videoHeight}`)
           setIsReady(true)
           setupOverlayCanvas()
         }
+        
+        // Optimize video element for better performance
+        videoRef.current.setAttribute('playsinline', 'true')
+        videoRef.current.setAttribute('webkit-playsinline', 'true')
       }
     } catch (err: any) {
       console.error('❌ EvalBee Camera Error:', err)
-      setError('Kameraga kirish imkoni yo\'q. Brauzer sozlamalarini tekshiring.')
+      let errorMessage = 'Kameraga kirish imkoni yo\'q.'
+      
+      if (err.name === 'NotAllowedError') {
+        errorMessage = 'Kamera ruxsati berilmagan. Brauzer sozlamalarini tekshiring.'
+      } else if (err.name === 'NotFoundError') {
+        errorMessage = 'Kamera topilmadi. Qurilmangizda kamera borligini tekshiring.'
+      } else if (err.name === 'NotReadableError') {
+        errorMessage = 'Kamera band. Boshqa ilovalarni yoping va qayta urinib ko\'ring.'
+      }
+      
+      setError(errorMessage)
     }
   }
 
@@ -403,80 +424,108 @@ const EvalBeeCameraScanner: React.FC<EvalBeeCameraScannerProps> = ({
     ctx.clearRect(0, 0, canvas.width, canvas.height)
     
     // Simple paper frame guide
-    const margin = 0.15
+    const margin = 0.12
     const frameX = canvas.width * margin
     const frameY = canvas.height * margin
     const frameWidth = canvas.width * (1 - 2 * margin)
     const frameHeight = canvas.height * (1 - 2 * margin)
     
     // Frame color based on paper detection
-    const frameColor = alignment.paperDetected ? '#10B981' : '#FFFFFF'
-    const frameOpacity = alignment.paperDetected ? 0.8 : 0.5
+    const frameColor = alignment.paperDetected ? '#10B981' : '#3B82F6'
+    const frameOpacity = alignment.paperDetected ? 0.9 : 0.7
     
-    // Draw main guide frame
+    // Draw main guide frame with glow effect
     ctx.strokeStyle = frameColor
     ctx.globalAlpha = frameOpacity
     ctx.lineWidth = 3
-    ctx.setLineDash([20, 10])
+    ctx.shadowColor = frameColor
+    ctx.shadowBlur = 10
+    ctx.setLineDash([15, 8])
     ctx.strokeRect(frameX, frameY, frameWidth, frameHeight)
     
-    // Draw corner guides (small L-shapes in corners)
+    // Reset shadow
+    ctx.shadowBlur = 0
+    
+    // Draw corner guides (L-shapes in corners) with better visibility
     ctx.setLineDash([])
     ctx.lineWidth = 4
-    const cornerSize = 40
+    ctx.globalAlpha = 1.0
+    const cornerSize = 50
     
-    // Top-left corner
-    ctx.beginPath()
-    ctx.moveTo(frameX, frameY + cornerSize)
-    ctx.lineTo(frameX, frameY)
-    ctx.lineTo(frameX + cornerSize, frameY)
-    ctx.stroke()
+    // Corner colors based on detection
+    alignment.corners.forEach((corner) => {
+      const cornerColor = corner.detected ? '#10B981' : '#EF4444'
+      ctx.strokeStyle = cornerColor
+      ctx.shadowColor = cornerColor
+      ctx.shadowBlur = 8
+      
+      const x = corner.x
+      const y = corner.y
+      
+      // Draw L-shape for each corner
+      ctx.beginPath()
+      if (corner.name === 'TL') {
+        // Top-left
+        ctx.moveTo(x, y + cornerSize)
+        ctx.lineTo(x, y)
+        ctx.lineTo(x + cornerSize, y)
+      } else if (corner.name === 'TR') {
+        // Top-right
+        ctx.moveTo(x - cornerSize, y)
+        ctx.lineTo(x, y)
+        ctx.lineTo(x, y + cornerSize)
+      } else if (corner.name === 'BL') {
+        // Bottom-left
+        ctx.moveTo(x, y - cornerSize)
+        ctx.lineTo(x, y)
+        ctx.lineTo(x + cornerSize, y)
+      } else if (corner.name === 'BR') {
+        // Bottom-right
+        ctx.moveTo(x - cornerSize, y)
+        ctx.lineTo(x, y)
+        ctx.lineTo(x, y - cornerSize)
+      }
+      ctx.stroke()
+    })
     
-    // Top-right corner
-    ctx.beginPath()
-    ctx.moveTo(frameX + frameWidth - cornerSize, frameY)
-    ctx.lineTo(frameX + frameWidth, frameY)
-    ctx.lineTo(frameX + frameWidth, frameY + cornerSize)
-    ctx.stroke()
-    
-    // Bottom-left corner
-    ctx.beginPath()
-    ctx.moveTo(frameX, frameY + frameHeight - cornerSize)
-    ctx.lineTo(frameX, frameY + frameHeight)
-    ctx.lineTo(frameX + cornerSize, frameY + frameHeight)
-    ctx.stroke()
-    
-    // Bottom-right corner
-    ctx.beginPath()
-    ctx.moveTo(frameX + frameWidth - cornerSize, frameY + frameHeight)
-    ctx.lineTo(frameX + frameWidth, frameY + frameHeight)
-    ctx.lineTo(frameX + frameWidth, frameY + frameHeight - cornerSize)
-    ctx.stroke()
-    
+    // Reset shadow
+    ctx.shadowBlur = 0
     ctx.globalAlpha = 1.0
     
-    // Simple center instruction (only when no paper detected)
+    // Center instruction (only when no paper detected)
     if (!alignment.paperDetected) {
-      ctx.fillStyle = 'rgba(0, 0, 0, 0.7)'
-      ctx.fillRect(canvas.width/2 - 120, canvas.height/2 - 30, 240, 60)
+      // Semi-transparent background
+      ctx.fillStyle = 'rgba(0, 0, 0, 0.8)'
+      ctx.fillRect(canvas.width/2 - 140, canvas.height/2 - 40, 280, 80)
       
+      // Border glow
+      ctx.strokeStyle = '#3B82F6'
+      ctx.lineWidth = 2
+      ctx.shadowColor = '#3B82F6'
+      ctx.shadowBlur = 10
+      ctx.strokeRect(canvas.width/2 - 140, canvas.height/2 - 40, 280, 80)
+      ctx.shadowBlur = 0
+      
+      // Text
       ctx.fillStyle = 'white'
-      ctx.font = 'bold 16px sans-serif'
+      ctx.font = 'bold 18px sans-serif'
       ctx.textAlign = 'center'
-      ctx.fillText('OMR varaqni ramkaga', canvas.width/2, canvas.height/2 - 5)
-      ctx.fillText('joylashtiring', canvas.width/2, canvas.height/2 + 20)
+      ctx.fillText('OMR varaqni ramkaga', canvas.width/2, canvas.height/2 - 8)
+      ctx.fillText('joylashtiring', canvas.width/2, canvas.height/2 + 18)
     }
     
     // Show capture preview area (what will be captured)
     if (alignment.paperDetected) {
-      // Draw capture area outline
-      ctx.strokeStyle = '#FFD700' // Gold color for capture area
-      ctx.globalAlpha = 0.9
+      // Draw capture area outline with animated effect
+      ctx.strokeStyle = '#FFD700'
+      ctx.globalAlpha = 0.8
       ctx.lineWidth = 2
-      ctx.setLineDash([10, 5])
+      ctx.shadowColor = '#FFD700'
+      ctx.shadowBlur = 15
+      ctx.setLineDash([8, 4])
       
       // Slightly smaller area than guide frame (actual capture area)
-      const captureMargin = 0.18
+      const captureMargin = 0.15
       const captureX = canvas.width * captureMargin
       const captureY = canvas.height * captureMargin
       const captureWidth = canvas.width * (1 - 2 * captureMargin)
@@ -484,15 +533,8 @@ const EvalBeeCameraScanner: React.FC<EvalBeeCameraScannerProps> = ({
       
       ctx.strokeRect(captureX, captureY, captureWidth, captureHeight)
       
-      // Add "CAPTURE AREA" label
-      ctx.fillStyle = 'rgba(255, 215, 0, 0.9)'
-      ctx.fillRect(captureX + 10, captureY + 10, 120, 25)
-      
-      ctx.fillStyle = 'black'
-      ctx.font = 'bold 12px sans-serif'
-      ctx.textAlign = 'left'
-      ctx.fillText('CAPTURE AREA', captureX + 15, captureY + 27)
-      
+      // Reset effects
+      ctx.shadowBlur = 0
       ctx.globalAlpha = 1.0
       ctx.setLineDash([])
     }
@@ -569,7 +611,7 @@ const EvalBeeCameraScanner: React.FC<EvalBeeCameraScannerProps> = ({
 
   return (
     <div className="fixed inset-0 bg-black z-50 flex flex-col">
-      {/* Camera View */}
+      {/* Camera View - Full Screen */}
       <div className="flex-1 relative overflow-hidden">
         {error ? (
           <div className="flex items-center justify-center h-full text-white text-center p-4">
@@ -587,31 +629,38 @@ const EvalBeeCameraScanner: React.FC<EvalBeeCameraScannerProps> = ({
           </div>
         ) : (
           <>
+            {/* Video Element - Full Screen */}
             <video
               ref={videoRef}
               autoPlay
               playsInline
               muted
-              className="w-full h-full object-cover"
+              className="absolute inset-0 w-full h-full object-cover"
+              style={{ 
+                transform: 'scaleX(-1)', // Mirror effect for better UX
+                backgroundColor: '#000'
+              }}
             />
             
-            {/* Simple Guide Overlay */}
+            {/* Overlay Canvas for Guides */}
             <canvas
               ref={overlayCanvasRef}
-              className="absolute inset-0 w-full h-full pointer-events-none"
+              className="absolute inset-0 w-full h-full pointer-events-none z-10"
+              style={{ transform: 'scaleX(-1)' }} // Match video mirror
             />
             
-            {/* Real-time Preview - shows what will be captured */}
+            {/* Real-time Preview Window */}
             {alignmentStatus.paperDetected && (
-              <div className="absolute top-4 left-4 bg-black/90 rounded-lg p-2 border-2 border-yellow-400">
-                <div className="text-yellow-400 text-xs font-bold mb-1 text-center">
+              <div className="absolute top-4 left-4 bg-black/90 rounded-lg p-2 border-2 border-green-400 z-20">
+                <div className="text-green-400 text-xs font-bold mb-1 text-center">
                   PREVIEW
                 </div>
                 <canvas
                   ref={previewCanvasRef}
-                  className="rounded border border-yellow-400"
-                  width={200}
-                  height={150}
+                  className="rounded border border-green-400"
+                  width={160}
+                  height={120}
+                  style={{ transform: 'scaleX(-1)' }} // Match video mirror
                 />
                 <div className="text-white text-xs text-center mt-1">
                   Suratga olinadi
@@ -619,67 +668,130 @@ const EvalBeeCameraScanner: React.FC<EvalBeeCameraScannerProps> = ({
               </div>
             )}
             
-            {/* Close button and Debug button - top right */}
-            <div className="absolute top-4 right-4 flex items-center gap-2 z-10">
+            {/* Top Controls */}
+            <div className="absolute top-4 right-4 flex items-center gap-2 z-20">
               {onShowDebug && (
                 <button
                   onClick={onShowDebug}
-                  className="p-2 bg-black/50 hover:bg-black/70 rounded-full text-white transition-colors"
-                  title="Open Debug Console"
+                  className="p-3 bg-black/70 hover:bg-black/90 rounded-full text-white transition-colors backdrop-blur-sm"
+                  title="Debug Console"
                 >
                   <Bug size={20} />
                 </button>
               )}
               <button
                 onClick={onClose}
-                className="p-2 bg-black/50 hover:bg-black/70 rounded-full text-white transition-colors"
+                className="p-3 bg-black/70 hover:bg-black/90 rounded-full text-white transition-colors backdrop-blur-sm"
+                title="Yopish"
               >
                 <X size={24} />
               </button>
+            </div>
+
+            {/* Quality Indicator */}
+            <div className="absolute top-4 left-1/2 transform -translate-x-1/2 z-20">
+              <div className="bg-black/70 backdrop-blur-sm rounded-full px-4 py-2 flex items-center gap-2">
+                <div className={`w-3 h-3 rounded-full ${
+                  qualityMetrics.overall >= 0.8 ? 'bg-green-500' :
+                  qualityMetrics.overall >= 0.6 ? 'bg-yellow-500' : 'bg-red-500'
+                }`} />
+                <span className="text-white text-sm font-medium">
+                  Sifat: {Math.round(qualityMetrics.overall * 100)}%
+                </span>
+              </div>
             </div>
           </>
         )}
       </div>
 
-      {/* Simple Status Text - Bottom */}
-      <div className="absolute bottom-0 left-0 right-0 p-6 bg-gradient-to-t from-black/90 to-transparent">
-        <div className="text-center">
+      {/* Bottom Controls */}
+      <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black via-black/80 to-transparent p-6 z-20">
+        {/* Status Text */}
+        <div className="text-center mb-6">
           {!alignmentStatus.paperDetected ? (
-            <p className="text-red-400 text-lg font-medium">📄 OMR varaqni joylashtiring</p>
+            <div className="space-y-2">
+              <p className="text-red-400 text-lg font-medium">📄 OMR varaqni joylashtiring</p>
+              <p className="text-white/70 text-sm">Varaqni kamera oldiga qo'ying</p>
+            </div>
           ) : alignmentStatus.corners.filter(c => c.detected).length < 3 ? (
-            <p className="text-yellow-400 text-lg font-medium">🎯 Qog'ozni to'g'ri joylashtiring</p>
+            <div className="space-y-2">
+              <p className="text-yellow-400 text-lg font-medium">🎯 Qog'ozni to'g'ri joylashtiring</p>
+              <p className="text-white/70 text-sm">
+                Burchaklar: {alignmentStatus.corners.filter(c => c.detected).length}/4
+              </p>
+            </div>
           ) : !canCapture ? (
-            <p className="text-yellow-400 text-lg font-medium">⚡ Sifatni yaxshilang</p>
+            <div className="space-y-2">
+              <p className="text-yellow-400 text-lg font-medium">⚡ Sifatni yaxshilang</p>
+              <div className="flex justify-center gap-4 text-xs text-white/60">
+                <span>Focus: {Math.round(qualityMetrics.focus * 100)}%</span>
+                <span>Yorug'lik: {Math.round(qualityMetrics.brightness * 100)}%</span>
+              </div>
+            </div>
           ) : qualityMetrics.overall >= 0.9 ? (
-            <p className="text-green-400 text-lg font-medium">✨ Suratga olishga tayyor</p>
+            <div className="space-y-2">
+              <p className="text-green-400 text-lg font-medium">✨ Mukammal sifat!</p>
+              {autoScanCountdown > 0 && (
+                <p className="text-green-300 text-sm">Avtomatik suratga olish: {autoScanCountdown}s</p>
+              )}
+            </div>
           ) : (
-            <p className="text-blue-400 text-lg font-medium">📸 Suratga olish mumkin</p>
+            <div className="space-y-2">
+              <p className="text-blue-400 text-lg font-medium">📸 Suratga olish mumkin</p>
+              <p className="text-white/70 text-sm">Tugmani bosing yoki kutib turing</p>
+            </div>
           )}
         </div>
         
-        {/* Simple Capture Button */}
-        <div className="flex justify-center mt-4">
+        {/* Capture Button */}
+        <div className="flex justify-center">
           <button
             onClick={captureImage}
             disabled={!isReady || isProcessing || !canCapture}
-            className={`p-4 rounded-full text-white transition-all duration-300 ${
+            className={`relative p-4 rounded-full transition-all duration-300 ${
               canCapture && qualityMetrics.overall >= 0.9
-                ? 'bg-green-500 hover:bg-green-600 scale-110' 
+                ? 'bg-green-500 hover:bg-green-600 scale-110 shadow-lg shadow-green-500/50' 
                 : canCapture
-                  ? 'bg-blue-500 hover:bg-blue-600'
+                  ? 'bg-blue-500 hover:bg-blue-600 shadow-lg shadow-blue-500/50'
                   : 'bg-gray-600 cursor-not-allowed opacity-50'
             }`}
+            style={{
+              boxShadow: canCapture ? '0 0 30px rgba(59, 130, 246, 0.5)' : 'none'
+            }}
           >
             {isProcessing ? (
               <div className="w-8 h-8 border-3 border-white border-t-transparent rounded-full animate-spin" />
             ) : (
-              <Camera size={32} />
+              <Camera size={32} className="text-white" />
+            )}
+            
+            {/* Quality Ring */}
+            {canCapture && (
+              <div className="absolute inset-0 rounded-full border-4 border-white/30 animate-pulse" />
             )}
           </button>
         </div>
+
+        {/* Quick Stats */}
+        {alignmentStatus.paperDetected && (
+          <div className="flex justify-center gap-6 mt-4 text-xs text-white/60">
+            <div className="text-center">
+              <div className="text-white font-medium">{Math.round(qualityMetrics.focus * 100)}%</div>
+              <div>Focus</div>
+            </div>
+            <div className="text-center">
+              <div className="text-white font-medium">{Math.round(qualityMetrics.brightness * 100)}%</div>
+              <div>Yorug'lik</div>
+            </div>
+            <div className="text-center">
+              <div className="text-white font-medium">{alignmentStatus.corners.filter(c => c.detected).length}/4</div>
+              <div>Burchak</div>
+            </div>
+          </div>
+        )}
       </div>
 
-      {/* Hidden canvas for processing */}
+      {/* Hidden Processing Canvas */}
       <canvas ref={canvasRef} className="hidden" />
     </div>
   )
