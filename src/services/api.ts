@@ -3,16 +3,29 @@ const getApiBaseUrl = () => {
   // Check if we're in production
   if (import.meta.env.PROD) {
     // Production URL (will be set during deployment)
-    return import.meta.env.VITE_API_URL || 'https://ultra-precision-omr-backend.onrender.com/api'
+    return import.meta.env.VITE_API_BASE_URL || 'https://ultra-precision-omr-backend.onrender.com/api'
   }
   
   // Development URL - Backend runs on port 10000
-  return import.meta.env.VITE_API_URL || 'http://localhost:10000/api'
+  return import.meta.env.VITE_API_BASE_URL || 'http://localhost:10000/api'
+}
+
+const getPythonOMRUrl = () => {
+  // Check if we're in production
+  if (import.meta.env.PROD) {
+    // Production URL for Python OMR service
+    return import.meta.env.VITE_PYTHON_OMR_URL || 'https://ultra-precision-python-omr.onrender.com'
+  }
+  
+  // Development URL - Python OMR runs on port 5000
+  return import.meta.env.VITE_PYTHON_OMR_URL || 'http://localhost:5000'
 }
 
 const API_BASE_URL = getApiBaseUrl()
+const PYTHON_OMR_URL = getPythonOMRUrl()
 
 console.log('🔗 API Base URL:', API_BASE_URL)
+console.log('🐍 Python OMR URL:', PYTHON_OMR_URL)
 
 interface ApiResponse<T = any> {
   success: boolean
@@ -230,7 +243,7 @@ class ApiService {
   }
 
   // OpenCV-based OMR methods
-  // EvalBee-style OMR processing
+  // EvalBee-style OMR processing via Node.js backend
   async processOMRWithEvalBee(
     file: File,
     answerKey: string[],
@@ -264,12 +277,97 @@ class ApiService {
     formData.append('advanced_detection', 'true') // Advanced bubble detection
     formData.append('debug', 'true')
 
-    console.log('🚀 EvalBee OMR Engine processing with advanced features')
+    console.log('🚀 EvalBee OMR Engine processing via Node.js backend')
 
     return this.request<any>('/omr/process', {
       method: 'POST',
       body: formData,
     })
+  }
+
+  // Direct Python OMR Service methods
+  async processOMRDirectly(
+    file: File,
+    answerKey: string[],
+    examId?: string,
+    processingMode: string = 'evalbee'
+  ) {
+    const formData = new FormData()
+    formData.append('image', file)
+    formData.append('answer_key', answerKey.join(','))
+    formData.append('processing_mode', processingMode)
+    
+    if (examId) {
+      formData.append('exam_id', examId)
+    }
+
+    console.log('🐍 Processing OMR directly via Python service')
+
+    try {
+      const response = await fetch(`${PYTHON_OMR_URL}/process-omr`, {
+        method: 'POST',
+        body: formData,
+      })
+
+      if (!response.ok) {
+        const errorText = await response.text()
+        throw new Error(`Python OMR Error: ${response.status} - ${errorText}`)
+      }
+
+      const result = await response.json()
+      console.log('✅ Direct Python OMR processing completed')
+      return { success: true, data: result }
+    } catch (error) {
+      console.error('❌ Direct Python OMR processing failed:', error)
+      throw error
+    }
+  }
+
+  async checkPythonOMRHealth() {
+    try {
+      const response = await fetch(`${PYTHON_OMR_URL}/health`)
+      if (!response.ok) {
+        throw new Error(`Health check failed: ${response.status}`)
+      }
+      const result = await response.json()
+      console.log('✅ Python OMR service is healthy')
+      return { success: true, data: result }
+    } catch (error: any) {
+      console.error('❌ Python OMR service health check failed:', error)
+      return { success: false, error: error?.message || 'Unknown error' }
+    }
+  }
+
+  // Hybrid processing: Try direct Python first, fallback to Node.js backend
+  async processOMRHybrid(
+    file: File,
+    answerKey: string[],
+    scoring: { correct: number; wrong: number; blank: number },
+    examId?: string,
+    examData?: any
+  ) {
+    console.log('🔄 Hybrid OMR processing: Trying direct Python first')
+    
+    try {
+      // Try direct Python OMR service first
+      const directResult = await this.processOMRDirectly(file, answerKey, examId, 'evalbee')
+      console.log('✅ Direct Python processing successful')
+      return directResult
+    } catch (directError: any) {
+      console.log('⚠️ Direct Python failed, falling back to Node.js backend:', directError?.message || 'Unknown error')
+      
+      try {
+        // Fallback to Node.js backend
+        const backendResult = await this.processOMRWithEvalBee(file, answerKey, scoring, examId, examData)
+        console.log('✅ Node.js backend processing successful')
+        return backendResult
+      } catch (backendError: any) {
+        console.error('❌ Both processing methods failed')
+        const directMsg = directError?.message || 'Unknown direct error'
+        const backendMsg = backendError?.message || 'Unknown backend error'
+        throw new Error(`All processing methods failed. Direct: ${directMsg}, Backend: ${backendMsg}`)
+      }
+    }
   }
 }
 

@@ -5,6 +5,19 @@ services:
     env: static
     buildCommand: npm ci && npm run build
     staticPublishPath: ./dist
+    envVars:
+      - key: VITE_API_BASE_URL
+        value: https://ultra-precision-omr-backend.onrender.com/api
+      - key: VITE_PYTHON_OMR_URL
+        value: https://ultra-precision-python-omr.onrender.com
+      - key: VITE_APP_NAME
+        value: EvalBee OMR Scanner
+      - key: VITE_APP_VERSION
+        value: 2.0.0
+      - key: VITE_DEBUG_MODE
+        value: false
+      - key: VITE_ENABLE_CONSOLE_LOGS
+        value: false
     headers:
       - key: Cache-Control
         value: public, max-age=0, must-revalidate
@@ -33,6 +46,8 @@ services:
         value: production
       - key: PORT
         value: 10000
+      - key: HOST
+        value: 0.0.0.0
       - key: MONGODB_URI
         fromDatabase:
           name: ultra-omr-db
@@ -45,6 +60,8 @@ services:
         value: https://ultra-precision-omr-frontend.onrender.com
       - key: PYTHON_OMR_URL
         value: https://ultra-precision-python-omr.onrender.com
+      - key: CORS_ORIGINS
+        value: https://ultra-precision-omr-frontend.onrender.com,https://ultra-precision-python-omr.onrender.com
       # AI Service Configuration
       - key: GROQ_API_KEY
         sync: false # Set manually in Render dashboard
@@ -57,6 +74,10 @@ services:
         value: 30000 # 30 seconds
       - key: AI_TIMEOUT
         value: 60000 # 60 seconds
+      - key: DEBUG_MODE
+        value: false
+      - key: LOG_LEVEL
+        value: info
 
 databases:
   - name: ultra-omr-db

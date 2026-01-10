@@ -19,6 +19,11 @@ services:
         value: false
       - key: WORKERS
         value: 2
+      # Service URLs
+      - key: FRONTEND_URL
+        value: https://ultra-precision-omr-frontend.onrender.com
+      - key: BACKEND_URL
+        value: https://ultra-precision-omr-backend.onrender.com
       # Performance Settings for OMR Processing
       - key: MAX_CONTENT_LENGTH
         value: 16777216 # 16MB for image uploads
@@ -35,7 +40,21 @@ services:
         value: 1
       # CORS Settings
       - key: CORS_ORIGINS
-        value: "*"
+        value: "https://ultra-precision-omr-frontend.onrender.com,https://ultra-precision-omr-backend.onrender.com"
+      # Processing Settings
+      - key: DEFAULT_PROCESSING_MODE
+        value: evalbee
+      - key: ENABLE_DEBUG_OUTPUT
+        value: false
+      - key: SAVE_PROCESSED_IMAGES
+        value: false
+      - key: PROCESSING_TIMEOUT
+        value: 30
+      - key: MAX_CONCURRENT_REQUESTS
+        value: 5
+      # Security Settings
+      - key: API_KEY
+        value: omr_python_server_2024_secure_key_12345
     # Disk storage for temporary files
     disk:
       name: python-omr-storage
