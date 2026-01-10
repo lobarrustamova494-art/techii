@@ -256,10 +256,14 @@ const EvalBeeCameraScanner: React.FC<EvalBeeCameraScannerProps> = memo(({
     // 3. Fast Alignment Check
     const alignment = detectPaperAlignment(grayscale, sampledWidth, sampledHeight, sampleRate)
     
-    // 4. Bubble Detection (only when paper detected and every 20th frame)
+    // 4. Enhanced Bubble Detection (more frequent when paper detected)
     let bubbles: DetectedBubble[] = []
-    if (alignment.paperDetected && correctAnswers.length > 0 && Math.random() > 0.95) {
-      bubbles = detectBubbles(grayscale, sampledWidth, sampledHeight, alignment, sampleRate)
+    if (alignment.paperDetected && correctAnswers.length > 0) {
+      // Increase detection frequency when paper is properly aligned
+      const detectionChance = alignment.alignment > 0.8 ? 0.3 : 0.1 // 30% vs 10% chance
+      if (Math.random() < detectionChance) {
+        bubbles = detectBubbles(grayscale, sampledWidth, sampledHeight, alignment, sampleRate)
+      }
     }
     
     // 5. Overall Quality (EvalBee method)
@@ -418,25 +422,25 @@ const EvalBeeCameraScanner: React.FC<EvalBeeCameraScannerProps> = memo(({
     }
   }
 
-  // Bubble detection funksiyasi (optimized)
+  // Enhanced Bubble detection with improved accuracy (optimized)
   const detectBubbles = (grayscale: number[], width: number, height: number, alignment: AlignmentStatus, sampleRate: number = 1): DetectedBubble[] => {
     const bubbles: DetectedBubble[] = []
     
     if (!alignment.paperDetected || correctAnswers.length === 0) return bubbles
     
-    // Limit to first 15 questions for performance
-    const maxQuestions = Math.min(correctAnswers.length, 15)
+    // Enhanced: Process more questions for better coverage
+    const maxQuestions = Math.min(correctAnswers.length, 25)
     const questionsPerColumn = Math.ceil(maxQuestions / 3)
     const questionHeight = Math.floor(height * 0.6 / questionsPerColumn)
     const startY = Math.floor(height * 0.2)
     const columnWidth = Math.floor(width * 0.25)
     const startX = Math.floor(width * 0.15)
     
-    const bubbleRadius = Math.floor(8 / sampleRate)
-    const optionSpacing = Math.floor(25 / sampleRate)
+    const bubbleRadius = Math.floor(10 / sampleRate) // Slightly larger for better detection
+    const optionSpacing = Math.floor(28 / sampleRate) // Better spacing
     const options = ['A', 'B', 'C', 'D', 'E']
     
-    // Detect bubbles for limited questions
+    // Enhanced: Detect bubbles with improved algorithm
     for (let q = 0; q < maxQuestions; q++) {
       const column = Math.floor(q / questionsPerColumn)
       const rowInColumn = q % questionsPerColumn
@@ -444,8 +448,9 @@ const EvalBeeCameraScanner: React.FC<EvalBeeCameraScannerProps> = memo(({
       const questionX = startX + column * columnWidth
       const questionY = startY + rowInColumn * questionHeight
       
-      // Check only first 4 options for performance
-      for (let optIndex = 0; optIndex < Math.min(options.length, 4); optIndex++) {
+      // Process all available options (up to 5)
+      const maxOptions = Math.min(options.length, 5)
+      for (let optIndex = 0; optIndex < maxOptions; optIndex++) {
         const option = options[optIndex]
         const bubbleX = questionX + optIndex * optionSpacing
         const bubbleY = questionY
@@ -455,14 +460,16 @@ const EvalBeeCameraScanner: React.FC<EvalBeeCameraScannerProps> = memo(({
           continue
         }
         
-        // Simplified bubble detection
+        // Enhanced bubble detection with multiple thresholds
         let darkPixels = 0
+        let mediumPixels = 0
         let totalPixels = 0
         
-        // Sample fewer pixels in circular area
-        for (let dy = -bubbleRadius; dy <= bubbleRadius; dy += 2) {
-          for (let dx = -bubbleRadius; dx <= bubbleRadius; dx += 2) {
-            if (dx * dx + dy * dy <= bubbleRadius * bubbleRadius) {
+        // More precise circular sampling
+        for (let dy = -bubbleRadius; dy <= bubbleRadius; dy += 1) {
+          for (let dx = -bubbleRadius; dx <= bubbleRadius; dx += 1) {
+            const distance = Math.sqrt(dx * dx + dy * dy)
+            if (distance <= bubbleRadius) {
               const x = Math.floor(bubbleX + dx)
               const y = Math.floor(bubbleY + dy)
               
@@ -471,7 +478,8 @@ const EvalBeeCameraScanner: React.FC<EvalBeeCameraScannerProps> = memo(({
                 if (idx < grayscale.length) {
                   const pixel = grayscale[idx]
                   
-                  if (pixel < 120) darkPixels++
+                  if (pixel < 100) darkPixels++ // Very dark (definitely filled)
+                  else if (pixel < 140) mediumPixels++ // Medium dark (possibly filled)
                   totalPixels++
                 }
               }
@@ -479,10 +487,15 @@ const EvalBeeCameraScanner: React.FC<EvalBeeCameraScannerProps> = memo(({
           }
         }
         
-        const fillRatio = totalPixels > 0 ? darkPixels / totalPixels : 0
-        const isFilled = fillRatio > 0.4
+        // Enhanced fill detection with multiple criteria
+        const darkRatio = totalPixels > 0 ? darkPixels / totalPixels : 0
+        const mediumRatio = totalPixels > 0 ? mediumPixels / totalPixels : 0
+        const combinedRatio = darkRatio + (mediumRatio * 0.5)
+        
+        // More sophisticated fill detection
+        const isFilled = darkRatio > 0.3 || combinedRatio > 0.5
         const isCorrect = correctAnswers[q] === option
-        const confidence = Math.min(1, fillRatio * 2)
+        const confidence = Math.min(1, combinedRatio * 1.5)
         
         bubbles.push({
           x: bubbleX * sampleRate, // Scale back
@@ -602,50 +615,72 @@ const EvalBeeCameraScanner: React.FC<EvalBeeCameraScannerProps> = memo(({
     ctx.shadowBlur = 0
     ctx.globalAlpha = 1.0
     
-    // Draw bubble overlays when paper is detected
+    // Draw bubble overlays when paper is detected - ENHANCED VISUAL FEEDBACK
     if (alignment.paperDetected && showBubbleOverlay && bubbles.length > 0) {
       bubbles.forEach(bubble => {
-        const rectSize = 20
+        const rectSize = 24 // Larger rectangles for better visibility
         const rectX = bubble.x - rectSize / 2
         const rectY = bubble.y - rectSize / 2
         
-        // Determine colors based on bubble status
+        // Enhanced visual feedback with better colors and effects
         if (bubble.isFilled) {
           if (bubble.isCorrect) {
-            // To'g'ri javob - yashil to'rtburchak
-            ctx.fillStyle = 'rgba(16, 185, 129, 0.7)' // Green with transparency
+            // To'g'ri javob - yashil to'rtburchak (more prominent)
+            ctx.fillStyle = 'rgba(16, 185, 129, 0.8)' // Stronger green
             ctx.strokeStyle = '#10B981'
+            ctx.lineWidth = 3
+            ctx.shadowColor = '#10B981'
+            ctx.shadowBlur = 8
           } else {
-            // Noto'g'ri javob - qizil to'rtburchak
-            ctx.fillStyle = 'rgba(239, 68, 68, 0.7)' // Red with transparency
+            // Noto'g'ri javob - qizil to'rtburchak (more prominent)
+            ctx.fillStyle = 'rgba(239, 68, 68, 0.8)' // Stronger red
             ctx.strokeStyle = '#EF4444'
+            ctx.lineWidth = 3
+            ctx.shadowColor = '#EF4444'
+            ctx.shadowBlur = 8
           }
         } else if (bubble.isCorrect) {
-          // To'g'ri javob lekin belgilanmagan - yashil border
-          ctx.fillStyle = 'rgba(16, 185, 129, 0.3)'
+          // To'g'ri javob lekin belgilanmagan - yashil border with animation
+          ctx.fillStyle = 'rgba(16, 185, 129, 0.4)'
           ctx.strokeStyle = '#10B981'
+          ctx.lineWidth = 2
+          ctx.shadowColor = '#10B981'
+          ctx.shadowBlur = 6
+          ctx.setLineDash([4, 4]) // Dashed border for unfilled correct answers
         } else {
           // Oddiy bubble - shaffof
           ctx.fillStyle = 'rgba(156, 163, 175, 0.3)'
           ctx.strokeStyle = '#9CA3AF'
+          ctx.lineWidth = 1
+          ctx.shadowBlur = 2
         }
         
-        // Draw rectangle
-        ctx.lineWidth = 2
-        ctx.shadowColor = ctx.strokeStyle
-        ctx.shadowBlur = 5
-        
+        // Draw rectangle with enhanced styling
         ctx.fillRect(rectX, rectY, rectSize, rectSize)
         ctx.strokeRect(rectX, rectY, rectSize, rectSize)
         
-        // Draw option letter
-        ctx.fillStyle = 'white'
-        ctx.font = 'bold 12px sans-serif'
+        // Reset line dash
+        ctx.setLineDash([])
+        
+        // Draw option letter with better styling
+        ctx.fillStyle = bubble.isFilled ? 'white' : '#374151'
+        ctx.font = 'bold 14px sans-serif'
         ctx.textAlign = 'center'
         ctx.textBaseline = 'middle'
-        ctx.shadowBlur = 2
-        ctx.shadowColor = 'black'
+        ctx.shadowColor = bubble.isFilled ? 'rgba(0,0,0,0.8)' : 'rgba(255,255,255,0.8)'
+        ctx.shadowBlur = 3
         ctx.fillText(bubble.option, bubble.x, bubble.y)
+        
+        // Add confidence indicator for filled bubbles
+        if (bubble.isFilled && bubble.confidence > 0.7) {
+          // Small confidence dot
+          const dotSize = 4
+          ctx.fillStyle = bubble.isCorrect ? '#10B981' : '#EF4444'
+          ctx.shadowBlur = 0
+          ctx.beginPath()
+          ctx.arc(bubble.x + rectSize/2 - 6, bubble.y - rectSize/2 + 6, dotSize, 0, 2 * Math.PI)
+          ctx.fill()
+        }
         
         // Reset shadow
         ctx.shadowBlur = 0
@@ -832,28 +867,58 @@ const EvalBeeCameraScanner: React.FC<EvalBeeCameraScannerProps> = memo(({
               </div>
             )}
             
-            {/* Bubble Detection Legend */}
+            {/* Enhanced Bubble Detection Legend with Real-time Stats */}
             {showBubbleOverlay && detectedBubbles.length > 0 && (
-              <div className="absolute bottom-20 left-4 bg-black/90 rounded-lg p-3 z-20">
-                <div className="text-white text-xs font-bold mb-2">
-                  BUBBLE DETECTION
+              <div className="absolute bottom-20 left-4 bg-black/90 rounded-lg p-3 z-20 border border-green-400">
+                <div className="text-green-400 text-xs font-bold mb-2 flex items-center gap-2">
+                  <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse"></div>
+                  REAL-TIME DETECTION
                 </div>
                 <div className="space-y-1 text-xs">
                   <div className="flex items-center gap-2">
                     <div className="w-4 h-4 bg-green-500 rounded border border-green-400"></div>
                     <span className="text-white">To'g'ri javob</span>
+                    <span className="text-green-400 font-bold ml-auto">
+                      {detectedBubbles.filter(b => b.isFilled && b.isCorrect).length}
+                    </span>
                   </div>
                   <div className="flex items-center gap-2">
                     <div className="w-4 h-4 bg-red-500 rounded border border-red-400"></div>
                     <span className="text-white">Noto'g'ri javob</span>
+                    <span className="text-red-400 font-bold ml-auto">
+                      {detectedBubbles.filter(b => b.isFilled && !b.isCorrect).length}
+                    </span>
                   </div>
                   <div className="flex items-center gap-2">
                     <div className="w-4 h-4 bg-gray-400 rounded border border-gray-300"></div>
                     <span className="text-white">Bo'sh</span>
+                    <span className="text-gray-400 font-bold ml-auto">
+                      {detectedBubbles.filter(b => !b.isFilled).length}
+                    </span>
                   </div>
                 </div>
-                <div className="text-white/70 text-xs mt-2">
-                  {detectedBubbles.filter(b => b.isFilled).length} belgilangan
+                <div className="border-t border-gray-600 mt-2 pt-2">
+                  <div className="text-white/70 text-xs">
+                    <div className="flex justify-between">
+                      <span>Jami belgilangan:</span>
+                      <span className="text-blue-400 font-bold">
+                        {detectedBubbles.filter(b => b.isFilled).length}
+                      </span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span>Aniqlangan savollar:</span>
+                      <span className="text-blue-400 font-bold">
+                        {new Set(detectedBubbles.map(b => b.questionNumber)).size}
+                      </span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span>O'rtacha ishonch:</span>
+                      <span className="text-blue-400 font-bold">
+                        {detectedBubbles.length > 0 ? 
+                          Math.round(detectedBubbles.reduce((sum, b) => sum + b.confidence, 0) / detectedBubbles.length * 100) : 0}%
+                      </span>
+                    </div>
+                  </div>
                 </div>
               </div>
             )}
@@ -924,20 +989,30 @@ const EvalBeeCameraScanner: React.FC<EvalBeeCameraScannerProps> = memo(({
               {autoScanCountdown > 0 && (
                 <p className="text-green-300 text-sm">Avtomatik suratga olish: {autoScanCountdown}s</p>
               )}
-              {showBubbleOverlay && (
-                <p className="text-blue-300 text-sm">
-                  🎯 {detectedBubbles.filter(b => b.isFilled && b.isCorrect).length} to'g'ri, {detectedBubbles.filter(b => b.isFilled && !b.isCorrect).length} noto'g'ri
-                </p>
+              {showBubbleOverlay && detectedBubbles.length > 0 && (
+                <div className="space-y-1">
+                  <p className="text-blue-300 text-sm">
+                    🎯 {detectedBubbles.filter(b => b.isFilled && b.isCorrect).length} to'g'ri, {detectedBubbles.filter(b => b.isFilled && !b.isCorrect).length} noto'g'ri
+                  </p>
+                  <p className="text-green-300 text-xs">
+                    📊 {new Set(detectedBubbles.map(b => b.questionNumber)).size} savol aniqlandi
+                  </p>
+                </div>
               )}
             </div>
           ) : (
             <div className="space-y-2">
               <p className="text-blue-400 text-lg font-medium">📸 Suratga olish mumkin</p>
               <p className="text-white/70 text-sm">Tugmani bosing yoki kutib turing</p>
-              {showBubbleOverlay && (
-                <p className="text-blue-300 text-sm">
-                  🎯 {detectedBubbles.filter(b => b.isFilled && b.isCorrect).length} to'g'ri, {detectedBubbles.filter(b => b.isFilled && !b.isCorrect).length} noto'g'ri
-                </p>
+              {showBubbleOverlay && detectedBubbles.length > 0 && (
+                <div className="space-y-1">
+                  <p className="text-blue-300 text-sm">
+                    🎯 {detectedBubbles.filter(b => b.isFilled && b.isCorrect).length} to'g'ri, {detectedBubbles.filter(b => b.isFilled && !b.isCorrect).length} noto'g'ri
+                  </p>
+                  <p className="text-blue-300 text-xs">
+                    📊 {new Set(detectedBubbles.map(b => b.questionNumber)).size} savol aniqlandi
+                  </p>
+                </div>
               )}
             </div>
           )}
