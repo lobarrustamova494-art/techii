@@ -620,7 +620,6 @@ const EvalBeeCameraScannerPage: React.FC = () => {
           onCapture={handleCameraCapture}
           onClose={() => setShowCamera(false)}
           isProcessing={processing}
-          correctAnswers={exam ? getCorrectAnswers(exam) : []}
           onShowDebug={handleShowDebug}
         />
       </Suspense>

@@ -7,7 +7,6 @@ interface EvalBeeCameraScannerProps {
   onCapture: (imageData: string, qualityMetrics: QualityMetrics) => void
   onClose: () => void
   isProcessing: boolean
-  correctAnswers?: string[] // To'g'ri javoblar (exam-keys dan)
   onShowDebug?: () => void
 }
 
@@ -28,21 +27,10 @@ interface AlignmentStatus {
   corners: { x: number, y: number, detected?: boolean, name?: string }[]
 }
 
-interface DetectedBubble {
-  x: number
-  y: number
-  option: string
-  questionNumber: number
-  isFilled: boolean
-  isCorrect: boolean
-  confidence: number
-}
-
 const EvalBeeCameraScanner: React.FC<EvalBeeCameraScannerProps> = memo(({
   onCapture,
   onClose,
   isProcessing,
-  correctAnswers = [],
   onShowDebug
 }) => {
   const videoRef = useRef<HTMLVideoElement>(null)
@@ -76,8 +64,6 @@ const EvalBeeCameraScanner: React.FC<EvalBeeCameraScannerProps> = memo(({
   
   const [canCapture, setCanCapture] = useState(false)
   const [autoScanCountdown, setAutoScanCountdown] = useState(0)
-  const [detectedBubbles, setDetectedBubbles] = useState<DetectedBubble[]>([])
-  const [showBubbleOverlay, setShowBubbleOverlay] = useState(false)
 
   useEffect(() => {
     startCamera()
@@ -220,18 +206,16 @@ const EvalBeeCameraScanner: React.FC<EvalBeeCameraScannerProps> = memo(({
     analyzeFrame()
   }, [isProcessing])
 
-  // EvalBee Core: Fast Analysis (grayscale + basic checks only) - HEAVILY OPTIMIZED
+  // EvalBee Core: Lightweight Real-time Analysis (EXACTLY as specified in evalbee_camera_page.md)
   const performLightweightAnalysis = useCallback((imageData: ImageData) => {
     const { data, width, height } = imageData
     
     // Skip analysis if processing or not ready
     if (isProcessing || !isReady) return
     
-    // Throttle analysis to every 10th call for better performance
-    if (Math.random() > 0.1) return
-    
-    // Convert to grayscale (lightweight) - sample every 8th pixel for extreme performance
-    const sampleRate = 8
+    // EvalBee Method: ONLY lightweight checks - NO HEAVY OpenCV
+    // 1. Grayscale conversion (lightweight sampling)
+    const sampleRate = 12 // Even more aggressive sampling for performance
     const sampledWidth = Math.floor(width / sampleRate)
     const sampledHeight = Math.floor(height / sampleRate)
     const grayscale = new Array(sampledWidth * sampledHeight)
@@ -247,90 +231,100 @@ const EvalBeeCameraScanner: React.FC<EvalBeeCameraScannerProps> = memo(({
       }
     }
     
-    // 1. Fast Focus Check (simplified)
-    const focus = calculateFastFocus(grayscale, sampledWidth, sampledHeight)
+    // 2. FOCUS CHECK using Laplacian variance (as specified)
+    const focus = calculateLaplacianVariance(grayscale, sampledWidth, sampledHeight)
     
-    // 2. Fast Brightness Check
-    const brightness = calculateFastBrightness(grayscale)
+    // 3. BRIGHTNESS CHECK (average brightness)
+    const brightness = calculateAverageBrightness(grayscale)
     
-    // 3. Fast Alignment Check
-    const alignment = detectPaperAlignment(grayscale, sampledWidth, sampledHeight, sampleRate)
+    // 4. ALIGNMENT CHECK (paper detection)
+    const alignment = detectPaperInFrame(grayscale, sampledWidth, sampledHeight, sampleRate)
     
-    // 4. Enhanced Bubble Detection (more frequent when paper detected)
-    let bubbles: DetectedBubble[] = []
-    if (alignment.paperDetected && correctAnswers.length > 0) {
-      // Increase detection frequency when paper is properly aligned
-      const detectionChance = alignment.alignment > 0.8 ? 0.3 : 0.1 // 30% vs 10% chance
-      if (Math.random() < detectionChance) {
-        bubbles = detectBubbles(grayscale, sampledWidth, sampledHeight, alignment, sampleRate)
+    // 5. Overall quality calculation
+    const overall = (focus * 0.5 + brightness * 0.3 + alignment.alignment * 0.2)
+    
+    // EvalBee Logic: STRICT quality requirements
+    const focusGood = focus >= 0.7
+    const brightnessGood = brightness >= 0.3 && brightness <= 0.8
+    const alignmentGood = alignment.paperDetected && alignment.alignment >= 0.8
+    
+    // Update state only if significant change (prevent excessive re-renders)
+    if (Math.abs(qualityMetrics.overall - overall) > 0.05) {
+      const issues = []
+      const recommendations = []
+      
+      if (!focusGood) {
+        issues.push('Rasm aniq emas')
+        recommendations.push('📱 Kamerani yaqinlashtiring va fokusni sozlang')
       }
-    }
-    
-    // 5. Overall Quality (EvalBee method)
-    const overall = (focus * 0.4 + brightness * 0.3 + alignment.alignment * 0.3)
-    
-    // Batch state updates to prevent excessive re-renders - only update if significant change
-    if (Math.abs(qualityMetrics.overall - overall) > 0.1) {
+      if (!brightnessGood) {
+        if (brightness < 0.3) {
+          issues.push('Yorug\'lik kam')
+          recommendations.push('💡 Ko\'proq yorug\'lik kerak')
+        } else {
+          issues.push('Juda yorqin')
+          recommendations.push('🌤️ Yorug\'likni kamaytiring')
+        }
+      }
+      if (!alignmentGood) {
+        issues.push('Varaq noto\'g\'ri joylashgan')
+        recommendations.push('📄 Varaqni ramkaga to\'g\'ri joylashtiring')
+      }
+      
       const newQualityMetrics = {
         focus,
         brightness,
         contrast: alignment.alignment,
         skew: 1 - alignment.alignment,
         overall,
-        issues: generateIssues(focus, brightness, alignment),
-        recommendations: generateRecommendations(focus, brightness, alignment)
+        issues,
+        recommendations
       }
       
       setQualityMetrics(newQualityMetrics)
       setAlignmentStatus(alignment)
-      
-      if (bubbles.length > 0) {
-        setDetectedBubbles(bubbles)
-        setShowBubbleOverlay(true)
-      }
     }
     
-    // EvalBee Logic: Optimized capture detection
-    const detectedMarkers = alignment.corners.filter(c => c.detected).length
-    const canCaptureNow = (
-      focus >= 0.7 &&
-      brightness >= 0.3 && brightness <= 0.8 &&
-      alignment.paperDetected &&
-      detectedMarkers >= 3 &&
-      alignment.alignment >= 0.75
-    )
-    
+    // EvalBee Logic: STRICT capture conditions
+    const canCaptureNow = focusGood && brightnessGood && alignmentGood
     setCanCapture(canCaptureNow)
     
-    // Throttled auto-capture logic
+    // AUTO-SCAN Logic (as specified in document)
     if (canCaptureNow && overall >= 0.9 && autoScanCountdown === 0) {
+      console.log('🎯 EvalBee: Perfect conditions detected, starting auto-scan countdown')
       setAutoScanCountdown(3)
+      
+      // Auto-capture after 0.5-1 second (as specified)
       setTimeout(() => {
-        if (canCapture && qualityMetrics.overall >= 0.9) {
+        if (canCapture && qualityMetrics.overall >= 0.9 && !isProcessing) {
+          console.log('📸 EvalBee: Auto-capturing perfect frame')
           captureImage()
         }
         setAutoScanCountdown(0)
-      }, 3000)
+      }, 800) // 0.8 seconds as specified
     }
     
-    // Draw guide overlay (throttled to every 3rd call)
-    if (Math.random() > 0.66) {
-      drawGuideWithBubbles(alignment, bubbles)
+    // Draw guide overlay (throttled)
+    if (Math.random() > 0.7) {
+      drawEvalBeeGuide(alignment)
     }
-  }, [isProcessing, isReady, correctAnswers, qualityMetrics.overall, canCapture, autoScanCountdown])
+  }, [isProcessing, isReady, qualityMetrics.overall, canCapture, autoScanCountdown])
 
-  // Fast focus calculation (optimized)
-  const calculateFastFocus = (grayscale: number[], width: number, height: number): number => {
+  // EvalBee Method: Laplacian variance for focus detection
+  const calculateLaplacianVariance = (grayscale: number[], width: number, height: number): number => {
     let variance = 0
     let count = 0
     
-    // Sample every 8th pixel for better performance
-    for (let y = 2; y < height - 2; y += 8) {
-      for (let x = 2; x < width - 2; x += 8) {
+    // Sample every 10th pixel for performance
+    for (let y = 1; y < height - 1; y += 10) {
+      for (let x = 1; x < width - 1; x += 10) {
         const idx = y * width + x
         if (idx < grayscale.length - width - 1) {
+          // Laplacian kernel: center * 4 - neighbors
           const laplacian = 
-            -grayscale[idx - width] - grayscale[idx - 1] + 4 * grayscale[idx] - grayscale[idx + 1] - grayscale[idx + width]
+            4 * grayscale[idx] - 
+            grayscale[idx - 1] - grayscale[idx + 1] - 
+            grayscale[idx - width] - grayscale[idx + width]
           
           variance += laplacian * laplacian
           count++
@@ -338,219 +332,73 @@ const EvalBeeCameraScanner: React.FC<EvalBeeCameraScannerProps> = memo(({
       }
     }
     
-    return count > 0 ? Math.min(1, (variance / count) / 500) : 0
+    const result = count > 0 ? variance / count : 0
+    return Math.min(1, result / 1000) // Normalize to 0-1
   }
 
-  // Fast brightness calculation (optimized)
-  const calculateFastBrightness = (grayscale: number[]): number => {
-    // Sample every 20th pixel for better performance
+  // EvalBee Method: Average brightness calculation
+  const calculateAverageBrightness = (grayscale: number[]): number => {
     let sum = 0
-    let count = 0
+    const sampleStep = 25 // Sample every 25th pixel for performance
     
-    for (let i = 0; i < grayscale.length; i += 20) {
+    for (let i = 0; i < grayscale.length; i += sampleStep) {
       sum += grayscale[i]
-      count++
     }
     
+    const count = Math.floor(grayscale.length / sampleStep)
     return count > 0 ? (sum / count) / 255 : 0
   }
 
-  // EvalBee Core: Paper alignment detection with OMR sheet format (8 alignment marks - 4 corners)
-  const detectPaperAlignment = (grayscale: number[], width: number, height: number, sampleRate: number = 1): AlignmentStatus => {
-    // Define 4 corner alignment positions based on actual OMR sheet format
-    // These correspond to the outermost alignment marks from the OMR sheet
-    const markerSize = Math.floor(35 / sampleRate) // Larger marker size to match OMR format
-    const leftMargin = Math.floor(47 / sampleRate)   // 4mm from left edge
-    const rightMargin = Math.floor(47 / sampleRate)  // 4mm from right edge
-    const topMargin = Math.floor(120 / sampleRate)   // Top position (L1/R1)
-    const bottomMargin = Math.floor(922 / sampleRate) // Bottom position (L4/R4)
+  // EvalBee Method: Paper detection in frame
+  const detectPaperInFrame = (grayscale: number[], width: number, height: number, sampleRate: number = 1): AlignmentStatus => {
+    // Define frame boundaries for paper detection
+    const frameMargin = 0.1 // 10% margin
+    const frameLeft = Math.floor(width * frameMargin)
+    const frameRight = Math.floor(width * (1 - frameMargin))
+    const frameTop = Math.floor(height * frameMargin)
+    const frameBottom = Math.floor(height * (1 - frameMargin))
     
-    // Adjust positions based on image dimensions
-    const adjustedLeftX = Math.min(leftMargin, width * 0.05)
-    const adjustedRightX = Math.max(width - rightMargin, width * 0.95)
-    const adjustedTopY = Math.min(topMargin, height * 0.12)
-    const adjustedBottomY = Math.max(bottomMargin, height * 0.88)
+    // Check if paper edges are within frame
+    let edgePixels = 0
+    let totalChecked = 0
     
-    const cornerMarkers = [
-      { x: adjustedLeftX, y: adjustedTopY, name: 'TL', detected: false },      // Top-Left (L1)
-      { x: adjustedRightX, y: adjustedTopY, name: 'TR', detected: false },     // Top-Right (R1)
-      { x: adjustedLeftX, y: adjustedBottomY, name: 'BL', detected: false },   // Bottom-Left (L4)
-      { x: adjustedRightX, y: adjustedBottomY, name: 'BR', detected: false }   // Bottom-Right (R4)
-    ]
-    
-    // Detect dark rectangular markers in corners (optimized for OMR format)
-    let detectedMarkers = 0
-    
-    cornerMarkers.forEach(marker => {
-      let darkPixels = 0
-      let totalPixels = 0
-      
-      // Sample rectangular area (not circular) to match OMR alignment marks
-      const halfWidth = Math.floor(markerSize * 0.6)
-      const halfHeight = Math.floor(markerSize * 0.6)
-      
-      for (let dy = -halfHeight; dy <= halfHeight; dy += 2) {
-        for (let dx = -halfWidth; dx <= halfWidth; dx += 2) {
-          const x = Math.floor(marker.x + dx)
-          const y = Math.floor(marker.y + dy)
+    // Sample frame edges for paper detection
+    for (let x = frameLeft; x < frameRight; x += 5) {
+      for (let y = frameTop; y < frameBottom; y += 5) {
+        const idx = y * width + x
+        if (idx < grayscale.length) {
+          const pixel = grayscale[idx]
           
-          if (x >= 0 && x < width && y >= 0 && y < height) {
-            const idx = y * width + x
-            if (idx < grayscale.length) {
-              const pixel = grayscale[idx]
-              
-              if (pixel < 80) darkPixels++ // Lower threshold for black alignment marks
-              totalPixels++
-            }
+          // Look for paper edges (moderate contrast)
+          if (pixel > 180 && pixel < 240) { // Paper-like brightness
+            edgePixels++
           }
+          totalChecked++
         }
       }
-      
-      const darkRatio = totalPixels > 0 ? darkPixels / totalPixels : 0
-      if (darkRatio > 0.5) { // Lower threshold for better detection
-        marker.detected = true
-        detectedMarkers++
-      }
-    })
+    }
     
-    // Calculate alignment quality
-    const markerDetectionRatio = detectedMarkers / 4
-    const paperDetected = detectedMarkers >= 3 // Need at least 3 corners
-    const withinFrame = true
-    const alignment = markerDetectionRatio
+    const paperRatio = totalChecked > 0 ? edgePixels / totalChecked : 0
+    const paperDetected = paperRatio > 0.3
+    const alignment = paperRatio
     
-    // Scale marker positions back for overlay
-    const corners = cornerMarkers.map(m => ({ 
-      x: m.x * sampleRate, 
-      y: m.y * sampleRate, 
-      detected: m.detected, 
-      name: m.name 
-    }))
+    // Mock corner detection for compatibility
+    const corners = [
+      { x: frameLeft * sampleRate, y: frameTop * sampleRate, detected: paperDetected, name: 'TL' },
+      { x: frameRight * sampleRate, y: frameTop * sampleRate, detected: paperDetected, name: 'TR' },
+      { x: frameLeft * sampleRate, y: frameBottom * sampleRate, detected: paperDetected, name: 'BL' },
+      { x: frameRight * sampleRate, y: frameBottom * sampleRate, detected: paperDetected, name: 'BR' }
+    ]
     
     return {
       paperDetected,
-      withinFrame,
+      withinFrame: true,
       alignment,
       corners
     }
   }
-
-  // Enhanced Bubble detection with improved accuracy (optimized)
-  const detectBubbles = (grayscale: number[], width: number, height: number, alignment: AlignmentStatus, sampleRate: number = 1): DetectedBubble[] => {
-    const bubbles: DetectedBubble[] = []
-    
-    if (!alignment.paperDetected || correctAnswers.length === 0) return bubbles
-    
-    // Enhanced: Process more questions for better coverage
-    const maxQuestions = Math.min(correctAnswers.length, 25)
-    const questionsPerColumn = Math.ceil(maxQuestions / 3)
-    const questionHeight = Math.floor(height * 0.6 / questionsPerColumn)
-    const startY = Math.floor(height * 0.2)
-    const columnWidth = Math.floor(width * 0.25)
-    const startX = Math.floor(width * 0.15)
-    
-    const bubbleRadius = Math.floor(10 / sampleRate) // Slightly larger for better detection
-    const optionSpacing = Math.floor(28 / sampleRate) // Better spacing
-    const options = ['A', 'B', 'C', 'D', 'E']
-    
-    // Enhanced: Detect bubbles with improved algorithm
-    for (let q = 0; q < maxQuestions; q++) {
-      const column = Math.floor(q / questionsPerColumn)
-      const rowInColumn = q % questionsPerColumn
-      
-      const questionX = startX + column * columnWidth
-      const questionY = startY + rowInColumn * questionHeight
-      
-      // Process all available options (up to 5)
-      const maxOptions = Math.min(options.length, 5)
-      for (let optIndex = 0; optIndex < maxOptions; optIndex++) {
-        const option = options[optIndex]
-        const bubbleX = questionX + optIndex * optionSpacing
-        const bubbleY = questionY
-        
-        if (bubbleX < bubbleRadius || bubbleX >= width - bubbleRadius || 
-            bubbleY < bubbleRadius || bubbleY >= height - bubbleRadius) {
-          continue
-        }
-        
-        // Enhanced bubble detection with multiple thresholds
-        let darkPixels = 0
-        let mediumPixels = 0
-        let totalPixels = 0
-        
-        // More precise circular sampling
-        for (let dy = -bubbleRadius; dy <= bubbleRadius; dy += 1) {
-          for (let dx = -bubbleRadius; dx <= bubbleRadius; dx += 1) {
-            const distance = Math.sqrt(dx * dx + dy * dy)
-            if (distance <= bubbleRadius) {
-              const x = Math.floor(bubbleX + dx)
-              const y = Math.floor(bubbleY + dy)
-              
-              if (x >= 0 && x < width && y >= 0 && y < height) {
-                const idx = y * width + x
-                if (idx < grayscale.length) {
-                  const pixel = grayscale[idx]
-                  
-                  if (pixel < 100) darkPixels++ // Very dark (definitely filled)
-                  else if (pixel < 140) mediumPixels++ // Medium dark (possibly filled)
-                  totalPixels++
-                }
-              }
-            }
-          }
-        }
-        
-        // Enhanced fill detection with multiple criteria
-        const darkRatio = totalPixels > 0 ? darkPixels / totalPixels : 0
-        const mediumRatio = totalPixels > 0 ? mediumPixels / totalPixels : 0
-        const combinedRatio = darkRatio + (mediumRatio * 0.5)
-        
-        // More sophisticated fill detection
-        const isFilled = darkRatio > 0.3 || combinedRatio > 0.5
-        const isCorrect = correctAnswers[q] === option
-        const confidence = Math.min(1, combinedRatio * 1.5)
-        
-        bubbles.push({
-          x: bubbleX * sampleRate, // Scale back
-          y: bubbleY * sampleRate,
-          option,
-          questionNumber: q + 1,
-          isFilled,
-          isCorrect,
-          confidence
-        })
-      }
-    }
-    
-    return bubbles
-  }
-
-  const generateIssues = (focus: number, brightness: number, alignment: AlignmentStatus): string[] => {
-    const issues = []
-    
-    if (focus < 0.7) issues.push('Rasm aniq emas')
-    if (brightness < 0.3) issues.push('Yorug\'lik kam')
-    if (brightness > 0.8) issues.push('Juda yorqin')
-    if (!alignment.paperDetected) issues.push('Qog\'oz topilmadi')
-    if (alignment.alignment < 0.8) issues.push('Qog\'oz qiyshaygan')
-    
-    return issues
-  }
-
-  const generateRecommendations = (focus: number, brightness: number, alignment: AlignmentStatus): string[] => {
-    const recommendations = []
-    
-    if (focus < 0.7) recommendations.push('📱 Kamerani yaqinlashtiring va fokusni sozlang')
-    if (brightness < 0.3) recommendations.push('💡 Ko\'proq yorug\'lik kerak')
-    if (brightness > 0.8) recommendations.push('🌤️ Yorug\'likni kamaytiring')
-    if (!alignment.paperDetected) recommendations.push('📄 OMR varaqni ramkaga joylashtiring')
-    if (alignment.alignment < 0.8) recommendations.push('📐 Qog\'ozni to\'g\'ri joylashtiring')
-    
-    return recommendations
-  }
-
-  // Guide overlay with OMR sheet format alignment rectangles
-  const drawGuideWithBubbles = (alignment: AlignmentStatus, bubbles: DetectedBubble[]) => {
+  // EvalBee Guide: Simple alignment overlay (as specified in evalbee_camera_page.md)
+  const drawEvalBeeGuide = (alignment: AlignmentStatus) => {
     if (!overlayCanvasRef.current) return
     
     const canvas = overlayCanvasRef.current
@@ -559,193 +407,110 @@ const EvalBeeCameraScanner: React.FC<EvalBeeCameraScannerProps> = memo(({
     
     ctx.clearRect(0, 0, canvas.width, canvas.height)
     
-    // OMR Sheet format guide - 4 black rectangles for corner alignment
-    const rectWidth = 30  // Width of alignment rectangles
-    const rectHeight = 30 // Height of alignment rectangles
-    
-    // Calculate positions based on OMR sheet format
-    const leftMargin = canvas.width * 0.05   // 5% from left edge
-    const rightMargin = canvas.width * 0.95  // 5% from right edge  
-    const topMargin = canvas.height * 0.12   // 12% from top
-    const bottomMargin = canvas.height * 0.88 // 12% from bottom
-    
-    // Define 4 corner alignment rectangles matching OMR sheet format
-    const alignmentRects = [
-      { x: leftMargin - rectWidth/2, y: topMargin - rectHeight/2, name: 'TL' },      // Top-Left
-      { x: rightMargin - rectWidth/2, y: topMargin - rectHeight/2, name: 'TR' },     // Top-Right
-      { x: leftMargin - rectWidth/2, y: bottomMargin - rectHeight/2, name: 'BL' },   // Bottom-Left
-      { x: rightMargin - rectWidth/2, y: bottomMargin - rectHeight/2, name: 'BR' }   // Bottom-Right
-    ]
-    
-    // Draw 4 black alignment rectangles
-    alignmentRects.forEach((rect, index) => {
-      const corner = alignment.corners[index]
-      const isDetected = corner?.detected || false
-      
-      // Rectangle styling based on detection
-      if (isDetected) {
-        // Green glow for detected alignment marks
-        ctx.fillStyle = 'rgba(16, 185, 129, 0.8)'
-        ctx.strokeStyle = '#10B981'
-        ctx.shadowColor = '#10B981'
-        ctx.shadowBlur = 15
-        ctx.lineWidth = 3
-      } else {
-        // Red glow for undetected alignment marks
-        ctx.fillStyle = 'rgba(239, 68, 68, 0.8)'
-        ctx.strokeStyle = '#EF4444'
-        ctx.shadowColor = '#EF4444'
-        ctx.shadowBlur = 15
-        ctx.lineWidth = 3
-      }
-      
-      // Draw filled rectangle (matching OMR sheet black rectangles)
-      ctx.fillRect(rect.x, rect.y, rectWidth, rectHeight)
-      ctx.strokeRect(rect.x, rect.y, rectWidth, rectHeight)
-      
-      // Add corner label
-      ctx.fillStyle = 'white'
-      ctx.font = 'bold 12px sans-serif'
-      ctx.textAlign = 'center'
-      ctx.textBaseline = 'middle'
-      ctx.shadowColor = 'rgba(0,0,0,0.8)'
-      ctx.shadowBlur = 3
-      ctx.fillText(rect.name, rect.x + rectWidth/2, rect.y + rectHeight/2)
-      
-      // Reset shadow
-      ctx.shadowBlur = 0
-    })
-    
-    // Draw main paper frame guide (dashed outline)
-    const frameMargin = 0.08 // 8% margin for paper frame
+    // EvalBee Method: Simple rectangular frame + corner markers
+    const frameMargin = 0.1 // 10% margin as specified
     const frameX = canvas.width * frameMargin
     const frameY = canvas.height * frameMargin
     const frameWidth = canvas.width * (1 - 2 * frameMargin)
     const frameHeight = canvas.height * (1 - 2 * frameMargin)
     
-    // Frame color based on paper detection
-    const frameColor = alignment.paperDetected ? '#10B981' : '#3B82F6'
+    // Main frame color based on paper detection
+    const frameColor = alignment.paperDetected ? '#10B981' : '#EF4444'
     const frameOpacity = alignment.paperDetected ? 0.9 : 0.7
     
-    // Draw main guide frame
+    // Draw main rectangular frame
     ctx.strokeStyle = frameColor
     ctx.globalAlpha = frameOpacity
-    ctx.lineWidth = 2
-    ctx.setLineDash([15, 8])
+    ctx.lineWidth = 4
+    ctx.shadowColor = frameColor
+    ctx.shadowBlur = 15
     ctx.strokeRect(frameX, frameY, frameWidth, frameHeight)
+    
+    // Corner markers (L-shapes)
     ctx.setLineDash([])
+    ctx.lineWidth = 6
+    ctx.globalAlpha = 1.0
+    const cornerSize = 60
+    
+    // Draw L-shaped corner markers
+    const corners = [
+      { x: frameX, y: frameY, type: 'TL' },
+      { x: frameX + frameWidth, y: frameY, type: 'TR' },
+      { x: frameX, y: frameY + frameHeight, type: 'BL' },
+      { x: frameX + frameWidth, y: frameY + frameHeight, type: 'BR' }
+    ]
+    
+    corners.forEach(corner => {
+      ctx.strokeStyle = frameColor
+      ctx.shadowColor = frameColor
+      ctx.shadowBlur = 10
+      
+      ctx.beginPath()
+      if (corner.type === 'TL') {
+        ctx.moveTo(corner.x, corner.y + cornerSize)
+        ctx.lineTo(corner.x, corner.y)
+        ctx.lineTo(corner.x + cornerSize, corner.y)
+      } else if (corner.type === 'TR') {
+        ctx.moveTo(corner.x - cornerSize, corner.y)
+        ctx.lineTo(corner.x, corner.y)
+        ctx.lineTo(corner.x, corner.y + cornerSize)
+      } else if (corner.type === 'BL') {
+        ctx.moveTo(corner.x, corner.y - cornerSize)
+        ctx.lineTo(corner.x, corner.y)
+        ctx.lineTo(corner.x + cornerSize, corner.y)
+      } else if (corner.type === 'BR') {
+        ctx.moveTo(corner.x - cornerSize, corner.y)
+        ctx.lineTo(corner.x, corner.y)
+        ctx.lineTo(corner.x, corner.y - cornerSize)
+      }
+      ctx.stroke()
+    })
+    
+    // Reset effects
+    ctx.shadowBlur = 0
     ctx.globalAlpha = 1.0
     
-    // Draw bubble overlays when paper is detected - ENHANCED VISUAL FEEDBACK
-    if (alignment.paperDetected && showBubbleOverlay && bubbles.length > 0) {
-      bubbles.forEach(bubble => {
-        const rectSize = 24 // Larger rectangles for better visibility
-        const rectX = bubble.x - rectSize / 2
-        const rectY = bubble.y - rectSize / 2
-        
-        // Enhanced visual feedback with better colors and effects
-        if (bubble.isFilled) {
-          if (bubble.isCorrect) {
-            // To'g'ri javob - yashil to'rtburchak (more prominent)
-            ctx.fillStyle = 'rgba(16, 185, 129, 0.8)' // Stronger green
-            ctx.strokeStyle = '#10B981'
-            ctx.lineWidth = 3
-            ctx.shadowColor = '#10B981'
-            ctx.shadowBlur = 8
-          } else {
-            // Noto'g'ri javob - qizil to'rtburchak (more prominent)
-            ctx.fillStyle = 'rgba(239, 68, 68, 0.8)' // Stronger red
-            ctx.strokeStyle = '#EF4444'
-            ctx.lineWidth = 3
-            ctx.shadowColor = '#EF4444'
-            ctx.shadowBlur = 8
-          }
-        } else if (bubble.isCorrect) {
-          // To'g'ri javob lekin belgilanmagan - yashil border with animation
-          ctx.fillStyle = 'rgba(16, 185, 129, 0.4)'
-          ctx.strokeStyle = '#10B981'
-          ctx.lineWidth = 2
-          ctx.shadowColor = '#10B981'
-          ctx.shadowBlur = 6
-          ctx.setLineDash([4, 4]) // Dashed border for unfilled correct answers
-        } else {
-          // Oddiy bubble - shaffof
-          ctx.fillStyle = 'rgba(156, 163, 175, 0.3)'
-          ctx.strokeStyle = '#9CA3AF'
-          ctx.lineWidth = 1
-          ctx.shadowBlur = 2
-        }
-        
-        // Draw rectangle with enhanced styling
-        ctx.fillRect(rectX, rectY, rectSize, rectSize)
-        ctx.strokeRect(rectX, rectY, rectSize, rectSize)
-        
-        // Reset line dash
-        ctx.setLineDash([])
-        
-        // Draw option letter with better styling
-        ctx.fillStyle = bubble.isFilled ? 'white' : '#374151'
-        ctx.font = 'bold 14px sans-serif'
-        ctx.textAlign = 'center'
-        ctx.textBaseline = 'middle'
-        ctx.shadowColor = bubble.isFilled ? 'rgba(0,0,0,0.8)' : 'rgba(255,255,255,0.8)'
-        ctx.shadowBlur = 3
-        ctx.fillText(bubble.option, bubble.x, bubble.y)
-        
-        // Add confidence indicator for filled bubbles
-        if (bubble.isFilled && bubble.confidence > 0.7) {
-          // Small confidence dot
-          const dotSize = 4
-          ctx.fillStyle = bubble.isCorrect ? '#10B981' : '#EF4444'
-          ctx.shadowBlur = 0
-          ctx.beginPath()
-          ctx.arc(bubble.x + rectSize/2 - 6, bubble.y - rectSize/2 + 6, dotSize, 0, 2 * Math.PI)
-          ctx.fill()
-        }
-        
-        // Reset shadow
-        ctx.shadowBlur = 0
-      })
-    }
-    
-    // Center instruction (only when no paper detected)
+    // Center instruction based on paper detection
     if (!alignment.paperDetected) {
       // Semi-transparent background
-      ctx.fillStyle = 'rgba(0, 0, 0, 0.8)'
-      ctx.fillRect(canvas.width/2 - 160, canvas.height/2 - 50, 320, 100)
+      ctx.fillStyle = 'rgba(0, 0, 0, 0.85)'
+      ctx.fillRect(canvas.width/2 - 180, canvas.height/2 - 60, 360, 120)
       
-      // Border glow
-      ctx.strokeStyle = '#3B82F6'
-      ctx.lineWidth = 2
-      ctx.shadowColor = '#3B82F6'
-      ctx.shadowBlur = 10
-      ctx.strokeRect(canvas.width/2 - 160, canvas.height/2 - 50, 320, 100)
+      // Border
+      ctx.strokeStyle = '#EF4444'
+      ctx.lineWidth = 3
+      ctx.shadowColor = '#EF4444'
+      ctx.shadowBlur = 15
+      ctx.strokeRect(canvas.width/2 - 180, canvas.height/2 - 60, 360, 120)
       ctx.shadowBlur = 0
       
       // Text
       ctx.fillStyle = 'white'
-      ctx.font = 'bold 18px sans-serif'
+      ctx.font = 'bold 20px sans-serif'
       ctx.textAlign = 'center'
-      ctx.fillText('OMR varaqni 4 ta qora', canvas.width/2, canvas.height/2 - 15)
-      ctx.fillText('to\'rtburchak ichiga joylashtiring', canvas.width/2, canvas.height/2 + 15)
-    }
-    
-    // Show alignment status
-    if (alignment.paperDetected) {
-      // Alignment status indicator
-      const detectedCount = alignment.corners.filter(c => c.detected).length
+      ctx.fillText('OMR varaqni ramkaga', canvas.width/2, canvas.height/2 - 20)
+      ctx.fillText('joylashtiring', canvas.width/2, canvas.height/2 + 10)
       
-      ctx.fillStyle = 'rgba(0, 0, 0, 0.8)'
-      ctx.fillRect(canvas.width/2 - 100, 20, 200, 40)
+      ctx.font = '14px sans-serif'
+      ctx.fillStyle = '#FFB3B3'
+      ctx.fillText('Varaq ramkadan chiqmasin', canvas.width/2, canvas.height/2 + 35)
+    } else if (alignment.alignment < 0.8) {
+      // Alignment warning
+      ctx.fillStyle = 'rgba(0, 0, 0, 0.85)'
+      ctx.fillRect(canvas.width/2 - 120, canvas.height/2 - 40, 240, 80)
       
-      ctx.strokeStyle = detectedCount >= 3 ? '#10B981' : '#EF4444'
-      ctx.lineWidth = 2
-      ctx.strokeRect(canvas.width/2 - 100, 20, 200, 40)
+      ctx.strokeStyle = '#F59E0B'
+      ctx.lineWidth = 3
+      ctx.strokeRect(canvas.width/2 - 120, canvas.height/2 - 40, 240, 80)
       
       ctx.fillStyle = 'white'
-      ctx.font = 'bold 16px sans-serif'
+      ctx.font = 'bold 18px sans-serif'
       ctx.textAlign = 'center'
-      ctx.fillText(`Alignment: ${detectedCount}/4`, canvas.width/2, 45)
+      ctx.fillText('Varaqni tekislang', canvas.width/2, canvas.height/2 - 5)
+      
+      ctx.font = '14px sans-serif'
+      ctx.fillStyle = '#FCD34D'
+      ctx.fillText('Qiyshaygan', canvas.width/2, canvas.height/2 + 20)
     }
   }
 
@@ -760,11 +525,15 @@ const EvalBeeCameraScanner: React.FC<EvalBeeCameraScannerProps> = memo(({
       return
     }
 
-    console.log('📸 EvalBee Camera: Starting image capture...')
+    console.log('📸 EvalBee: Starting SINGLE FRAME capture...')
 
+    // EvalBee Method: STOP video stream immediately (as specified)
     if (animationFrameRef.current) {
       cancelAnimationFrame(animationFrameRef.current)
     }
+
+    // STOP real-time analysis
+    setIsReady(false)
 
     const video = videoRef.current
     const canvas = canvasRef.current
@@ -785,42 +554,45 @@ const EvalBeeCameraScanner: React.FC<EvalBeeCameraScannerProps> = memo(({
       videoHeight: video.videoHeight
     })
     
-    // Fix mirror effect - flip image horizontally to get correct orientation
+    // Capture SINGLE frame with mirror correction
     context.save()
     context.scale(-1, 1) // Flip horizontally
     context.drawImage(video, -canvas.width, 0, canvas.width, canvas.height)
     context.restore()
 
-    console.log('🖼️ Image drawn to canvas with mirror correction')
+    console.log('🖼️ SINGLE frame captured with mirror correction')
 
     // Generate image data
     const finalImageData = canvas.toDataURL('image/jpeg', 0.85)
     
-    console.log('✅ EvalBee Camera: Image capture completed successfully', {
+    console.log('✅ EvalBee: SINGLE frame capture completed', {
       imageDataLength: finalImageData.length,
-      imageDataStart: finalImageData.substring(0, 50),
       qualityMetrics: qualityMetrics
     })
     
     // Validate the generated image data
     if (!finalImageData || finalImageData.length < 1000) {
-      console.error('❌ Generated image data is too small or empty', {
-        length: finalImageData?.length || 0,
-        data: finalImageData?.substring(0, 100) || 'none'
-      })
+      console.error('❌ Generated image data is too small or empty')
+      // EvalBee Method: Return to camera if capture failed
+      setIsReady(true)
+      startRealTimeAnalysis()
       return
     }
     
     if (!finalImageData.startsWith('data:image/')) {
-      console.error('❌ Generated image data has invalid format', {
-        start: finalImageData.substring(0, 50)
-      })
+      console.error('❌ Generated image data has invalid format')
+      // EvalBee Method: Return to camera if capture failed
+      setIsReady(true)
+      startRealTimeAnalysis()
       return
     }
     
     console.log('✅ Image data validation passed, calling onCapture')
+    
+    // EvalBee Method: Camera is now CLOSED during processing
+    // Processing happens in background/separate thread
     onCapture(finalImageData, qualityMetrics)
-  }, [videoRef, canvasRef, isReady, canCapture, qualityMetrics, onCapture])
+  }, [videoRef, canvasRef, isReady, canCapture, qualityMetrics, onCapture, startRealTimeAnalysis])
 
   return (
     <div className="fixed inset-0 bg-black z-50 flex flex-col">
@@ -881,62 +653,6 @@ const EvalBeeCameraScanner: React.FC<EvalBeeCameraScannerProps> = memo(({
               </div>
             )}
             
-            {/* Enhanced Bubble Detection Legend with Real-time Stats */}
-            {showBubbleOverlay && detectedBubbles.length > 0 && (
-              <div className="absolute bottom-20 left-4 bg-black/90 rounded-lg p-3 z-20 border border-green-400">
-                <div className="text-green-400 text-xs font-bold mb-2 flex items-center gap-2">
-                  <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse"></div>
-                  REAL-TIME DETECTION
-                </div>
-                <div className="space-y-1 text-xs">
-                  <div className="flex items-center gap-2">
-                    <div className="w-4 h-4 bg-green-500 rounded border border-green-400"></div>
-                    <span className="text-white">To'g'ri javob</span>
-                    <span className="text-green-400 font-bold ml-auto">
-                      {detectedBubbles.filter(b => b.isFilled && b.isCorrect).length}
-                    </span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <div className="w-4 h-4 bg-red-500 rounded border border-red-400"></div>
-                    <span className="text-white">Noto'g'ri javob</span>
-                    <span className="text-red-400 font-bold ml-auto">
-                      {detectedBubbles.filter(b => b.isFilled && !b.isCorrect).length}
-                    </span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <div className="w-4 h-4 bg-gray-400 rounded border border-gray-300"></div>
-                    <span className="text-white">Bo'sh</span>
-                    <span className="text-gray-400 font-bold ml-auto">
-                      {detectedBubbles.filter(b => !b.isFilled).length}
-                    </span>
-                  </div>
-                </div>
-                <div className="border-t border-gray-600 mt-2 pt-2">
-                  <div className="text-white/70 text-xs">
-                    <div className="flex justify-between">
-                      <span>Jami belgilangan:</span>
-                      <span className="text-blue-400 font-bold">
-                        {detectedBubbles.filter(b => b.isFilled).length}
-                      </span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span>Aniqlangan savollar:</span>
-                      <span className="text-blue-400 font-bold">
-                        {new Set(detectedBubbles.map(b => b.questionNumber)).size}
-                      </span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span>O'rtacha ishonch:</span>
-                      <span className="text-blue-400 font-bold">
-                        {detectedBubbles.length > 0 ? 
-                          Math.round(detectedBubbles.reduce((sum, b) => sum + b.confidence, 0) / detectedBubbles.length * 100) : 0}%
-                      </span>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            )}
-            
             {/* Top Controls */}
             <div className="absolute top-4 right-4 flex items-center gap-2 z-20">
               {onShowDebug && (
@@ -975,59 +691,55 @@ const EvalBeeCameraScanner: React.FC<EvalBeeCameraScannerProps> = memo(({
 
       {/* Bottom Controls */}
       <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black via-black/80 to-transparent p-6 z-20">
-        {/* Status Text */}
+        {/* EvalBee Status Text (as specified in evalbee_camera_page.md) */}
         <div className="text-center mb-6">
           {!alignmentStatus.paperDetected ? (
             <div className="space-y-2">
-              <p className="text-red-400 text-lg font-medium">📄 OMR varaqni joylashtiring</p>
-              <p className="text-white/70 text-sm">Varaqni 4 ta qora to'rtburchak ichiga qo'ying</p>
+              <p className="text-red-400 text-lg font-medium">📄 Varaqni ramkaga joylashtiring</p>
+              <p className="text-white/70 text-sm">Varaq ramkadan chiqmasin</p>
             </div>
-          ) : alignmentStatus.corners.filter(c => c.detected).length < 3 ? (
+          ) : qualityMetrics.focus < 0.7 ? (
             <div className="space-y-2">
-              <p className="text-yellow-400 text-lg font-medium">🎯 Qora to'rtburchaklarni tekislang</p>
-              <p className="text-white/70 text-sm">
-                Aniqlangan: {alignmentStatus.corners.filter(c => c.detected).length}/4 burchak
-              </p>
+              <p className="text-yellow-400 text-lg font-medium">📱 Kamerani yaqinlashtiring</p>
+              <p className="text-white/70 text-sm">Rasm aniq emas - Focus: {Math.round(qualityMetrics.focus * 100)}%</p>
+            </div>
+          ) : qualityMetrics.brightness < 0.3 ? (
+            <div className="space-y-2">
+              <p className="text-yellow-400 text-lg font-medium">💡 Yorug'likni sozlang</p>
+              <p className="text-white/70 text-sm">Juda qorong'i - Yorug'lik: {Math.round(qualityMetrics.brightness * 100)}%</p>
+            </div>
+          ) : qualityMetrics.brightness > 0.8 ? (
+            <div className="space-y-2">
+              <p className="text-yellow-400 text-lg font-medium">🌤️ Yorug'likni kamaytiring</p>
+              <p className="text-white/70 text-sm">Juda yorqin - Yorug'lik: {Math.round(qualityMetrics.brightness * 100)}%</p>
+            </div>
+          ) : alignmentStatus.alignment < 0.8 ? (
+            <div className="space-y-2">
+              <p className="text-yellow-400 text-lg font-medium">📐 Varaqni tekislang</p>
+              <p className="text-white/70 text-sm">Qiyshaygan - Tekislash: {Math.round(alignmentStatus.alignment * 100)}%</p>
             </div>
           ) : !canCapture ? (
             <div className="space-y-2">
-              <p className="text-yellow-400 text-lg font-medium">⚡ Sifatni yaxshilang</p>
+              <p className="text-yellow-400 text-lg font-medium">⚡ Sharoitlarni yaxshilang</p>
               <div className="flex justify-center gap-4 text-xs text-white/60">
                 <span>Focus: {Math.round(qualityMetrics.focus * 100)}%</span>
                 <span>Yorug'lik: {Math.round(qualityMetrics.brightness * 100)}%</span>
+                <span>Tekislash: {Math.round(alignmentStatus.alignment * 100)}%</span>
               </div>
             </div>
           ) : qualityMetrics.overall >= 0.9 ? (
             <div className="space-y-2">
-              <p className="text-green-400 text-lg font-medium">✨ Mukammal tekislash!</p>
-              {autoScanCountdown > 0 && (
-                <p className="text-green-300 text-sm">Avtomatik suratga olish: {autoScanCountdown}s</p>
-              )}
-              {showBubbleOverlay && detectedBubbles.length > 0 && (
-                <div className="space-y-1">
-                  <p className="text-blue-300 text-sm">
-                    🎯 {detectedBubbles.filter(b => b.isFilled && b.isCorrect).length} to'g'ri, {detectedBubbles.filter(b => b.isFilled && !b.isCorrect).length} noto'g'ri
-                  </p>
-                  <p className="text-green-300 text-xs">
-                    📊 {new Set(detectedBubbles.map(b => b.questionNumber)).size} savol aniqlandi
-                  </p>
-                </div>
+              <p className="text-green-400 text-lg font-medium">✨ Mukammal sharoitlar!</p>
+              {autoScanCountdown > 0 ? (
+                <p className="text-green-300 text-sm animate-pulse">Avtomatik suratga olish: {autoScanCountdown}s</p>
+              ) : (
+                <p className="text-green-300 text-sm">Avtomatik suratga olinadi</p>
               )}
             </div>
           ) : (
             <div className="space-y-2">
               <p className="text-blue-400 text-lg font-medium">📸 Suratga olish mumkin</p>
-              <p className="text-white/70 text-sm">Tugmani bosing yoki kutib turing</p>
-              {showBubbleOverlay && detectedBubbles.length > 0 && (
-                <div className="space-y-1">
-                  <p className="text-blue-300 text-sm">
-                    🎯 {detectedBubbles.filter(b => b.isFilled && b.isCorrect).length} to'g'ri, {detectedBubbles.filter(b => b.isFilled && !b.isCorrect).length} noto'g'ri
-                  </p>
-                  <p className="text-blue-300 text-xs">
-                    📊 {new Set(detectedBubbles.map(b => b.questionNumber)).size} savol aniqlandi
-                  </p>
-                </div>
-              )}
+              <p className="text-white/70 text-sm">Tugmani bosing</p>
             </div>
           )}
         </div>
