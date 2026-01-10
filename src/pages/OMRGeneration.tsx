@@ -30,6 +30,7 @@ const OMRGeneration: React.FC = () => {
   const [isExporting, setIsExporting] = useState(false)
   const [isSaving, setIsSaving] = useState(false)
   const [exportProgress, setExportProgress] = useState(0)
+  const [showCorrectAnswers, setShowCorrectAnswers] = useState(false)
   
   const [config, setConfig] = useState<OMRConfig>({
     selectedExam: examData ? 'current_exam' : '',
@@ -39,6 +40,32 @@ const OMRGeneration: React.FC = () => {
     compactLayout: false,
     structure: 'continuous'
   })
+
+  // Extract correct answers from exam data
+  const getCorrectAnswers = (examData: ExamData): string[] => {
+    const correctAnswers: string[] = []
+    
+    if (examData.subjects) {
+      examData.subjects.forEach(subject => {
+        if (subject.sections) {
+          subject.sections.forEach((section: any) => {
+            if (section.questions) {
+              section.questions.forEach((question: any) => {
+                correctAnswers.push(question.correctAnswer || 'A')
+              })
+            } else {
+              // If no questions array, generate default answers based on question count
+              for (let i = 0; i < section.questionCount; i++) {
+                correctAnswers.push('A') // Default to 'A' if no correct answer specified
+              }
+            }
+          })
+        }
+      })
+    }
+    
+    return correctAnswers
+  }
 
   const handleSaveExam = async () => {
     if (!examData || !user) {
@@ -290,6 +317,21 @@ const OMRGeneration: React.FC = () => {
                 }
               </div>
             </Button>
+            
+            <Button
+              onClick={() => setShowCorrectAnswers(!showCorrectAnswers)}
+              variant="outline"
+              className={`w-full sm:w-auto ${
+                showCorrectAnswers 
+                  ? 'bg-green-50 border-green-500 text-green-700 hover:bg-green-100' 
+                  : 'hover:bg-gray-50'
+              }`}
+            >
+              <div className="w-4 h-4 border-2 border-current rounded mr-2 flex items-center justify-center">
+                {showCorrectAnswers && <div className="w-2 h-2 bg-current rounded-sm"></div>}
+              </div>
+              To'g'ri javoblarni ko'rsatish
+            </Button>
           </div>
         </div>
         
@@ -302,6 +344,8 @@ const OMRGeneration: React.FC = () => {
               prefillStudentId={config.prefillStudentId}
               compactLayout={config.compactLayout}
               paperSize={config.paperSize}
+              correctAnswers={getCorrectAnswers(examData)}
+              showCorrectAnswers={showCorrectAnswers}
             />
           </div>
         </div>

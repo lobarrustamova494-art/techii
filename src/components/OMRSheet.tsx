@@ -8,6 +8,8 @@ interface OMRSheetProps {
   prefillStudentId: boolean
   compactLayout: boolean
   paperSize: 'a4' | 'letter'
+  correctAnswers?: string[]  // To'g'ri javoblar ro'yxati
+  showCorrectAnswers?: boolean  // To'g'ri javoblarni ko'rsatish
 }
 
 const OMRSheet: React.FC<OMRSheetProps> = ({
@@ -16,7 +18,9 @@ const OMRSheet: React.FC<OMRSheetProps> = ({
   includeLogo: _includeLogo,
   prefillStudentId,
   compactLayout: _compactLayout,
-  paperSize
+  paperSize,
+  correctAnswers = [],
+  showCorrectAnswers = false
 }) => {
   // Validate examData
   if (!examData || !examData.subjects || examData.subjects.length === 0) {
@@ -65,6 +69,13 @@ const OMRSheet: React.FC<OMRSheetProps> = ({
       return Array.from({ length: optionCount }, (_, i) => String.fromCharCode(65 + i)) // A, B, C, D, E, etc.
     }
     return ['A', 'B', 'C', 'D', 'E'] // Default
+  }
+
+  // Check if an answer option is correct
+  const isCorrectAnswer = (questionNumber: number, option: string) => {
+    if (!showCorrectAnswers || !correctAnswers || correctAnswers.length === 0) return false
+    const correctAnswer = correctAnswers[questionNumber - 1]
+    return correctAnswer === option
   }
 
   // Group questions into columns (for 3-column layout)
@@ -147,7 +158,18 @@ const OMRSheet: React.FC<OMRSheetProps> = ({
                         <span className="text-sm font-bold w-4 text-right">{question.questionNumber}</span>
                         <div className="flex gap-1">
                           {getAnswerOptions(question.questionType).map((letter) => (
-                            <div key={letter} className="w-4 h-4 border-2 border-black rounded-full"></div>
+                            <div 
+                              key={letter} 
+                              className={`w-4 h-4 border-2 border-black rounded-full relative ${
+                                isCorrectAnswer(question.questionNumber, letter) 
+                                  ? 'bg-green-100' 
+                                  : ''
+                              }`}
+                            >
+                              {isCorrectAnswer(question.questionNumber, letter) && (
+                                <div className="absolute -inset-1 border-2 border-green-500 bg-green-200 bg-opacity-30 rounded"></div>
+                              )}
+                            </div>
                           ))}
                         </div>
                       </div>
@@ -200,7 +222,18 @@ const OMRSheet: React.FC<OMRSheetProps> = ({
                           <span className="text-sm font-bold w-4 text-right">{sectionStartQuestion + i}</span>
                           <div className="flex gap-1">
                             {getAnswerOptions(section.questionType).map((letter) => (
-                              <div key={letter} className="w-4 h-4 border-2 border-black rounded-full"></div>
+                              <div 
+                                key={letter} 
+                                className={`w-4 h-4 border-2 border-black rounded-full relative ${
+                                  isCorrectAnswer(sectionStartQuestion + i, letter) 
+                                    ? 'bg-green-100' 
+                                    : ''
+                                }`}
+                              >
+                                {isCorrectAnswer(sectionStartQuestion + i, letter) && (
+                                  <div className="absolute -inset-1 border-2 border-green-500 bg-green-200 bg-opacity-30 rounded"></div>
+                                )}
+                              </div>
                             ))}
                           </div>
                         </div>

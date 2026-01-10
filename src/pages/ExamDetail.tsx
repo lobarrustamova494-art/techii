@@ -23,6 +23,7 @@ const ExamDetail: React.FC = () => {
   const [downloading, setDownloading] = useState(false)
   const [downloadProgress, setDownloadProgress] = useState(0)
   const [showDownloadOptions, setShowDownloadOptions] = useState(false)
+  const [showCorrectAnswers, setShowCorrectAnswers] = useState(false)
   const examContentRef = useRef<HTMLDivElement>(null)
   const omrSheetsRef = useRef<HTMLDivElement>(null)
 
@@ -156,6 +157,32 @@ const ExamDetail: React.FC = () => {
       examSets: exam.examSets || 1,
       subjects: exam.subjects || []
     }
+  }
+
+  // Extract correct answers from exam data
+  const getCorrectAnswers = (exam: Exam): string[] => {
+    const correctAnswers: string[] = []
+    
+    if (exam.subjects) {
+      exam.subjects.forEach(subject => {
+        if (subject.sections) {
+          subject.sections.forEach((section: any) => {
+            if (section.questions) {
+              section.questions.forEach((question: any) => {
+                correctAnswers.push(question.correctAnswer || 'A')
+              })
+            } else {
+              // If no questions array, generate default answers based on question count
+              for (let i = 0; i < section.questionCount; i++) {
+                correctAnswers.push('A') // Default to 'A' if no correct answer specified
+              }
+            }
+          })
+        }
+      })
+    }
+    
+    return correctAnswers
   }
 
   if (loading) {
@@ -397,6 +424,23 @@ const ExamDetail: React.FC = () => {
             </div>
           </Button>
 
+          <Button
+            onClick={() => setShowCorrectAnswers(!showCorrectAnswers)}
+            className={`flex items-center justify-center gap-3 h-16 ${
+              showCorrectAnswers 
+                ? 'bg-green-500 hover:bg-green-600 text-white' 
+                : 'bg-gray-100 hover:bg-gray-200 text-gray-700'
+            }`}
+          >
+            <div className="w-6 h-6 border-2 border-current rounded flex items-center justify-center">
+              {showCorrectAnswers && <div className="w-3 h-3 bg-current rounded-sm"></div>}
+            </div>
+            <div className="text-left">
+              <div className="font-semibold">To'g'ri javoblar</div>
+              <div className="text-xs opacity-75">Yashil to'rtburchak bilan ko'rsatish</div>
+            </div>
+          </Button>
+
           <div className="relative">
             <LoadingButton
               onClick={(e) => {
@@ -458,6 +502,37 @@ const ExamDetail: React.FC = () => {
           </div>
         </div>
 
+        {/* OMR Sheet Preview */}
+        {exam.subjects && exam.subjects.length > 0 && (
+          <div className="mt-8">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-semibold text-slate-900 dark:text-white">
+                OMR Varaq Preview
+              </h3>
+              {showCorrectAnswers && (
+                <div className="flex items-center gap-2 text-sm text-green-600 dark:text-green-400">
+                  <div className="w-3 h-3 border border-green-500 bg-green-200 bg-opacity-30 rounded"></div>
+                  To'g'ri javoblar ko'rsatilmoqda
+                </div>
+              )}
+            </div>
+            <div className="bg-white dark:bg-slate-800 rounded-lg shadow-lg overflow-hidden">
+              <div className="transform scale-50 origin-top-left" style={{ width: '200%', height: '200%' }}>
+                <OMRSheet
+                  examData={convertExamToExamData(exam)}
+                  structure={exam.structure || 'continuous'}
+                  includeLogo={exam.includeLogo || false}
+                  prefillStudentId={exam.prefillStudentId || false}
+                  compactLayout={exam.compactLayout || false}
+                  paperSize={exam.paperSize || 'a4'}
+                  correctAnswers={getCorrectAnswers(exam)}
+                  showCorrectAnswers={showCorrectAnswers}
+                />
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Hidden OMR Sheet for PDF generation - Single sheet only */}
         {exam.subjects && exam.subjects.length > 0 && (
           <div ref={omrSheetsRef} style={{ position: 'absolute', left: '-9999px', top: '0' }}>
@@ -468,6 +543,8 @@ const ExamDetail: React.FC = () => {
               prefillStudentId={exam.prefillStudentId || false}
               compactLayout={exam.compactLayout || false}
               paperSize={exam.paperSize || 'a4'}
+              correctAnswers={getCorrectAnswers(exam)}
+              showCorrectAnswers={showCorrectAnswers}
             />
           </div>
         )}
