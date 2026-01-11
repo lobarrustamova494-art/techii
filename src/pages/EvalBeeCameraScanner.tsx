@@ -14,7 +14,7 @@ import { useConsoleLogger } from '@/hooks/useConsoleLogger'
 import { apiService } from '@/services/api'
 
 // Lazy load heavy components for better performance
-const EvalBeeCameraScanner = lazy(() => import('@/components/EvalBeeCameraScanner'))
+const CameraScanner = lazy(() => import('@/components/CameraScanner'))
 const MobileDebugModal = lazy(() => import('@/components/MobileDebugModal'))
 
 // Enhanced Captured Image Component with Real-time Bubble Analysis
@@ -443,7 +443,7 @@ const EvalBeeCameraScannerPage: React.FC = () => {
     setShowDebugModal(true)
   }, [debugEnabled, consoleLogger])
 
-  const handleCameraCapture = useCallback(async (imageData: string, qualityMetrics: QualityMetrics) => {
+  const handleCameraCapture = useCallback(async (imageData: string) => {
     console.log('📸 EvalBeeCameraScannerPage: Image captured from camera')
     
     // Validate image data format
@@ -455,14 +455,25 @@ const EvalBeeCameraScannerPage: React.FC = () => {
     
     console.log('✅ Image data format is valid')
     
+    // Default quality metrics since CameraScanner doesn't provide them
+    const defaultQualityMetrics: QualityMetrics = {
+      focus: 0.8,
+      brightness: 0.7,
+      contrast: 0.8,
+      skew: 0.1,
+      overall: 0.8,
+      issues: [],
+      recommendations: []
+    }
+    
     setCapturedImage(imageData)
-    setCaptureQuality(qualityMetrics)
+    setCaptureQuality(defaultQualityMetrics)
     setShowCamera(false)
     
     console.log('🔄 Starting automatic EvalBee processing...')
     
     // Automatically process with EvalBee engine
-    await processWithEvalBee(imageData, qualityMetrics)
+    await processWithEvalBee(imageData, defaultQualityMetrics)
   }, [])
 
   const processWithEvalBee = useCallback(async (imageData: string, qualityMetrics: QualityMetrics) => {
@@ -616,11 +627,10 @@ const EvalBeeCameraScannerPage: React.FC = () => {
           </div>
         </div>
       }>
-        <EvalBeeCameraScanner
+        <CameraScanner
           onCapture={handleCameraCapture}
           onClose={() => setShowCamera(false)}
-          isProcessing={processing}
-          onShowDebug={handleShowDebug}
+          isScanning={processing}
         />
       </Suspense>
     )
