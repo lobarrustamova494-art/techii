@@ -12,6 +12,11 @@ from flask_cors import CORS
 from werkzeug.utils import secure_filename
 import logging
 from pathlib import Path
+
+# Load environment variables
+from dotenv import load_dotenv
+load_dotenv()
+
 from omr_processor import OMRProcessor
 from optimized_omr_processor import OptimizedOMRProcessor
 from ultra_precision_omr_processor import UltraPrecisionOMRProcessor
@@ -64,7 +69,45 @@ except ImportError as e:
     ANCHOR_BASED_AVAILABLE = False
     AnchorBasedOMRProcessor = None
 
-# Initialize Flask app
+# Safe import for ML Bubble Classifier
+try:
+    from ml_bubble_classifier import MLBubbleClassifier
+    ML_CLASSIFIER_AVAILABLE = True
+    logger.info("✅ ML Bubble Classifier available")
+except ImportError as e:
+    logger.warning(f"ML Bubble Classifier not available: {e}")
+    ML_CLASSIFIER_AVAILABLE = False
+    MLBubbleClassifier = None
+
+# Safe import for Advanced Quality Control
+try:
+    from advanced_quality_control import AdvancedQualityController
+    QUALITY_CONTROL_AVAILABLE = True
+    logger.info("✅ Advanced Quality Control available")
+except ImportError as e:
+    logger.warning(f"Advanced Quality Control not available: {e}")
+    QUALITY_CONTROL_AVAILABLE = False
+    AdvancedQualityController = None
+
+# Safe import for GROQ AI OMR Analyzer
+try:
+    from groq_ai_omr_analyzer import GroqAIOMRAnalyzer
+    GROQ_AI_AVAILABLE = True
+    logger.info("✅ GROQ AI OMR Analyzer available")
+except ImportError as e:
+    logger.warning(f"GROQ AI OMR Analyzer not available: {e}")
+    GROQ_AI_AVAILABLE = False
+    GroqAIOMRAnalyzer = None
+
+# Safe import for Cloud Processor
+try:
+    from cloud_processor import cloud_processor
+    CLOUD_PROCESSOR_AVAILABLE = True
+    logger.info("✅ Cloud Processor available")
+except ImportError as e:
+    logger.warning(f"Cloud Processor not available: {e}")
+    CLOUD_PROCESSOR_AVAILABLE = False
+    cloud_processor = None
 app = Flask(__name__)
 CORS(app)
 
@@ -94,6 +137,20 @@ quality_analyzer = RealtimeQualityAnalyzer() if ADVANCED_FEATURES_AVAILABLE else
 batch_processor = BatchOMRProcessor() if ADVANCED_FEATURES_AVAILABLE else None
 analytics_engine = AnalyticsEngine() if ADVANCED_FEATURES_AVAILABLE else None
 anchor_based_processor = AnchorBasedOMRProcessor() if ANCHOR_BASED_AVAILABLE else None
+
+# New advanced features initialization
+ml_classifier = MLBubbleClassifier() if ML_CLASSIFIER_AVAILABLE else None
+quality_controller = AdvancedQualityController() if QUALITY_CONTROL_AVAILABLE else None
+
+# GROQ AI initialization
+groq_ai_analyzer = None
+if GROQ_AI_AVAILABLE:
+    try:
+        groq_ai_analyzer = GroqAIOMRAnalyzer()
+        logger.info("✅ GROQ AI OMR Analyzer initialized")
+    except Exception as e:
+        logger.error(f"❌ Failed to initialize GROQ AI: {e}")
+        GROQ_AI_AVAILABLE = False
 
 def convert_numpy_types(obj):
     """Convert numpy types to Python native types for JSON serialization"""
@@ -710,6 +767,9 @@ def process_omr_professional():
             logger.info(f"✅ EvalBee Professional processing completed successfully")
             logger.info(f"📊 Confidence: {result.overall_confidence:.2f}, Time: {result.processing_time:.2f}s")
             
+            # Convert numpy types to JSON-serializable types
+            response_data = convert_numpy_types(response_data)
+            
             return jsonify(response_data)
             
         finally:
@@ -726,71 +786,6 @@ def process_omr_professional():
             'error': str(e),
             'processing_method': 'EvalBee Professional Multi-Pass Engine'
         }), 500
-
-@app.route('/api/quality/analyze', methods=['POST'])
-def analyze_image_quality():
-    """Real-time image quality analysis"""
-    try:
-        if not ADVANCED_FEATURES_AVAILABLE or not quality_analyzer:
-            return jsonify({'error': 'Quality analysis not available'}), 503
-        
-        logger.info("🔍 Quality analysis request received")
-        
-        # Get image data
-        if 'image' in request.files:
-            # File upload
-            file = request.files['image']
-            if file.filename == '':
-                return jsonify({'error': 'No file selected'}), 400
-            
-            # Save temporarily
-            temp_filename = f"temp_quality_{int(time.time())}_{secure_filename(file.filename)}"
-            temp_path = os.path.join(UPLOAD_FOLDER, temp_filename)
-            file.save(temp_path)
-            
-            try:
-                import cv2
-                image = cv2.imread(temp_path)
-                if image is None:
-                    return jsonify({'error': 'Could not read image file'}), 400
-                
-                feedback = quality_analyzer.analyze_image_quality(image)
-                summary = quality_analyzer.get_quality_summary(feedback)
-                
-                logger.info("✅ Quality analysis completed successfully")
-                
-                return jsonify({
-                    'success': True,
-                    'quality_analysis': summary
-                })
-            except Exception as e:
-                logger.error(f"Quality analysis processing error: {e}")
-                return jsonify({'error': f'Processing error: {str(e)}'}), 500
-            finally:
-                if os.path.exists(temp_path):
-                    os.remove(temp_path)
-        
-        elif request.is_json and 'base64_image' in request.json:
-            # Base64 image
-            base64_data = request.json['base64_image']
-            feedback = quality_analyzer.analyze_from_base64(base64_data)
-            summary = quality_analyzer.get_quality_summary(feedback)
-            
-            logger.info("✅ Base64 quality analysis completed")
-            
-            return jsonify({
-                'success': True,
-                'quality_analysis': summary
-            })
-        
-        else:
-            return jsonify({'error': 'No image data provided'}), 400
-            
-    except Exception as e:
-        logger.error(f"Quality analysis error: {e}")
-        import traceback
-        traceback.print_exc()
-        return jsonify({'success': False, 'error': str(e)}), 500
 
 @app.route('/api/analytics/report', methods=['GET'])
 def get_analytics_report():
@@ -901,6 +896,547 @@ def get_debug_image(filename):
             'success': False,
             'message': 'Debug image not found'
         }), 404
+
+# ===== GROQ AI OMR ENDPOINTS =====
+
+@app.route('/api/omr/process_groq_ai', methods=['POST'])
+def process_omr_with_groq_ai():
+    """GROQ AI bilan OMR qayta ishlash"""
+    try:
+        logger.info("🤖 GROQ AI OMR processing request received")
+        
+        if not GROQ_AI_AVAILABLE or not groq_ai_analyzer:
+            return jsonify({
+                'success': False,
+                'error': 'GROQ AI not available'
+            }), 503
+        
+        # Get uploaded file
+        if 'image' not in request.files:
+            return jsonify({'error': 'No image file provided'}), 400
+        
+        file = request.files['image']
+        if file.filename == '':
+            return jsonify({'error': 'No file selected'}), 400
+        
+        if not allowed_file(file.filename):
+            return jsonify({'error': 'Invalid file type'}), 400
+        
+        # Get answer key
+        answer_key_str = request.form.get('answerKey', '[]')
+        try:
+            answer_key = json.loads(answer_key_str)
+        except json.JSONDecodeError:
+            return jsonify({'error': 'Invalid answer key format'}), 400
+        
+        if not answer_key:
+            return jsonify({'error': 'Answer key is required'}), 400
+        
+        # Save uploaded file temporarily
+        filename = secure_filename(file.filename)
+        temp_path = os.path.join(UPLOAD_FOLDER, f"temp_groq_ai_{int(time.time())}_{filename}")
+        file.save(temp_path)
+        
+        try:
+            # Process with GROQ AI
+            result = groq_ai_analyzer.analyze_with_hybrid_approach(temp_path, answer_key)
+            
+            # Convert numpy types to JSON-serializable types
+            result = convert_numpy_types(result)
+            
+            logger.info(f"✅ GROQ AI processing completed successfully")
+            
+            return jsonify(result)
+            
+        finally:
+            # Clean up temporary file
+            if os.path.exists(temp_path):
+                os.remove(temp_path)
+                
+    except Exception as e:
+        logger.error(f"❌ GROQ AI processing error: {e}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({
+            'success': False,
+            'error': str(e),
+            'processing_method': 'GROQ AI OMR Analyzer'
+        }), 500
+
+@app.route('/api/omr/process_hybrid_ai', methods=['POST'])
+def process_omr_hybrid_ai():
+    """GROQ AI + Traditional methods bilan hybrid tahlil"""
+    try:
+        logger.info("🔄 Hybrid AI + Traditional OMR processing started")
+        
+        # Get uploaded file
+        if 'image' not in request.files:
+            return jsonify({'error': 'No image file provided'}), 400
+        
+        file = request.files['image']
+        if file.filename == '':
+            return jsonify({'error': 'No file selected'}), 400
+        
+        if not allowed_file(file.filename):
+            return jsonify({'error': 'Invalid file type'}), 400
+        
+        # Get answer key
+        answer_key_str = request.form.get('answerKey', '[]')
+        try:
+            answer_key = json.loads(answer_key_str)
+        except json.JSONDecodeError:
+            return jsonify({'error': 'Invalid answer key format'}), 400
+        
+        if not answer_key:
+            return jsonify({'error': 'Answer key is required'}), 400
+        
+        # Save uploaded file temporarily
+        filename = secure_filename(file.filename)
+        temp_path = os.path.join(UPLOAD_FOLDER, f"temp_hybrid_{int(time.time())}_{filename}")
+        file.save(temp_path)
+        
+        try:
+            traditional_result = None
+            ai_result = None
+            
+            # 1. Try traditional method first (if available)
+            if EVALBEE_PROFESSIONAL_AVAILABLE and evalbee_professional_engine:
+                try:
+                    logger.info("🎯 Running traditional EvalBee Professional analysis...")
+                    traditional_analysis = evalbee_professional_engine.process_omr_professional(temp_path, answer_key)
+                    traditional_result = {
+                        'extracted_answers': traditional_analysis.extracted_answers,
+                        'confidence': traditional_analysis.overall_confidence,
+                        'processing_time': traditional_analysis.processing_time
+                    }
+                except Exception as e:
+                    logger.warning(f"Traditional analysis failed: {e}")
+            
+            # 2. Run GROQ AI analysis
+            if GROQ_AI_AVAILABLE and groq_ai_analyzer:
+                try:
+                    logger.info("🤖 Running GROQ AI analysis...")
+                    ai_result = groq_ai_analyzer.analyze_with_hybrid_approach(
+                        temp_path, answer_key, traditional_result
+                    )
+                except Exception as e:
+                    logger.warning(f"AI analysis failed: {e}")
+            
+            # 3. Determine best result
+            if ai_result and ai_result.get('success'):
+                final_result = ai_result
+                final_result['data']['hybrid_analysis'] = True
+                final_result['data']['traditional_backup'] = traditional_result is not None
+            elif traditional_result:
+                final_result = {
+                    'success': True,
+                    'processing_method': 'EvalBee Professional (AI Fallback)',
+                    'data': traditional_result
+                }
+            else:
+                return jsonify({
+                    'success': False,
+                    'error': 'Both AI and traditional methods failed',
+                    'processing_method': 'Hybrid Analysis'
+                }), 500
+            
+            # Convert numpy types
+            final_result = convert_numpy_types(final_result)
+            
+            logger.info("✅ Hybrid analysis completed successfully")
+            return jsonify(final_result)
+            
+        finally:
+            # Clean up temporary file
+            if os.path.exists(temp_path):
+                os.remove(temp_path)
+                
+    except Exception as e:
+        logger.error(f"❌ Hybrid processing error: {e}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({
+            'success': False,
+            'error': str(e),
+            'processing_method': 'Hybrid AI Analysis'
+        }), 500
+
+@app.route('/api/ai/status', methods=['GET'])
+def get_ai_status():
+    """AI tizimlarining holatini tekshirish"""
+    try:
+        status = {
+            'groq_ai': {
+                'available': GROQ_AI_AVAILABLE,
+                'model': groq_ai_analyzer.model_name if groq_ai_analyzer else None,
+                'api_key_configured': bool(os.getenv('GROQ_API'))
+            },
+            'ml_classifier': {
+                'available': ML_CLASSIFIER_AVAILABLE,
+                'trained': ml_classifier.is_trained if ml_classifier else False
+            },
+            'quality_controller': {
+                'available': QUALITY_CONTROL_AVAILABLE
+            },
+            'traditional_engines': {
+                'professional': EVALBEE_PROFESSIONAL_AVAILABLE,
+                'anchor_based': ANCHOR_BASED_AVAILABLE,
+                'advanced_features': ADVANCED_FEATURES_AVAILABLE
+            }
+        }
+        
+        return jsonify({
+            'success': True,
+            'ai_status': status
+        })
+        
+    except Exception as e:
+        logger.error(f"AI status error: {e}")
+        return jsonify({
+            'success': False,
+            'message': f'Failed to get AI status: {str(e)}'
+        }), 500
+
+# ===== CLOUD PROCESSING ENDPOINTS =====
+
+@app.route('/api/cloud/submit', methods=['POST'])
+def submit_cloud_job():
+    """Submit a job to the cloud processing queue"""
+    try:
+        if not CLOUD_PROCESSOR_AVAILABLE:
+            return jsonify({
+                'success': False,
+                'message': 'Cloud processing not available'
+            }), 503
+        
+        data = request.get_json()
+        
+        if not data:
+            return jsonify({
+                'success': False,
+                'message': 'No JSON data provided'
+            }), 400
+        
+        # Extract parameters
+        image_data = data.get('image_data')
+        answer_key = data.get('answer_key', [])
+        processing_mode = data.get('processing_mode', 'professional')
+        priority = data.get('priority', 5)
+        
+        if not image_data:
+            return jsonify({
+                'success': False,
+                'message': 'No image data provided'
+            }), 400
+        
+        # Submit job to cloud processor
+        import asyncio
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        
+        job_id = loop.run_until_complete(
+            cloud_processor.submit_job(image_data, answer_key, processing_mode, priority)
+        )
+        
+        return jsonify({
+            'success': True,
+            'job_id': job_id,
+            'message': 'Job submitted successfully'
+        })
+        
+    except Exception as e:
+        logger.error(f"Cloud job submission error: {e}")
+        return jsonify({
+            'success': False,
+            'message': f'Cloud job submission failed: {str(e)}'
+        }), 500
+
+@app.route('/api/cloud/status/<job_id>', methods=['GET'])
+def get_cloud_job_status(job_id):
+    """Get the status of a cloud processing job"""
+    try:
+        if not CLOUD_PROCESSOR_AVAILABLE:
+            return jsonify({
+                'success': False,
+                'message': 'Cloud processing not available'
+            }), 503
+        
+        # Get job status from cloud processor
+        import asyncio
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        
+        status = loop.run_until_complete(
+            cloud_processor.get_job_status(job_id)
+        )
+        
+        if status is None:
+            return jsonify({
+                'success': False,
+                'message': 'Job not found'
+            }), 404
+        
+        return jsonify({
+            'success': True,
+            **status
+        })
+        
+    except Exception as e:
+        logger.error(f"Cloud job status error: {e}")
+        return jsonify({
+            'success': False,
+            'message': f'Failed to get job status: {str(e)}'
+        }), 500
+
+@app.route('/api/cloud/cluster-status', methods=['GET'])
+def get_cluster_status():
+    """Get overall cloud cluster status"""
+    try:
+        if not CLOUD_PROCESSOR_AVAILABLE:
+            return jsonify({
+                'success': False,
+                'message': 'Cloud processing not available'
+            }), 503
+        
+        status = cloud_processor.get_cluster_status()
+        
+        return jsonify({
+            'success': True,
+            'cluster_status': status
+        })
+        
+    except Exception as e:
+        logger.error(f"Cluster status error: {e}")
+        return jsonify({
+            'success': False,
+            'message': f'Failed to get cluster status: {str(e)}'
+        }), 500
+
+# ===== ADVANCED QUALITY CONTROL ENDPOINTS =====
+
+@app.route('/api/quality/analyze', methods=['POST'])
+def analyze_image_quality():
+    """Analyze image quality using Advanced Quality Controller"""
+    try:
+        if not QUALITY_CONTROL_AVAILABLE:
+            return jsonify({
+                'success': False,
+                'message': 'Advanced quality control not available'
+            }), 503
+        
+        if 'image' not in request.files:
+            return jsonify({
+                'success': False,
+                'message': 'No image file provided'
+            }), 400
+        
+        file = request.files['image']
+        if file.filename == '':
+            return jsonify({
+                'success': False,
+                'message': 'No file selected'
+            }), 400
+        
+        # Save uploaded file temporarily
+        filename = secure_filename(file.filename)
+        temp_path = os.path.join(UPLOAD_FOLDER, f"quality_{int(time.time())}_{filename}")
+        file.save(temp_path)
+        
+        try:
+            # Load and analyze image
+            import cv2
+            image = cv2.imread(temp_path)
+            if image is None:
+                return jsonify({
+                    'success': False,
+                    'message': 'Could not read image file'
+                }), 400
+            
+            # Analyze quality
+            quality_metrics = quality_controller.analyze_quality(image)
+            
+            # Convert to JSON-serializable format
+            result = {
+                'overall_score': quality_metrics.overall_score,
+                'level': quality_metrics.level.value,
+                'sharpness': quality_metrics.sharpness,
+                'contrast': quality_metrics.contrast,
+                'brightness': quality_metrics.brightness,
+                'noise_level': quality_metrics.noise_level,
+                'skew_angle': quality_metrics.skew_angle,
+                'resolution_score': quality_metrics.resolution_score,
+                'alignment_score': quality_metrics.alignment_score,
+                'bubble_quality_score': quality_metrics.bubble_quality_score,
+                'processing_time': quality_metrics.processing_time,
+                'issues': [
+                    {
+                        'type': issue.type.value,
+                        'severity': issue.severity,
+                        'description': issue.description,
+                        'auto_correctable': issue.auto_correctable
+                    }
+                    for issue in quality_metrics.issues
+                ]
+            }
+            
+            # Convert numpy types to JSON-serializable types
+            result = convert_numpy_types(result)
+            
+            return jsonify({
+                'success': True,
+                'quality_metrics': result
+            })
+            
+        finally:
+            # Clean up temporary file
+            if os.path.exists(temp_path):
+                os.remove(temp_path)
+        
+    except Exception as e:
+        logger.error(f"Quality analysis error: {e}")
+        return jsonify({
+            'success': False,
+            'message': f'Quality analysis failed: {str(e)}'
+        }), 500
+
+@app.route('/api/quality/auto-correct', methods=['POST'])
+def auto_correct_image():
+    """Auto-correct image quality issues"""
+    try:
+        if not QUALITY_CONTROL_AVAILABLE:
+            return jsonify({
+                'success': False,
+                'message': 'Advanced quality control not available'
+            }), 503
+        
+        if 'image' not in request.files:
+            return jsonify({
+                'success': False,
+                'message': 'No image file provided'
+            }), 400
+        
+        file = request.files['image']
+        if file.filename == '':
+            return jsonify({
+                'success': False,
+                'message': 'No file selected'
+            }), 400
+        
+        # Save uploaded file temporarily
+        filename = secure_filename(file.filename)
+        temp_path = os.path.join(UPLOAD_FOLDER, f"correct_{int(time.time())}_{filename}")
+        file.save(temp_path)
+        
+        try:
+            # Load and analyze image
+            import cv2
+            image = cv2.imread(temp_path)
+            if image is None:
+                return jsonify({
+                    'success': False,
+                    'message': 'Could not read image file'
+                }), 400
+            
+            # Analyze quality first
+            quality_metrics = quality_controller.analyze_quality(image)
+            
+            # Apply auto-correction
+            correction_result = quality_controller.auto_correct_image(image, quality_metrics)
+            
+            # Save corrected image
+            corrected_path = os.path.join(UPLOAD_FOLDER, f"corrected_{int(time.time())}_{filename}")
+            cv2.imwrite(corrected_path, correction_result.corrected_image)
+            
+            # Convert corrected image to base64
+            import base64
+            with open(corrected_path, 'rb') as img_file:
+                corrected_base64 = base64.b64encode(img_file.read()).decode('utf-8')
+            
+            result = {
+                'corrections_applied': correction_result.corrections_applied,
+                'quality_improvement': correction_result.quality_improvement,
+                'processing_time': correction_result.processing_time,
+                'corrected_image_base64': f"data:image/jpeg;base64,{corrected_base64}"
+            }
+            
+            return jsonify({
+                'success': True,
+                'correction_result': result
+            })
+            
+        finally:
+            # Clean up temporary files
+            for path in [temp_path, corrected_path]:
+                if os.path.exists(path):
+                    os.remove(path)
+        
+    except Exception as e:
+        logger.error(f"Auto-correction error: {e}")
+        return jsonify({
+            'success': False,
+            'message': f'Auto-correction failed: {str(e)}'
+        }), 500
+
+# ===== ML CLASSIFIER ENDPOINTS =====
+
+@app.route('/api/ml/train', methods=['POST'])
+def train_ml_classifier():
+    """Train the ML bubble classifier with provided data"""
+    try:
+        if not ML_CLASSIFIER_AVAILABLE:
+            return jsonify({
+                'success': False,
+                'message': 'ML Bubble Classifier not available'
+            }), 503
+        
+        # For now, use synthetic training data
+        # In production, this would accept real training data
+        training_data = ml_classifier.generate_synthetic_training_data(1000)
+        
+        # Train the model
+        results = ml_classifier.train_model(training_data)
+        
+        # Save the trained model
+        ml_classifier.save_model()
+        
+        return jsonify({
+            'success': True,
+            'training_results': results,
+            'message': 'ML classifier trained successfully'
+        })
+        
+    except Exception as e:
+        logger.error(f"ML training error: {e}")
+        return jsonify({
+            'success': False,
+            'message': f'ML training failed: {str(e)}'
+        }), 500
+
+@app.route('/api/ml/status', methods=['GET'])
+def get_ml_status():
+    """Get ML classifier status"""
+    try:
+        if not ML_CLASSIFIER_AVAILABLE:
+            return jsonify({
+                'success': False,
+                'message': 'ML Bubble Classifier not available'
+            }), 503
+        
+        return jsonify({
+            'success': True,
+            'ml_status': {
+                'available': True,
+                'trained': ml_classifier.is_trained,
+                'model_path': ml_classifier.model_path
+            }
+        })
+        
+    except Exception as e:
+        logger.error(f"ML status error: {e}")
+        return jsonify({
+            'success': False,
+            'message': f'Failed to get ML status: {str(e)}'
+        }), 500
 
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))

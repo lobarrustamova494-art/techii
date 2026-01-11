@@ -90,29 +90,20 @@ async function testQualityAnalysis() {
     const result = await response.json()
     
     if (result.success) {
-      const analysis = result.quality_analysis
+      const analysis = result.quality_metrics
       
       console.log('✅ Quality analysis completed')
-      console.log(`📊 Overall Score: ${analysis.overall_score}%`)
-      console.log(`🎯 Quality Level: ${analysis.quality_level}`)
-      console.log(`✅ Ready for Processing: ${analysis.is_ready}`)
+      console.log(`📊 Overall Score: ${(analysis.overall_score * 100).toFixed(1)}%`)
+      console.log(`🎯 Quality Level: ${analysis.level}`)
+      console.log(`📈 Sharpness: ${analysis.sharpness.toFixed(1)}`)
+      console.log(`📈 Contrast: ${analysis.contrast.toFixed(3)}`)
+      console.log(`📈 Brightness: ${analysis.brightness.toFixed(1)}`)
+      console.log(`📈 Noise Level: ${analysis.noise_level.toFixed(1)}`)
       
-      console.log(`📈 Detailed Scores:`)
-      for (const [metric, score] of Object.entries(analysis.scores)) {
-        console.log(`   ${metric}: ${score}%`)
-      }
-      
-      if (analysis.recommendations.length > 0) {
-        console.log(`💡 Recommendations:`)
-        analysis.recommendations.forEach((rec, index) => {
-          console.log(`   ${index + 1}. ${rec}`)
-        })
-      }
-      
-      if (analysis.warnings.length > 0) {
-        console.log(`⚠️ Warnings:`)
-        analysis.warnings.forEach((warning, index) => {
-          console.log(`   ${index + 1}. ${warning}`)
+      if (analysis.issues && analysis.issues.length > 0) {
+        console.log(`⚠️ Issues Found:`)
+        analysis.issues.forEach((issue, index) => {
+          console.log(`   ${index + 1}. ${issue.description} (${issue.type}, severity: ${(issue.severity * 100).toFixed(1)}%)`)
         })
       }
       

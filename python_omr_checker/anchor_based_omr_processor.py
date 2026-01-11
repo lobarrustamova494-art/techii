@@ -141,8 +141,15 @@ class AnchorBasedOMRProcessor:
             
             # Step 2: Anchor nuqtalarni topish (OCR yoki fallback)
             if self.tesseract_available:
+                logger.info("🔍 Attempting OCR-based anchor detection")
                 anchor_points = self.detect_anchor_points_ocr(processed_image, original_image)
+                
+                # If OCR fails or returns no results, fallback to coordinates
+                if not anchor_points:
+                    logger.warning("⚠️ OCR detection failed or returned no results, using fallback")
+                    anchor_points = self.detect_anchor_points_fallback(processed_image)
             else:
+                logger.info("🔄 Using coordinate-based fallback (Tesseract not available)")
                 anchor_points = self.detect_anchor_points_fallback(processed_image)
             
             # Step 3: Har bir anchor uchun bubble koordinatalarini hisoblash
@@ -224,6 +231,10 @@ class AnchorBasedOMRProcessor:
     def detect_anchor_points_ocr(self, processed_image: np.ndarray, original_image: np.ndarray) -> List[AnchorPoint]:
         """OCR yordamida savol raqamlarini (anchor points) topish"""
         logger.info("🎯 Detecting anchor points using OCR")
+        
+        if not TESSERACT_AVAILABLE:
+            logger.warning("⚠️ Tesseract not available for OCR detection")
+            return []
         
         anchor_points = []
         

@@ -2,6 +2,7 @@
 """
 EvalBee Professional OMR Engine - Complete Professional System
 Implements EvalBee-style multi-pass processing with consensus voting
+Enhanced with ML Bubble Classifier integration
 """
 
 import cv2
@@ -14,6 +15,26 @@ import time
 import math
 from concurrent.futures import ThreadPoolExecutor
 import statistics
+
+# Configure logging
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+logger = logging.getLogger(__name__)
+
+# Import ML Bubble Classifier
+try:
+    from ml_bubble_classifier import MLBubbleClassifier, MLClassificationResult
+    ML_AVAILABLE = True
+except ImportError:
+    ML_AVAILABLE = False
+    logger.warning("ML Bubble Classifier not available")
+
+# Import Advanced Quality Control
+try:
+    from advanced_quality_control import AdvancedQualityController, QualityMetrics
+    QUALITY_CONTROL_AVAILABLE = True
+except ImportError:
+    QUALITY_CONTROL_AVAILABLE = False
+    logger.warning("Advanced Quality Control not available")
 
 # Configure logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -58,6 +79,24 @@ class EvalBeeProfessionalOMREngine:
     def __init__(self):
         self.debug_mode = True
         
+        # Initialize ML Bubble Classifier if available
+        self.ml_classifier = None
+        if ML_AVAILABLE:
+            try:
+                self.ml_classifier = MLBubbleClassifier()
+                logger.info("✅ ML Bubble Classifier initialized")
+            except Exception as e:
+                logger.warning(f"⚠️ ML Classifier initialization failed: {e}")
+        
+        # Initialize Advanced Quality Controller if available
+        self.quality_controller = None
+        if QUALITY_CONTROL_AVAILABLE:
+            try:
+                self.quality_controller = AdvancedQualityController()
+                logger.info("✅ Advanced Quality Controller initialized")
+            except Exception as e:
+                logger.warning(f"⚠️ Quality Controller initialization failed: {e}")
+        
         # Professional processing parameters
         self.processing_methods = [
             'adaptive_threshold',
@@ -66,6 +105,10 @@ class EvalBeeProfessionalOMREngine:
             'template_matching',
             'statistical_analysis'
         ]
+        
+        # Add ML method if available
+        if self.ml_classifier:
+            self.processing_methods.append('ml_classification')
         
         # Quality thresholds (EvalBee standards)
         self.quality_thresholds = {
@@ -82,7 +125,7 @@ class EvalBeeProfessionalOMREngine:
         self.bubble_params = {
             'min_radius': 12,
             'max_radius': 25,
-            'detection_methods': 5,
+            'detection_methods': 6 if self.ml_classifier else 5,  # Include ML if available
             'consensus_votes_required': 3,
             'adaptive_threshold_block_size': 11,
             'adaptive_threshold_c': 2
@@ -198,23 +241,42 @@ class EvalBeeProfessionalOMREngine:
         # Convert to grayscale
         gray = cv2.cvtColor(original, cv2.COLOR_BGR2GRAY)
         
-        # Quality analysis
-        quality_metrics = self.analyze_image_quality_professional(gray)
-        
-        # Adaptive preprocessing based on quality
-        if quality_metrics['sharpness'] < self.quality_thresholds['min_sharpness']:
-            # Apply sharpening
-            kernel = np.array([[-1,-1,-1], [-1,9,-1], [-1,-1,-1]])
-            gray = cv2.filter2D(gray, -1, kernel)
-        
-        if quality_metrics['contrast'] < self.quality_thresholds['min_contrast']:
-            # Apply CLAHE for contrast enhancement
-            clahe = cv2.createCLAHE(clipLimit=3.0, tileGridSize=(8,8))
-            gray = clahe.apply(gray)
-        
-        if quality_metrics['noise_level'] > self.quality_thresholds['max_noise']:
-            # Apply denoising
-            gray = cv2.bilateralFilter(gray, 9, 75, 75)
+        # Use Advanced Quality Controller if available
+        if self.quality_controller:
+            logger.info("🔍 Using Advanced Quality Controller for analysis")
+            quality_analysis = self.quality_controller.analyze_quality(gray)
+            quality_metrics = {
+                'sharpness': quality_analysis.sharpness,
+                'contrast': quality_analysis.contrast,
+                'brightness': quality_analysis.brightness,
+                'noise_level': quality_analysis.noise_level,
+                'overall_quality': quality_analysis.overall_score
+            }
+            
+            # Apply auto-correction if needed
+            if quality_analysis.level.value in ['poor', 'acceptable']:
+                logger.info("🔧 Applying automatic quality corrections")
+                correction_result = self.quality_controller.auto_correct_image(gray, quality_analysis)
+                gray = correction_result.corrected_image
+                logger.info(f"✅ Applied {len(correction_result.corrections_applied)} corrections")
+        else:
+            # Fallback to basic quality analysis
+            quality_metrics = self.analyze_image_quality_professional(gray)
+            
+            # Basic preprocessing based on quality
+            if quality_metrics['sharpness'] < self.quality_thresholds['min_sharpness']:
+                # Apply sharpening
+                kernel = np.array([[-1,-1,-1], [-1,9,-1], [-1,-1,-1]])
+                gray = cv2.filter2D(gray, -1, kernel)
+            
+            if quality_metrics['contrast'] < self.quality_thresholds['min_contrast']:
+                # Apply CLAHE for contrast enhancement
+                clahe = cv2.createCLAHE(clipLimit=3.0, tileGridSize=(8,8))
+                gray = clahe.apply(gray)
+            
+            if quality_metrics['noise_level'] > self.quality_thresholds['max_noise']:
+                # Apply denoising
+                gray = cv2.bilateralFilter(gray, 9, 75, 75)
         
         # Perspective correction (if needed)
         corrected = self.correct_perspective_if_needed(gray)
@@ -326,6 +388,11 @@ class EvalBeeProfessionalOMREngine:
                 # Method 5: Statistical analysis
                 analysis5 = self.analyze_bubble_statistical(image, x, y, option)
                 analyses.append(analysis5)
+                
+                # Method 6: ML Classification (if available)
+                if self.ml_classifier:
+                    analysis6 = self.analyze_bubble_ml_classification(image, x, y, option)
+                    analyses.append(analysis6)
                 
                 # Combine analyses
                 combined_analysis = self.combine_bubble_analyses(analyses, option)
@@ -588,6 +655,65 @@ class EvalBeeProfessionalOMREngine:
             quality_flags=quality_flags
         )
     
+    def analyze_bubble_ml_classification(self, image: np.ndarray, x: int, y: int, option: str) -> BubbleAnalysis:
+        """Analyze bubble using ML classification"""
+        radius = 20
+        
+        # Extract bubble region
+        y1, y2 = max(0, y - radius), min(image.shape[0], y + radius)
+        x1, x2 = max(0, x - radius), min(image.shape[1], x + radius)
+        bubble_region = image[y1:y2, x1:x2]
+        
+        if bubble_region.size == 0:
+            return BubbleAnalysis(0.0, 0.1, 'ml_classification', {}, ['region_empty'])
+        
+        try:
+            # Use ML classifier
+            ml_result = self.ml_classifier.classify_bubble(bubble_region)
+            
+            # Convert ML result to BubbleAnalysis
+            intensity = ml_result.probability_filled
+            confidence = ml_result.confidence
+            
+            region_stats = {
+                'ml_probability_filled': ml_result.probability_filled,
+                'ml_probability_empty': ml_result.probability_empty,
+                'ml_confidence': ml_result.confidence,
+                'ml_is_filled': ml_result.is_filled,
+                # Include feature stats
+                'ml_intensity_mean': ml_result.features.intensity_mean,
+                'ml_fill_ratio': ml_result.features.fill_ratio,
+                'ml_edge_density': ml_result.features.edge_density,
+                'ml_circularity': ml_result.features.circularity
+            }
+            
+            quality_flags = []
+            if ml_result.confidence < 0.6:
+                quality_flags.append('ml_low_confidence')
+            if ml_result.features.fill_ratio < 0.1:
+                quality_flags.append('ml_very_light')
+            elif ml_result.features.fill_ratio > 0.8:
+                quality_flags.append('ml_very_dark')
+            
+            return BubbleAnalysis(
+                intensity=intensity,
+                confidence=confidence,
+                method='ml_classification',
+                region_stats=region_stats,
+                quality_flags=quality_flags
+            )
+            
+        except Exception as e:
+            logger.warning(f"ML classification failed for {option}: {e}")
+            # Fallback to basic analysis
+            return BubbleAnalysis(
+                intensity=0.0,
+                confidence=0.1,
+                method='ml_classification',
+                region_stats={'ml_error': str(e)},
+                quality_flags=['ml_failed']
+            )
+    
     def combine_bubble_analyses(self, analyses: List[BubbleAnalysis], option: str) -> BubbleAnalysis:
         """Combine multiple bubble analyses using weighted voting"""
         
@@ -596,11 +722,12 @@ class EvalBeeProfessionalOMREngine:
         
         # Weight different methods
         method_weights = {
-            'adaptive_threshold': 0.25,
-            'morphological': 0.20,
-            'contour': 0.20,
+            'adaptive_threshold': 0.20,
+            'morphological': 0.15,
+            'contour': 0.15,
             'template_matching': 0.15,
-            'statistical': 0.20
+            'statistical': 0.15,
+            'ml_classification': 0.20  # Give ML higher weight if available
         }
         
         # Calculate weighted intensity

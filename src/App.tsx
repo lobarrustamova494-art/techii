@@ -19,6 +19,7 @@ const EvalBeeCameraScannerPage = lazy(() => import('./pages/EvalBeeCameraScanner
 const OMRGeneration = lazy(() => import('./pages/OMRGeneration'))
 const ScanUpload = lazy(() => import('./pages/ScanUpload'))
 const LoadingDemo = lazy(() => import('./pages/LoadingDemo'))
+const AnalyticsDashboard = lazy(() => import('./pages/AnalyticsDashboard'))
 
 // Loading fallback component
 const PageLoader = () => (
@@ -106,6 +107,13 @@ function App() {
               <ProtectedRoute>
                 <Suspense fallback={<PageLoader />}>
                   <LoadingDemo />
+                </Suspense>
+              </ProtectedRoute>
+            } />
+            <Route path="/analytics" element={
+              <ProtectedRoute>
+                <Suspense fallback={<PageLoader />}>
+                  <AnalyticsDashboard />
                 </Suspense>
               </ProtectedRoute>
             } />

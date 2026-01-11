@@ -733,24 +733,294 @@ class ApiService {
     }
   }
 
-  // Hybrid processing: Try anchor-based first, then professional, then fallback options
+  // GROQ AI OMR Processing
+  async processOMRWithGroqAI(
+    file: File,
+    answerKey: string[],
+    scoring: { correct: number; wrong: number; blank: number },
+    examId?: string,
+    examData?: any
+  ) {
+    console.log('🤖 GROQ AI OMR processing started')
+    
+    try {
+      const formData = new FormData()
+      formData.append('image', file)
+      formData.append('answerKey', JSON.stringify(answerKey))
+      formData.append('scoring', JSON.stringify(scoring))
+      formData.append('groq_ai', 'true')
+      formData.append('debug', 'true')
+      
+      if (examId) {
+        formData.append('examId', examId)
+      }
+      
+      if (examData) {
+        formData.append('examData', JSON.stringify({
+          ...examData,
+          processing_mode: 'groq_ai',
+          ai_analysis: true,
+          hybrid_approach: true
+        }))
+      }
+
+      // Try GROQ AI endpoint
+      try {
+        console.log('🤖 Trying GROQ AI via Python service')
+        const pythonResponse = await fetch(`${PYTHON_OMR_URL}/api/omr/process_groq_ai`, {
+          method: 'POST',
+          body: formData,
+          headers: {
+            'Accept': 'application/json'
+          }
+        })
+
+        if (pythonResponse.ok) {
+          const result = await pythonResponse.json()
+          if (result.success) {
+            console.log('✅ GROQ AI processing successful')
+            return this.transformGroqAIResult(result, answerKey, scoring)
+          }
+        }
+      } catch (error) {
+        console.warn('⚠️ GROQ AI service failed:', error)
+      }
+
+      // Fallback to hybrid AI endpoint
+      console.log('🔄 Falling back to hybrid AI endpoint')
+      const response = await fetch(`${PYTHON_OMR_URL}/api/omr/process_hybrid_ai`, {
+        method: 'POST',
+        body: formData,
+        headers: {
+          'Accept': 'application/json'
+        }
+      })
+
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`)
+      }
+
+      const result = await response.json()
+      
+      if (!result.success) {
+        throw new Error(result.error || 'GROQ AI processing failed')
+      }
+
+      console.log('✅ GROQ AI processing completed')
+      return this.transformGroqAIResult(result, answerKey, scoring)
+
+    } catch (error) {
+      console.error('❌ GROQ AI OMR processing failed:', error)
+      throw new Error(`GROQ AI processing failed: ${error instanceof Error ? error.message : 'Unknown error'}`)
+    }
+  }
+
+  /**
+   * Transform GROQ AI processing result
+   */
+  private transformGroqAIResult(
+    result: any,
+    answerKey: string[],
+    scoring: { correct: number; wrong: number; blank: number }
+  ) {
+    const data = result.data || result
+    
+    // Calculate scoring
+    const extractedAnswers = data.extracted_answers || []
+    const scoreResults = this.calculateScore(extractedAnswers, answerKey, scoring)
+    
+    return {
+      success: true,
+      data: {
+        extractedAnswers,
+        confidence: data.confidence || 0,
+        processingDetails: {
+          processingMethod: data.processing_method || 'GROQ AI OMR Analyzer',
+          processingTime: data.processing_time || 0,
+          aiModel: 'llama-3.2-90b-vision-preview',
+          totalQuestions: answerKey.length,
+          answeredQuestions: data.processing_details?.answered_questions || 0,
+          blankQuestions: data.processing_details?.blank_questions || 0,
+          averageConfidence: data.processing_details?.average_confidence || 0,
+          // AI-specific details
+          aiInsights: data.ai_insights || {},
+          qualityAssessment: data.quality_assessment || {},
+          recommendations: data.recommendations || [],
+          confidenceScores: data.confidence_scores || [],
+          hybridAnalysis: data.hybrid_analysis || false,
+          comparison: data.comparison || null
+        },
+        scoring: scoreResults
+      }
+    }
+  }
+
+  // Cloud Processing Integration
+  async processOMRWithCloudProcessor(
+    file: File,
+    answerKey: string[],
+    scoring: { correct: number; wrong: number; blank: number },
+    priority: number = 5
+  ) {
+    console.log('☁️ Cloud OMR processing started')
+    
+    try {
+      // Convert file to base64
+      const base64 = await this.fileToBase64(file)
+      
+      // Submit job to cloud processor
+      const jobId = await this.submitCloudJob(base64, answerKey, 'professional', priority)
+      
+      // Wait for result
+      const result = await this.waitForCloudResult(jobId, 60) // 60 second timeout
+      
+      if (result.success) {
+        console.log('✅ Cloud processing successful')
+        return this.transformCloudResult(result, answerKey, scoring)
+      } else {
+        throw new Error(result.error || 'Cloud processing failed')
+      }
+      
+    } catch (error) {
+      console.error('❌ Cloud OMR processing failed:', error)
+      throw new Error(`Cloud processing failed: ${error instanceof Error ? error.message : 'Unknown error'}`)
+    }
+  }
+
+  private async fileToBase64(file: File): Promise<string> {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader()
+      reader.onload = () => {
+        const result = reader.result as string
+        resolve(result)
+      }
+      reader.onerror = reject
+      reader.readAsDataURL(file)
+    })
+  }
+
+  private async submitCloudJob(
+    imageBase64: string, 
+    answerKey: string[], 
+    processingMode: string, 
+    priority: number
+  ): Promise<string> {
+    const response = await fetch(`${PYTHON_OMR_URL}/api/cloud/submit`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        image_data: imageBase64,
+        answer_key: answerKey,
+        processing_mode: processingMode,
+        priority: priority
+      })
+    })
+
+    if (!response.ok) {
+      throw new Error(`Failed to submit cloud job: ${response.status}`)
+    }
+
+    const result = await response.json()
+    if (!result.success) {
+      throw new Error(result.message || 'Failed to submit job')
+    }
+
+    return result.job_id
+  }
+
+  private async waitForCloudResult(jobId: string, timeoutSeconds: number): Promise<any> {
+    const startTime = Date.now()
+    const timeout = timeoutSeconds * 1000
+
+    while (Date.now() - startTime < timeout) {
+      try {
+        const response = await fetch(`${PYTHON_OMR_URL}/api/cloud/status/${jobId}`)
+        
+        if (!response.ok) {
+          throw new Error(`Failed to check job status: ${response.status}`)
+        }
+
+        const status = await response.json()
+        
+        if (status.status === 'completed') {
+          return { success: true, data: status.result }
+        } else if (status.status === 'failed') {
+          return { success: false, error: status.error }
+        }
+        
+        // Wait before next check
+        await new Promise(resolve => setTimeout(resolve, 1000))
+        
+      } catch (error) {
+        console.warn('Error checking cloud job status:', error)
+        await new Promise(resolve => setTimeout(resolve, 2000))
+      }
+    }
+
+    throw new Error('Cloud processing timeout')
+  }
+
+  private transformCloudResult(
+    result: any,
+    answerKey: string[],
+    scoring: { correct: number; wrong: number; blank: number }
+  ) {
+    const data = result.data || result
+    const extractedAnswers = data.extracted_answers || []
+    const scoreResults = this.calculateScore(extractedAnswers, answerKey, scoring)
+    
+    return {
+      success: true,
+      data: {
+        extractedAnswers,
+        confidence: data.confidence || 0,
+        processingDetails: {
+          processingMethod: 'Cloud Distributed Processing',
+          processingTime: data.processing_time || 0,
+          instanceId: data.instance_id || 'unknown',
+          cloudMetrics: data.cloud_metrics || {}
+        },
+        scoring: scoreResults
+      }
+    }
+  }
+  // Hybrid processing: Try GROQ AI first (default), then anchor-based, then professional, then cloud, then fallback options
   async processOMRHybrid(
     file: File,
     answerKey: string[],
     scoring: { correct: number; wrong: number; blank: number },
     examId?: string,
     examData?: any,
-    useProfessional: boolean = false,
-    useAnchorBased: boolean = true  // Default to anchor-based for better accuracy
+    useGroqAI: boolean = true,  // Default to GROQ AI for best accuracy
+    useProfessional: boolean = true,  // Enable professional as backup
+    useAnchorBased: boolean = true,
+    useCloud: boolean = false
   ) {
     console.log('🔄 Hybrid OMR processing started')
     
+    let groqAIError: any = null
     let anchorError: any = null
     let professionalError: any = null
+    let cloudError: any = null
     let directError: any = null
     let backendError: any = null
     
-    // Try Anchor-Based processor first if requested
+    // Try GROQ AI first if requested
+    if (useGroqAI) {
+      try {
+        console.log('🤖 Trying GROQ AI OMR Analyzer')
+        const groqResult = await this.processOMRWithGroqAI(file, answerKey, scoring, examId, examData)
+        console.log('✅ GROQ AI processing successful')
+        return groqResult
+      } catch (error: any) {
+        groqAIError = error
+        console.log('⚠️ GROQ AI failed, falling back:', error?.message || 'Failed to fetch')
+      }
+    }
+    
+    // Try Anchor-Based processor if requested
     if (useAnchorBased) {
       try {
         console.log('🎯 Trying Anchor-Based Processor (Langor + Piksel tahlili)')
@@ -776,6 +1046,19 @@ class ApiService {
       }
     }
     
+    // Try Cloud processing if requested
+    if (useCloud) {
+      try {
+        console.log('☁️ Trying Cloud Distributed Processing')
+        const cloudResult = await this.processOMRWithCloudProcessor(file, answerKey, scoring, 8) // High priority
+        console.log('✅ Cloud processing successful')
+        return cloudResult
+      } catch (error: any) {
+        cloudError = error
+        console.log('⚠️ Cloud processing failed, falling back:', error?.message || 'Failed to fetch')
+      }
+    }
+    
     try {
       // Try direct Python OMR service
       console.log('🐍 Trying direct Python OMR service')
@@ -797,8 +1080,10 @@ class ApiService {
         console.error('❌ All processing methods failed')
         
         // Create detailed error message
+        const groqMsg = groqAIError?.message || 'Not attempted'
         const anchorMsg = anchorError?.message || 'Not attempted'
         const professionalMsg = professionalError?.message || 'Not attempted'
+        const cloudMsg = cloudError?.message || 'Not attempted'
         const directMsg = directError?.message || 'Failed to fetch'
         const backendMsg = backendError?.message || 'Failed to fetch'
         
@@ -813,11 +1098,17 @@ class ApiService {
         }
         
         let errorMessage = 'OMR qayta ishlashda xatolik.'
+        if (useGroqAI) {
+          errorMessage += ` GROQ AI: ${groqMsg},`
+        }
         if (useAnchorBased) {
           errorMessage += ` Anchor-based: ${anchorMsg},`
         }
         if (useProfessional) {
           errorMessage += ` Professional: ${professionalMsg},`
+        }
+        if (useCloud) {
+          errorMessage += ` Cloud: ${cloudMsg},`
         }
         errorMessage += ` Python: ${directMsg}, Backend: ${backendMsg}`
         
