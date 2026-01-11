@@ -272,13 +272,13 @@ const EvalBeeCameraScanner: React.FC<EvalBeeCameraScannerProps> = ({
     
     setCanCapture(canCaptureNow)
     
-    // EvalBee Feature: Auto-scan when conditions are perfect
-    if (canCaptureNow && overall >= 0.9) {
+    // EvalBee Feature: Auto-scan when conditions are good (80%+)
+    if (canCaptureNow && overall >= 0.8) {
       if (autoScanCountdown === 0) {
-        console.log('✨ Perfect conditions detected! Starting auto-capture countdown...')
+        console.log('✨ Good conditions detected! Starting auto-capture countdown...')
         setAutoScanCountdown(3) // 3 second countdown
         setTimeout(() => {
-          if (canCapture && overall >= 0.9) {
+          if (canCapture && overall >= 0.8) {
             console.log('📸 Auto-capture triggered!')
             captureImage()
           }
@@ -725,9 +725,9 @@ const EvalBeeCameraScanner: React.FC<EvalBeeCameraScannerProps> = ({
                 <span>Yorug'lik: {Math.round(qualityMetrics.brightness * 100)}%</span>
               </div>
             </div>
-          ) : qualityMetrics.overall >= 0.9 ? (
+          ) : qualityMetrics.overall >= 0.8 ? (
             <div className="space-y-2">
-              <p className="text-green-400 text-lg font-medium">✨ Mukammal sifat!</p>
+              <p className="text-green-400 text-lg font-medium">✨ Yaxshi sifat!</p>
               {autoScanCountdown > 0 && (
                 <p className="text-green-300 text-sm">Avtomatik suratga olish: {autoScanCountdown}s</p>
               )}
@@ -746,7 +746,7 @@ const EvalBeeCameraScanner: React.FC<EvalBeeCameraScannerProps> = ({
             onClick={captureImage}
             disabled={!isReady || isProcessing || !canCapture}
             className={`relative p-4 rounded-full transition-all duration-300 ${
-              canCapture && qualityMetrics.overall >= 0.9
+              canCapture && qualityMetrics.overall >= 0.8
                 ? 'bg-green-500 hover:bg-green-600 scale-110 shadow-lg shadow-green-500/50' 
                 : canCapture
                   ? 'bg-blue-500 hover:bg-blue-600 shadow-lg shadow-blue-500/50'
