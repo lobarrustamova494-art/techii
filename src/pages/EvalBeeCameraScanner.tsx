@@ -824,6 +824,7 @@ const EvalBeeCameraScannerPage: React.FC = () => {
           imageData={capturedImage}
           detectedAnswers={result.extracted_answers}
           correctAnswers={exam.answerKey}
+          detailedResults={result.detailed_results}
           bubbleCoordinates={result.detailed_results?.map(detail => ({
             question: detail.question,
             option: detail.bubble_coordinates ? Object.keys(detail.bubble_coordinates)[0] : 'A',

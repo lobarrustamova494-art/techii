@@ -10,12 +10,23 @@ interface BubbleAnnotation {
   isCorrect: boolean
   confidence: number
   fillPercentage: number
+  bubbleIntensity?: number
+}
+
+interface DetailedResult {
+  question: number
+  bubble_coordinates?: Record<string, {x: number, y: number}>
+  bubble_intensities?: Record<string, number>
+  status?: string
+  detectedAnswer?: string
+  confidence?: number
 }
 
 interface AnnotatedImageViewerProps {
   imageData: string
   detectedAnswers: string[]
   correctAnswers: string[]
+  detailedResults?: DetailedResult[]
   bubbleCoordinates?: Array<{
     question: number
     option: string
@@ -31,6 +42,7 @@ const AnnotatedImageViewer: React.FC<AnnotatedImageViewerProps> = ({
   imageData,
   detectedAnswers,
   correctAnswers,
+  detailedResults = [],
   bubbleCoordinates = [],
   onClose
 }) => {
@@ -52,7 +64,7 @@ const AnnotatedImageViewer: React.FC<AnnotatedImageViewerProps> = ({
       }
       img.src = imageData
     }
-  }, [imageData, detectedAnswers, correctAnswers, bubbleCoordinates])
+  }, [imageData, detectedAnswers, correctAnswers, bubbleCoordinates, detailedResults])
 
   useEffect(() => {
     if (imageLoaded && showAnnotations) {
@@ -65,8 +77,47 @@ const AnnotatedImageViewer: React.FC<AnnotatedImageViewerProps> = ({
   const generateAnnotations = () => {
     const newAnnotations: BubbleAnnotation[] = []
 
-    // Generate annotations from bubble coordinates if available
-    if (bubbleCoordinates.length > 0) {
+    // Priority 1: Use detailedResults if available (most accurate)
+    if (detailedResults && detailedResults.length > 0) {
+      console.log('📍 Using detailed results for annotations:', detailedResults.length)
+      
+      detailedResults.forEach((result, index) => {
+        const questionNumber = result.question || (index + 1)
+        const detectedAnswer = detectedAnswers[questionNumber - 1]
+        const correctAnswer = correctAnswers[questionNumber - 1]
+        
+        // Extract bubble coordinates and intensities
+        const bubbleCoords = result.bubble_coordinates || {}
+        const bubbleIntensities = result.bubble_intensities || {}
+        
+        // Process each bubble option
+        Object.keys(bubbleCoords).forEach(option => {
+          const coord = bubbleCoords[option]
+          const intensity = bubbleIntensities[option] || 0
+          
+          if (coord && coord.x && coord.y) {
+            const isDetected = detectedAnswer === option
+            const isCorrect = correctAnswer === option
+            
+            newAnnotations.push({
+              x: coord.x,
+              y: coord.y,
+              option,
+              questionNumber,
+              isDetected,
+              isCorrect,
+              confidence: isDetected ? 0.9 : 0.1,
+              fillPercentage: intensity * 100,
+              bubbleIntensity: intensity
+            })
+          }
+        })
+      })
+    }
+    // Priority 2: Use bubbleCoordinates if available
+    else if (bubbleCoordinates.length > 0) {
+      console.log('📍 Using bubble coordinates for annotations:', bubbleCoordinates.length)
+      
       bubbleCoordinates.forEach(bubble => {
         const detectedAnswer = detectedAnswers[bubble.question - 1]
         const correctAnswer = correctAnswers[bubble.question - 1]
@@ -85,11 +136,14 @@ const AnnotatedImageViewer: React.FC<AnnotatedImageViewerProps> = ({
           fillPercentage: bubble.fillPercentage
         })
       })
-    } else {
-      // Generate basic annotations based on standard OMR layout
+    } 
+    // Priority 3: Generate standard layout annotations
+    else {
+      console.log('📍 Using standard layout for annotations')
       generateStandardLayoutAnnotations(newAnnotations)
     }
 
+    console.log('📍 Generated annotations:', newAnnotations.length)
     setAnnotations(newAnnotations)
   }
 
