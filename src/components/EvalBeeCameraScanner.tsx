@@ -637,7 +637,6 @@ const EvalBeeCameraScanner: React.FC<EvalBeeCameraScannerProps> = ({
               muted
               className="absolute inset-0 w-full h-full object-cover"
               style={{ 
-                transform: 'scaleX(-1)', // Mirror effect for better UX
                 backgroundColor: '#000'
               }}
             />
@@ -646,7 +645,6 @@ const EvalBeeCameraScanner: React.FC<EvalBeeCameraScannerProps> = ({
             <canvas
               ref={overlayCanvasRef}
               className="absolute inset-0 w-full h-full pointer-events-none z-10"
-              style={{ transform: 'scaleX(-1)' }} // Match video mirror
             />
             
             {/* Real-time Preview Window */}
@@ -660,7 +658,6 @@ const EvalBeeCameraScanner: React.FC<EvalBeeCameraScannerProps> = ({
                   className="rounded border border-green-400"
                   width={160}
                   height={120}
-                  style={{ transform: 'scaleX(-1)' }} // Match video mirror
                 />
                 <div className="text-white text-xs text-center mt-1">
                   Suratga olinadi
