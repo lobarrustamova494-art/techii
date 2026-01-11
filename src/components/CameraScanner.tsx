@@ -76,8 +76,10 @@ const CameraScanner: React.FC<CameraScannerProps> = ({ onCapture, onClose, isSca
     canvas.width = video.videoWidth
     canvas.height = video.videoHeight
 
-    // Draw video frame to canvas
+    // Draw video frame to canvas without any mirroring
+    context.save()
     context.drawImage(video, 0, 0, canvas.width, canvas.height)
+    context.restore()
 
     // Get image data as base64 with higher quality
     const imageData = canvas.toDataURL('image/jpeg', 0.95) // Increased quality from 0.8 to 0.95
@@ -124,25 +126,46 @@ const CameraScanner: React.FC<CameraScannerProps> = ({ onCapture, onClose, isSca
               playsInline
               muted
               className="w-full h-full object-cover"
+              style={{ transform: 'scaleX(1)' }} // Ensure no mirror effect
             />
             
-            {/* Overlay Guide */}
-            <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-              <div className="relative">
-                {/* Guide Rectangle - Horizontal for OMR sheet */}
-                <div className="w-96 h-64 border-2 border-white border-dashed rounded-lg bg-black/20">
-                  <div className="absolute -top-8 left-0 right-0 text-center">
-                    <span className="text-white text-sm bg-black/50 px-3 py-1 rounded-full">
-                      OMR varaqni bu doira ichiga joylashtiring
+            {/* Overlay Guide - Following camera_ramka.md specifications */}
+            <div className="absolute inset-0 pointer-events-none">
+              {/* Dimmed outside area */}
+              <div className="absolute inset-0 bg-black/40"></div>
+              
+              {/* Central scanning frame */}
+              <div className="absolute inset-0 flex items-center justify-center">
+                <div className="relative">
+                  {/* Main scanning rectangle - Much larger and more forgiving */}
+                  <div 
+                    className="border-2 border-white bg-transparent"
+                    style={{
+                      width: '85vw',  // 85% of viewport width
+                      height: '60vh', // 60% of viewport height
+                      maxWidth: '500px',
+                      maxHeight: '350px',
+                      minWidth: '320px',
+                      minHeight: '240px'
+                    }}
+                  >
+                    {/* Clear the dimmed area inside the frame */}
+                    <div className="absolute inset-0 bg-black/0"></div>
+                  </div>
+                  
+                  {/* Corner markers - More prominent */}
+                  <div className="absolute -top-3 -left-3 w-8 h-8 border-l-4 border-t-4 border-white"></div>
+                  <div className="absolute -top-3 -right-3 w-8 h-8 border-r-4 border-t-4 border-white"></div>
+                  <div className="absolute -bottom-3 -left-3 w-8 h-8 border-l-4 border-b-4 border-white"></div>
+                  <div className="absolute -bottom-3 -right-3 w-8 h-8 border-r-4 border-b-4 border-white"></div>
+                  
+                  {/* Instruction text */}
+                  <div className="absolute -top-12 left-0 right-0 text-center">
+                    <span className="text-white text-sm bg-black/70 px-4 py-2 rounded-full">
+                      OMR varaqni ramka ichiga joylashtiring
                     </span>
                   </div>
                 </div>
-                
-                {/* Corner markers */}
-                <div className="absolute -top-2 -left-2 w-6 h-6 border-l-4 border-t-4 border-white"></div>
-                <div className="absolute -top-2 -right-2 w-6 h-6 border-r-4 border-t-4 border-white"></div>
-                <div className="absolute -bottom-2 -left-2 w-6 h-6 border-l-4 border-b-4 border-white"></div>
-                <div className="absolute -bottom-2 -right-2 w-6 h-6 border-r-4 border-b-4 border-white"></div>
               </div>
             </div>
           </>
