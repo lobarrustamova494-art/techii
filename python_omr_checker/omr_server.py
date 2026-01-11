@@ -37,26 +37,31 @@ except ImportError as e:
 try:
     from evalbee_omr_engine_v2 import EvalBeeOMREngineV2
     from evalbee_professional_omr_engine import EvalBeeProfessionalOMREngine
-    from anchor_based_omr_processor import AnchorBasedOMRProcessor
     from realtime_quality_analyzer import RealtimeQualityAnalyzer
     from batch_omr_processor import BatchOMRProcessor, BatchItem
     from analytics_engine import AnalyticsEngine, ProcessingRecord
     EVALBEE_ENGINE_V2_AVAILABLE = True
     EVALBEE_PROFESSIONAL_AVAILABLE = True
-    ANCHOR_BASED_AVAILABLE = True
     ADVANCED_FEATURES_AVAILABLE = True
 except ImportError as e:
     logger.warning(f"Advanced OMR features not available: {e}")
     EVALBEE_ENGINE_V2_AVAILABLE = False
     EVALBEE_PROFESSIONAL_AVAILABLE = False
-    ANCHOR_BASED_AVAILABLE = False
     ADVANCED_FEATURES_AVAILABLE = False
     EvalBeeOMREngineV2 = None
     EvalBeeProfessionalOMREngine = None
-    AnchorBasedOMRProcessor = None
     RealtimeQualityAnalyzer = None
     BatchOMRProcessor = None
     AnalyticsEngine = None
+
+# Safe import for Anchor-Based processor (may require Tesseract)
+try:
+    from anchor_based_omr_processor import AnchorBasedOMRProcessor
+    ANCHOR_BASED_AVAILABLE = True
+    logger.info("✅ Anchor-Based OMR processor available (with fallback support)")
+except ImportError as e:
+    logger.warning(f"Anchor-Based OMR processor not available: {e}")
+    ANCHOR_BASED_AVAILABLE = False
     AnchorBasedOMRProcessor = None
 
 # Initialize Flask app

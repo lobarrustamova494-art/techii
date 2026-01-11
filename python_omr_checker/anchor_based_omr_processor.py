@@ -12,7 +12,17 @@ import re
 from typing import List, Dict, Tuple, Optional, Any
 from dataclasses import dataclass
 import time
-import pytesseract
+
+# Optional Tesseract import with fallback
+TESSERACT_AVAILABLE = False
+try:
+    import pytesseract
+    TESSERACT_AVAILABLE = True
+    logger = logging.getLogger(__name__)
+    logger.info("✅ Tesseract OCR is available")
+except ImportError:
+    logger = logging.getLogger(__name__)
+    logger.warning("⚠️ Tesseract OCR not available - using coordinate-based fallback")
 
 # Configure logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -57,6 +67,7 @@ class AnchorBasedOMRProcessor:
     
     def __init__(self):
         self.debug_mode = True
+        self.tesseract_available = TESSERACT_AVAILABLE
         
         # Anchor detection parameters
         self.anchor_params = {
@@ -66,6 +77,9 @@ class AnchorBasedOMRProcessor:
             'min_confidence': 0.6,
             'tesseract_config': '--psm 6 -c tessedit_char_whitelist=0123456789.)()'
         }
+        
+        # Fallback coordinate-based detection (when Tesseract is not available)
+        self.fallback_coordinates = self._generate_fallback_coordinates()
         
         # Bubble detection parameters
         self.bubble_params = {
@@ -86,17 +100,50 @@ class AnchorBasedOMRProcessor:
             'morphology_kernel_size': (2, 2)
         }
     
+    def _generate_fallback_coordinates(self) -> Dict[int, Tuple[int, int]]:
+        """Generate fallback coordinates when Tesseract is not available"""
+        # These are approximate coordinates for a standard OMR sheet layout
+        # Based on common OMR sheet formats with 3 columns, 14 questions per column
+        coordinates = {}
+        
+        # Column 1: Questions 1-14
+        start_x, start_y = 250, 640
+        for i in range(14):
+            q_num = i + 1
+            coordinates[q_num] = (start_x, start_y + i * 47)
+        
+        # Column 2: Questions 15-27 (13 questions)
+        start_x, start_y = 800, 635
+        for i in range(13):
+            q_num = i + 15
+            coordinates[q_num] = (start_x, start_y + i * 48)
+        
+        # Column 3: Questions 28-40 (13 questions)
+        start_x, start_y = 1270, 627
+        for i in range(13):
+            q_num = i + 28
+            coordinates[q_num] = (start_x, start_y + i * 48)
+        
+        return coordinates
+    
     def process_omr_with_anchors(self, image_path: str, answer_key: List[str]) -> AnchorBasedResult:
         """Anchor-based OMR qayta ishlash asosiy funksiyasi"""
         logger.info("=== ANCHOR-BASED OMR PROCESSING STARTED ===")
+        
+        if not self.tesseract_available:
+            logger.info("🔄 Using coordinate-based fallback (Tesseract not available)")
+        
         start_time = time.time()
         
         try:
             # Step 1: Rasmni yuklash va preprocessing
             original_image, processed_image = self.preprocess_image(image_path)
             
-            # Step 2: Anchor nuqtalarni (savol raqamlarini) topish
-            anchor_points = self.detect_anchor_points(processed_image, original_image)
+            # Step 2: Anchor nuqtalarni topish (OCR yoki fallback)
+            if self.tesseract_available:
+                anchor_points = self.detect_anchor_points_ocr(processed_image, original_image)
+            else:
+                anchor_points = self.detect_anchor_points_fallback(processed_image)
             
             # Step 3: Har bir anchor uchun bubble koordinatalarini hisoblash
             bubble_regions = self.calculate_bubble_coordinates(anchor_points, processed_image)
@@ -111,6 +158,8 @@ class AnchorBasedOMRProcessor:
             processing_time = time.time() - start_time
             confidence = self.calculate_overall_confidence(analyzed_bubbles)
             
+            processing_method = 'Anchor-Based OMR with OCR' if self.tesseract_available else 'Anchor-Based OMR with Coordinate Fallback'
+            
             result = AnchorBasedResult(
                 extracted_answers=extracted_answers,
                 confidence=confidence,
@@ -120,9 +169,10 @@ class AnchorBasedOMRProcessor:
                 processing_details={
                     'anchors_found': len(anchor_points),
                     'bubbles_analyzed': len(analyzed_bubbles),
-                    'processing_method': 'Anchor-Based OMR with OCR',
+                    'processing_method': processing_method,
                     'image_dimensions': original_image.shape[:2],
-                    'preprocessing_applied': True
+                    'preprocessing_applied': True,
+                    'tesseract_available': self.tesseract_available
                 },
                 detailed_results=self.create_detailed_results(analyzed_bubbles)
             )
@@ -171,9 +221,9 @@ class AnchorBasedOMRProcessor:
         logger.info("✅ Image preprocessing completed")
         return original, processed
     
-    def detect_anchor_points(self, processed_image: np.ndarray, original_image: np.ndarray) -> List[AnchorPoint]:
+    def detect_anchor_points_ocr(self, processed_image: np.ndarray, original_image: np.ndarray) -> List[AnchorPoint]:
         """OCR yordamida savol raqamlarini (anchor points) topish"""
-        logger.info("🎯 Detecting anchor points (question numbers)")
+        logger.info("🎯 Detecting anchor points using OCR")
         
         anchor_points = []
         
@@ -224,13 +274,41 @@ class AnchorBasedOMRProcessor:
             # Anchor nuqtalarni savol raqami bo'yicha tartiblash
             anchor_points.sort(key=lambda ap: ap.question_number)
             
-            logger.info(f"✅ Found {len(anchor_points)} anchor points")
+            logger.info(f"✅ Found {len(anchor_points)} anchor points using OCR")
             
             return anchor_points
             
         except Exception as e:
-            logger.error(f"❌ Anchor detection failed: {e}")
+            logger.error(f"❌ OCR anchor detection failed: {e}")
             return []
+    
+    def detect_anchor_points_fallback(self, processed_image: np.ndarray) -> List[AnchorPoint]:
+        """Fallback method: Use predefined coordinates when OCR is not available"""
+        logger.info("🎯 Using fallback coordinate-based anchor detection")
+        
+        anchor_points = []
+        
+        for question_number, (x, y) in self.fallback_coordinates.items():
+            # Create anchor point with predefined coordinates
+            anchor_point = AnchorPoint(
+                question_number=question_number,
+                x=x,
+                y=y,
+                confidence=0.8,  # Default confidence for coordinate-based detection
+                text=f"{question_number}.",
+                bbox=(x-10, y-10, 20, 20)  # Approximate bounding box
+            )
+            
+            anchor_points.append(anchor_point)
+            
+            if self.debug_mode:
+                logger.info(f"📍 Fallback anchor: Q{question_number} at ({x}, {y})")
+        
+        # Sort by question number
+        anchor_points.sort(key=lambda ap: ap.question_number)
+        
+        logger.info(f"✅ Generated {len(anchor_points)} fallback anchor points")
+        return anchor_points
     
     def calculate_bubble_coordinates(self, anchor_points: List[AnchorPoint], image: np.ndarray) -> List[BubbleRegion]:
         """Anchor nuqtalar asosida bubble koordinatalarini hisoblash"""
