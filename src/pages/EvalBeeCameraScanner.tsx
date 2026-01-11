@@ -294,9 +294,9 @@ const EvalBeeCameraScannerPage: React.FC = () => {
   }
 
   const getQualityLabel = (score: number) => {
-    if (score >= 0.8) return 'Excellent'
-    if (score >= 0.6) return 'Good'
-    return 'Needs Improvement'
+    if (score >= 0.8) return 'Ajoyib'
+    if (score >= 0.6) return 'Yaxshi'
+    return 'Yaxshilanishi Kerak'
   }
 
   if (loading) {
@@ -335,10 +335,10 @@ const EvalBeeCameraScannerPage: React.FC = () => {
             </div>
             <div>
               <h1 className="text-3xl font-bold text-slate-900 dark:text-white">
-                EvalBee Camera Scanner
+                EvalBee Kamera Skaneri
               </h1>
               <p className="text-slate-600 dark:text-slate-400">
-                Professional real-time OMR scanning with quality control
+                Professional real-time OMR skanerlash va sifat nazorati
               </p>
             </div>
           </div>
@@ -353,15 +353,15 @@ const EvalBeeCameraScannerPage: React.FC = () => {
                   <div className="flex items-center gap-6 text-sm text-slate-600 dark:text-slate-400">
                     <div className="flex items-center gap-2">
                       <Target size={16} />
-                      <span>{exam.answerKey?.length || 0} questions</span>
+                      <span>{exam.answerKey?.length || 0} savol</span>
                     </div>
                     <div className="flex items-center gap-2">
                       <Eye size={16} />
-                      <span>Real-time quality control</span>
+                      <span>Real-time sifat nazorati</span>
                     </div>
                     <div className="flex items-center gap-2">
                       <Brain size={16} />
-                      <span>EvalBee Engine</span>
+                      <span>EvalBee Mexanizmi</span>
                     </div>
                   </div>
                 </div>
@@ -375,7 +375,7 @@ const EvalBeeCameraScannerPage: React.FC = () => {
                     className="flex items-center gap-2"
                   >
                     <Bug size={16} />
-                    <span className="hidden sm:inline">Debug</span>
+                    <span className="hidden sm:inline">Nosozlik</span>
                     <div className={`w-2 h-2 rounded-full ${isLoggingActive ? 'bg-green-500 animate-pulse' : 'bg-gray-400'}`} />
                   </Button>
                 </div>
@@ -401,10 +401,10 @@ const EvalBeeCameraScannerPage: React.FC = () => {
                   <Camera className="w-12 h-12 text-white" />
                 </div>
                 <h3 className="text-xl font-semibold text-slate-900 dark:text-white mb-2">
-                  Start Camera Scanning
+                  Kamera Skanerlashni Boshlash
                 </h3>
                 <p className="text-slate-600 dark:text-slate-400 mb-6">
-                  EvalBee camera will analyze image quality in real-time and guide you for perfect capture
+                  EvalBee kamerasi rasm sifatini real-time tahlil qiladi va mukammal suratga olish uchun yo'l-yo'riq beradi
                 </p>
               </div>
 
@@ -415,16 +415,16 @@ const EvalBeeCameraScannerPage: React.FC = () => {
                   size="lg"
                 >
                   <Camera size={20} className="mr-2" />
-                  Open EvalBee Camera
+                  EvalBee Kamerani Ochish
                 </Button>
 
                 <div className="text-xs text-slate-500 dark:text-slate-400 bg-blue-50 dark:bg-blue-900/20 p-4 rounded-lg max-w-2xl mx-auto">
-                  <strong>EvalBee Camera Features:</strong><br/>
-                  • Real-time image quality analysis (focus, brightness, contrast)<br/>
-                  • Live bubble detection and counting<br/>
-                  • Automatic capture guidance with quality indicators<br/>
-                  • Professional-grade image enhancement<br/>
-                  • Instant feedback and recommendations
+                  <strong>EvalBee Kamera Imkoniyatlari:</strong><br/>
+                  • Real-time rasm sifati tahlili (fokus, yorug'lik, kontrast)<br/>
+                  • Jonli bubble aniqlash va sanash<br/>
+                  • Sifat ko'rsatkichlari bilan avtomatik suratga olish yo'l-yo'riqlari<br/>
+                  • Professional darajadagi rasm yaxshilash<br/>
+                  • Tezkor fikr-mulohaza va tavsiyalar
                 </div>
               </div>
             </div>
@@ -439,22 +439,22 @@ const EvalBeeCameraScannerPage: React.FC = () => {
                   <Brain className="w-8 h-8 text-white" />
                 </div>
                 <h3 className="text-lg font-semibold text-slate-900 dark:text-white mb-2">
-                  EvalBee Engine Processing...
+                  EvalBee Mexanizmi Ishlamoqda...
                 </h3>
                 <p className="text-slate-600 dark:text-slate-400 mb-4">
-                  Advanced AI analysis with camera quality integration
+                  Kamera sifati integratsiyasi bilan ilg'or AI tahlili
                 </p>
               </div>
 
               <div className="max-w-md mx-auto">
                 <ProgressBar value={processingProgress} className="mb-4" />
                 <div className="text-sm text-slate-500 dark:text-slate-400">
-                  {processingProgress < 20 && "Analyzing camera image quality..."}
-                  {processingProgress >= 20 && processingProgress < 40 && "Detecting bubble patterns..."}
-                  {processingProgress >= 40 && processingProgress < 60 && "Analyzing layout structure..."}
-                  {processingProgress >= 60 && processingProgress < 80 && "Extracting answers..."}
-                  {processingProgress >= 80 && processingProgress < 95 && "Calculating confidence scores..."}
-                  {processingProgress >= 95 && "Finalizing results..."}
+                  {processingProgress < 20 && "Kamera rasm sifatini tahlil qilmoqda..."}
+                  {processingProgress >= 20 && processingProgress < 40 && "Bubble naqshlarini aniqlamoqda..."}
+                  {processingProgress >= 40 && processingProgress < 60 && "Layout strukturasini tahlil qilmoqda..."}
+                  {processingProgress >= 60 && processingProgress < 80 && "Javoblarni chiqarmoqda..."}
+                  {processingProgress >= 80 && processingProgress < 95 && "Ishonch darajasini hisoblamoqda..."}
+                  {processingProgress >= 95 && "Natijalarni yakunlamoqda..."}
                 </div>
               </div>
             </div>
@@ -468,7 +468,7 @@ const EvalBeeCameraScannerPage: React.FC = () => {
               <div className="flex items-center justify-between mb-6">
                 <h3 className="text-xl font-semibold text-slate-900 dark:text-white flex items-center gap-2">
                   <CheckCircle className="w-6 h-6 text-green-600" />
-                  EvalBee Camera Analysis Complete
+                  EvalBee Kamera Tahlili Tugallandi
                 </h3>
                 <div className="flex items-center gap-2">
                   <Button
@@ -477,7 +477,7 @@ const EvalBeeCameraScannerPage: React.FC = () => {
                     onClick={() => setShowAdvancedMetrics(!showAdvancedMetrics)}
                   >
                     <Eye size={16} className="mr-1" />
-                    {showAdvancedMetrics ? 'Hide' : 'Show'} Details
+                    {showAdvancedMetrics ? 'Yashirish' : 'Tafsilotlar'}
                   </Button>
                 </div>
               </div>
@@ -487,25 +487,25 @@ const EvalBeeCameraScannerPage: React.FC = () => {
                   <div className="text-3xl font-bold text-blue-600 mb-1">
                     {result.extracted_answers.length}
                   </div>
-                  <div className="text-sm text-slate-600 dark:text-slate-400">Questions Detected</div>
+                  <div className="text-sm text-slate-600 dark:text-slate-400">Aniqlangan Savollar</div>
                 </div>
                 <div className="text-center">
                   <div className={`text-3xl font-bold mb-1 ${getQualityColor(result.overall_confidence)}`}>
                     {(result.overall_confidence * 100).toFixed(1)}%
                   </div>
-                  <div className="text-sm text-slate-600 dark:text-slate-400">Overall Confidence</div>
+                  <div className="text-sm text-slate-600 dark:text-slate-400">Umumiy Ishonch</div>
                 </div>
                 <div className="text-center">
                   <div className="text-3xl font-bold text-purple-600 mb-1">
                     {result.processing_time.toFixed(1)}s
                   </div>
-                  <div className="text-sm text-slate-600 dark:text-slate-400">Processing Time</div>
+                  <div className="text-sm text-slate-600 dark:text-slate-400">Qayta Ishlash Vaqti</div>
                 </div>
                 <div className="text-center">
                   <div className={`text-3xl font-bold mb-1 ${getQualityColor(result.quality_metrics.overall_quality)}`}>
                     {getQualityLabel(result.quality_metrics.overall_quality)}
                   </div>
-                  <div className="text-sm text-slate-600 dark:text-slate-400">Camera Quality</div>
+                  <div className="text-sm text-slate-600 dark:text-slate-400">Kamera Sifati</div>
                 </div>
               </div>
 
@@ -514,7 +514,7 @@ const EvalBeeCameraScannerPage: React.FC = () => {
                 <div className="border-t border-slate-200 dark:border-slate-700 pt-6">
                   <h4 className="font-medium text-slate-900 dark:text-white mb-4 flex items-center gap-2">
                     <Camera className="w-4 h-4 text-blue-600" />
-                    Camera Capture Quality
+                    Kamera Suratga Olish Sifati
                   </h4>
                   
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
@@ -522,25 +522,25 @@ const EvalBeeCameraScannerPage: React.FC = () => {
                       <div className={`text-lg font-bold ${getQualityColor(captureQuality.focus)}`}>
                         {Math.round(captureQuality.focus * 100)}%
                       </div>
-                      <div className="text-xs text-slate-500">Focus</div>
+                      <div className="text-xs text-slate-500">Fokus</div>
                     </div>
                     <div className="text-center p-3 bg-slate-50 dark:bg-slate-800 rounded-lg">
                       <div className={`text-lg font-bold ${getQualityColor(captureQuality.brightness)}`}>
                         {Math.round(captureQuality.brightness * 100)}%
                       </div>
-                      <div className="text-xs text-slate-500">Brightness</div>
+                      <div className="text-xs text-slate-500">Yorug'lik</div>
                     </div>
                     <div className="text-center p-3 bg-slate-50 dark:bg-slate-800 rounded-lg">
                       <div className={`text-lg font-bold ${getQualityColor(captureQuality.contrast)}`}>
                         {Math.round(captureQuality.contrast * 100)}%
                       </div>
-                      <div className="text-xs text-slate-500">Contrast</div>
+                      <div className="text-xs text-slate-500">Kontrast</div>
                     </div>
                     <div className="text-center p-3 bg-slate-50 dark:bg-slate-800 rounded-lg">
                       <div className={`text-lg font-bold ${getQualityColor(captureQuality.overall)}`}>
                         {Math.round(captureQuality.overall * 100)}%
                       </div>
-                      <div className="text-xs text-slate-500">Overall</div>
+                      <div className="text-xs text-slate-500">Umumiy</div>
                     </div>
                   </div>
                 </div>
@@ -553,7 +553,7 @@ const EvalBeeCameraScannerPage: React.FC = () => {
                     <div className="mb-4">
                       <h4 className="font-medium text-slate-900 dark:text-white mb-2 flex items-center gap-2">
                         <AlertTriangle className="w-4 h-4 text-yellow-600" />
-                        Detected Issues
+                        Aniqlangan Muammolar
                       </h4>
                       <div className="flex flex-wrap gap-2">
                         {result.error_flags.map((flag, index) => (
@@ -572,7 +572,7 @@ const EvalBeeCameraScannerPage: React.FC = () => {
                     <div>
                       <h4 className="font-medium text-slate-900 dark:text-white mb-2 flex items-center gap-2">
                         <TrendingUp className="w-4 h-4 text-blue-600" />
-                        Recommendations
+                        Tavsiyalar
                       </h4>
                       <ul className="space-y-1">
                         {result.recommendations.map((rec, index) => (
@@ -593,7 +593,7 @@ const EvalBeeCameraScannerPage: React.FC = () => {
               <Card>
                 <h3 className="text-lg font-semibold text-slate-900 dark:text-white mb-4 flex items-center gap-2">
                   <BarChart3 className="w-5 h-5" />
-                  Advanced Camera & Processing Metrics
+                  Ilg'or Kamera va Qayta Ishlash Ko'rsatkichlari
                 </h3>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -679,7 +679,7 @@ const EvalBeeCameraScannerPage: React.FC = () => {
             <Card>
               <div className="flex items-center justify-between mb-4">
                 <h3 className="text-lg font-semibold text-slate-900 dark:text-white">
-                  Extracted Answers
+                  Chiqarilgan Javoblar
                 </h3>
                 <div className="flex gap-2">
                   {capturedImage && (
@@ -694,11 +694,11 @@ const EvalBeeCameraScannerPage: React.FC = () => {
                   )}
                   <Button variant="outline" size="sm">
                     <Download size={16} className="mr-1" />
-                    Export
+                    Eksport
                   </Button>
                   <Button variant="outline" size="sm">
                     <Share2 size={16} className="mr-1" />
-                    Share
+                    Ulashish
                   </Button>
                 </div>
               </div>
@@ -775,7 +775,7 @@ const EvalBeeCameraScannerPage: React.FC = () => {
             {capturedImage && (
               <Card>
                 <h3 className="text-lg font-semibold text-slate-900 dark:text-white mb-4">
-                  Captured Image
+                  Suratga Olingan Rasm
                 </h3>
                 <div className="relative max-w-md mx-auto">
                   <img 
@@ -796,10 +796,10 @@ const EvalBeeCameraScannerPage: React.FC = () => {
             <div className="flex gap-4">
               <Button onClick={resetCapture} variant="outline">
                 <RefreshCw size={16} className="mr-2" />
-                Capture Again
+                Qayta Suratga Olish
               </Button>
               <Button onClick={() => navigate(`/exam-detail/${id}`)} className="flex-1">
-                Save Results
+                Natijalarni Saqlash
               </Button>
             </div>
           </div>
