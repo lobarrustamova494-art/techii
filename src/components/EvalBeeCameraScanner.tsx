@@ -574,7 +574,7 @@ const EvalBeeCameraScanner: React.FC<EvalBeeCameraScannerProps> = ({
   }
 
   const captureImage = async () => {
-    if (!videoRef.current || !canvasRef.current || !isReady || !canCapture) return
+    if (!videoRef.current || !canvasRef.current || !isReady) return
 
     console.log('📸 EvalBee Camera: Starting image capture...')
 
@@ -707,19 +707,19 @@ const EvalBeeCameraScanner: React.FC<EvalBeeCameraScannerProps> = ({
         <div className="text-center mb-6">
           {!alignmentStatus.paperDetected ? (
             <div className="space-y-2">
-              <p className="text-red-400 text-lg font-medium">📄 OMR varaqni joylashtiring</p>
-              <p className="text-white/70 text-sm">Varaqni kamera oldiga qo'ying</p>
+              <p className="text-yellow-400 text-lg font-medium">📄 OMR varaqni joylashtiring</p>
+              <p className="text-white/70 text-sm">Varaqni kamera oldiga qo'ying yoki istalgan paytda rasmga oling</p>
             </div>
           ) : alignmentStatus.corners.filter(c => c.detected).length < 3 ? (
             <div className="space-y-2">
               <p className="text-yellow-400 text-lg font-medium">🎯 Qog'ozni to'g'ri joylashtiring</p>
               <p className="text-white/70 text-sm">
-                Burchaklar: {alignmentStatus.corners.filter(c => c.detected).length}/4
+                Burchaklar: {alignmentStatus.corners.filter(c => c.detected).length}/4 yoki istalgan paytda rasmga oling
               </p>
             </div>
           ) : !canCapture ? (
             <div className="space-y-2">
-              <p className="text-yellow-400 text-lg font-medium">⚡ Sifatni yaxshilang</p>
+              <p className="text-yellow-400 text-lg font-medium">⚡ Sifatni yaxshilang yoki rasmga oling</p>
               <div className="flex justify-center gap-4 text-xs text-white/60">
                 <span>Focus: {Math.round(qualityMetrics.focus * 100)}%</span>
                 <span>Yorug'lik: {Math.round(qualityMetrics.brightness * 100)}%</span>
@@ -735,25 +735,26 @@ const EvalBeeCameraScanner: React.FC<EvalBeeCameraScannerProps> = ({
           ) : (
             <div className="space-y-2">
               <p className="text-blue-400 text-lg font-medium">📸 Suratga olish mumkin</p>
-              <p className="text-white/70 text-sm">Tugmani bosing yoki kutib turing</p>
+              <p className="text-white/70 text-sm">Tugmani bosing</p>
             </div>
           )}
         </div>
         
         {/* Capture Button */}
+        {/* Capture Button */}
         <div className="flex justify-center">
           <button
             onClick={captureImage}
-            disabled={!isReady || isProcessing || !canCapture}
+            disabled={!isReady || isProcessing}
             className={`relative p-4 rounded-full transition-all duration-300 ${
-              canCapture && qualityMetrics.overall >= 0.8
-                ? 'bg-green-500 hover:bg-green-600 scale-110 shadow-lg shadow-green-500/50' 
-                : canCapture
-                  ? 'bg-blue-500 hover:bg-blue-600 shadow-lg shadow-blue-500/50'
-                  : 'bg-gray-600 cursor-not-allowed opacity-50'
+              !isReady || isProcessing
+                ? 'bg-gray-600 cursor-not-allowed opacity-50'
+                : canCapture && qualityMetrics.overall >= 0.8
+                  ? 'bg-green-500 hover:bg-green-600 scale-110 shadow-lg shadow-green-500/50' 
+                  : 'bg-blue-500 hover:bg-blue-600 shadow-lg shadow-blue-500/50'
             }`}
             style={{
-              boxShadow: canCapture ? '0 0 30px rgba(59, 130, 246, 0.5)' : 'none'
+              boxShadow: isReady && !isProcessing ? '0 0 30px rgba(59, 130, 246, 0.5)' : 'none'
             }}
           >
             {isProcessing ? (
