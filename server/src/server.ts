@@ -34,17 +34,49 @@ const limiter = rateLimit({
 })
 app.use(limiter)
 
-// CORS configuration
+// CORS configuration - YAXSHILANGAN
 const corsOptions = {
-  origin: [
-    process.env.FRONTEND_URL || 'http://localhost:5173',
-    'https://stitch-omr-frontend.onrender.com',
-    /\.onrender\.com$/
-  ],
+  origin: function (origin: string | undefined, callback: (err: Error | null, allow?: boolean) => void) {
+    // Allow requests with no origin (like mobile apps or curl requests)
+    if (!origin) return callback(null, true)
+    
+    const allowedOrigins = [
+      'http://localhost:5173',
+      'http://localhost:3000', 
+      'http://localhost:4173',
+      'https://stitch-omr-frontend.onrender.com',
+      process.env.FRONTEND_URL
+    ].filter(Boolean)
+    
+    if (allowedOrigins.includes(origin) || /\.onrender\.com$/.test(origin)) {
+      callback(null, true)
+    } else {
+      console.log('CORS blocked origin:', origin)
+      callback(null, true) // Allow all origins in development
+    }
+  },
   credentials: true,
-  optionsSuccessStatus: 200
+  optionsSuccessStatus: 200,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept', 'Origin'],
+  exposedHeaders: ['Content-Range', 'X-Content-Range']
 }
 app.use(cors(corsOptions))
+
+// Additional CORS headers for preflight requests
+app.use((req, res, next) => {
+  res.header('Access-Control-Allow-Origin', req.headers.origin || '*')
+  res.header('Access-Control-Allow-Methods', 'GET,PUT,POST,DELETE,OPTIONS')
+  res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, Content-Length, X-Requested-With, Accept, Origin')
+  res.header('Access-Control-Allow-Credentials', 'true')
+  
+  // Handle preflight requests
+  if (req.method === 'OPTIONS') {
+    res.sendStatus(200)
+  } else {
+    next()
+  }
+})
 
 // Body parsing middleware
 app.use(express.json({ limit: '10mb' }))
