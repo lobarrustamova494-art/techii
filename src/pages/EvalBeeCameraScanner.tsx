@@ -3,7 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom'
 import { 
   Camera, Brain, Target, CheckCircle, AlertTriangle,
   Eye, BarChart3, TrendingUp, Download, Share2,
-  RefreshCw, Bug, Image as ImageIcon
+  RefreshCw, Bug, Image as ImageIcon, Activity
 } from 'lucide-react'
 import Header from '@/components/layout/Header'
 import Button from '@/components/ui/Button'
@@ -16,6 +16,7 @@ import AnnotatedImageViewer from '@/components/AnnotatedImageViewer'
 import { useAuth } from '@/contexts/AuthContext'
 import { useConsoleLogger } from '@/hooks/useConsoleLogger'
 import { apiService } from '@/services/api'
+import { diagnostics } from '@/utils/diagnostics'
 
 interface QualityMetrics {
   focus: number
@@ -83,6 +84,8 @@ const EvalBeeCameraScannerPage: React.FC = () => {
   const [showAdvancedMetrics, setShowAdvancedMetrics] = useState(false)
   const [showDebugModal, setShowDebugModal] = useState(false)
   const [showAnnotatedImage, setShowAnnotatedImage] = useState(false)
+  const [diagnosticResult, setDiagnosticResult] = useState<any>(null)
+  const [runningDiagnostics, setRunningDiagnostics] = useState(false)
 
   useEffect(() => {
     loadExam()
@@ -308,6 +311,37 @@ const EvalBeeCameraScannerPage: React.FC = () => {
     setCaptureQuality(null)
     setError('')
     setProcessingProgress(0)
+    setDiagnosticResult(null)
+  }
+
+  const runDiagnostics = async () => {
+    setRunningDiagnostics(true)
+    try {
+      const result = await diagnostics.runDiagnostics()
+      setDiagnosticResult(result)
+      console.log('🔍 Diagnostics completed:', result)
+    } catch (error) {
+      console.error('❌ Diagnostics failed:', error)
+    } finally {
+      setRunningDiagnostics(false)
+    }
+  }
+
+  const exportDiagnostics = async () => {
+    try {
+      const report = await diagnostics.exportDiagnostics()
+      const blob = new Blob([report], { type: 'text/plain' })
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `evalbee-diagnostics-${new Date().toISOString().split('T')[0]}.txt`
+      document.body.appendChild(a)
+      a.click()
+      document.body.removeChild(a)
+      URL.revokeObjectURL(url)
+    } catch (error) {
+      console.error('❌ Export failed:', error)
+    }
   }
 
   const getQualityColor = (score: number) => {
@@ -409,9 +443,79 @@ const EvalBeeCameraScannerPage: React.FC = () => {
 
         {error && (
           <Card className="mb-6 border-red-200 bg-red-50 dark:bg-red-900/20">
-            <div className="flex items-center gap-3">
-              <AlertTriangle className="w-5 h-5 text-red-600" />
-              <p className="text-red-700 dark:text-red-400">{error}</p>
+            <div className="space-y-4">
+              <div className="flex items-center gap-3">
+                <AlertTriangle className="w-5 h-5 text-red-600" />
+                <p className="text-red-700 dark:text-red-400 flex-1">{error}</p>
+              </div>
+              
+              {/* Diagnostic Tools */}
+              <div className="flex items-center gap-2 pt-2 border-t border-red-200 dark:border-red-800">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={runDiagnostics}
+                  disabled={runningDiagnostics}
+                  className="text-red-600 border-red-300 hover:bg-red-50"
+                >
+                  <Activity size={16} className="mr-1" />
+                  {runningDiagnostics ? 'Tekshirilmoqda...' : 'Xizmatlarni Tekshirish'}
+                </Button>
+                
+                {diagnosticResult && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={exportDiagnostics}
+                    className="text-blue-600 border-blue-300 hover:bg-blue-50"
+                  >
+                    <Download size={16} className="mr-1" />
+                    Hisobot Yuklab Olish
+                  </Button>
+                )}
+              </div>
+
+              {/* Diagnostic Results */}
+              {diagnosticResult && (
+                <div className="mt-4 p-3 bg-white dark:bg-slate-800 rounded-lg border">
+                  <h4 className="font-medium text-slate-900 dark:text-white mb-2">Xizmatlar Holati:</h4>
+                  <div className="space-y-2">
+                    {diagnosticResult.services.map((service: any, index: number) => (
+                      <div key={index} className="flex items-center justify-between text-sm">
+                        <span className="text-slate-600 dark:text-slate-400">{service.name}</span>
+                        <div className="flex items-center gap-2">
+                          <div className={`w-2 h-2 rounded-full ${
+                            service.status === 'online' ? 'bg-green-500' :
+                            service.status === 'slow' ? 'bg-yellow-500' : 'bg-red-500'
+                          }`} />
+                          <span className={`text-xs ${
+                            service.status === 'online' ? 'text-green-600' :
+                            service.status === 'slow' ? 'text-yellow-600' : 'text-red-600'
+                          }`}>
+                            {service.status === 'online' ? 'Ishlayapti' :
+                             service.status === 'slow' ? 'Sekin' : 'Ishlamayapti'}
+                          </span>
+                          <span className="text-xs text-slate-500">({service.responseTime}ms)</span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                  
+                  {diagnosticResult.recommendations.length > 0 && (
+                    <div className="mt-3 pt-3 border-t border-slate-200 dark:border-slate-700">
+                      <h5 className="text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">Tavsiyalar:</h5>
+                      <ul className="text-xs text-slate-600 dark:text-slate-400 space-y-1">
+                        {diagnosticResult.recommendations.slice(0, 3).map((rec: string, index: number) => (
+                          <li key={index} className="flex items-start gap-1">
+                            <span className="w-1 h-1 bg-blue-500 rounded-full mt-1.5 flex-shrink-0" />
+                            {rec}
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
           </Card>
         )}
