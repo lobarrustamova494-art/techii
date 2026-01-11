@@ -76,13 +76,11 @@ const CameraScanner: React.FC<CameraScannerProps> = ({ onCapture, onClose, isSca
     canvas.width = video.videoWidth
     canvas.height = video.videoHeight
 
-    // Draw video frame to canvas without any mirroring
-    context.save()
+    // Draw video frame to canvas exactly as camera sees it (no mirroring)
     context.drawImage(video, 0, 0, canvas.width, canvas.height)
-    context.restore()
 
     // Get image data as base64 with higher quality
-    const imageData = canvas.toDataURL('image/jpeg', 0.95) // Increased quality from 0.8 to 0.95
+    const imageData = canvas.toDataURL('image/jpeg', 0.95)
     
     // Call parent callback
     onCapture(imageData)
@@ -126,7 +124,10 @@ const CameraScanner: React.FC<CameraScannerProps> = ({ onCapture, onClose, isSca
               playsInline
               muted
               className="w-full h-full object-cover"
-              style={{ transform: 'scaleX(1)' }} // Ensure no mirror effect
+              style={{ 
+                transform: 'scaleX(1)', // No mirroring - show exactly what camera sees
+                WebkitTransform: 'scaleX(1)'
+              }}
             />
             
             {/* Overlay Guide - Following camera_ramka.md specifications */}
