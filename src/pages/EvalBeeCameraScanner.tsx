@@ -278,7 +278,9 @@ const EvalBeeCameraScannerPage: React.FC = () => {
         if (error.message.includes('Internetga ulanishda muammo')) {
           errorMessage = error.message
         } else if (error.message.includes('Failed to fetch')) {
-          errorMessage = 'Serverga ulanishda muammo. Iltimos, internet aloqangizni tekshiring.'
+          errorMessage = 'Serverga ulanishda muammo. Iltimos, internet aloqangizni tekshiring va qayta urinib ko\'ring.'
+        } else if (error.message.includes('EvalBee processing failed')) {
+          errorMessage = 'EvalBee xizmati vaqtincha ishlamayapti. Iltimos, biroz kutib qayta urinib ko\'ring.'
         } else {
           errorMessage += ': ' + error.message
         }
@@ -286,6 +288,11 @@ const EvalBeeCameraScannerPage: React.FC = () => {
       
       if (error.response?.data?.message) {
         errorMessage += ' (' + error.response.data.message + ')'
+      }
+      
+      // Add helpful suggestions for common issues
+      if (error.message?.includes('network') || error.message?.includes('fetch')) {
+        errorMessage += '\n\nTavsiyalar:\n• Internet aloqangizni tekshiring\n• Sahifani yangilab qayta urinib ko\'ring\n• Biroz kutib qayta urinib ko\'ring'
       }
       
       setError(errorMessage)

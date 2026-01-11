@@ -658,24 +658,64 @@ class ApiService {
 
     console.log('🐍 Processing OMR directly via Python service')
 
-    try {
-      const response = await fetch(`${PYTHON_OMR_URL}/api/omr/process`, {
-        method: 'POST',
-        body: formData,
-      })
+    // Retry mechanism for production services
+    const maxRetries = 2
+    let lastError: any = null
 
-      if (!response.ok) {
-        const errorText = await response.text()
-        throw new Error(`Python OMR Error: ${response.status} - ${errorText}`)
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+      try {
+        console.log(`🔄 Attempt ${attempt}/${maxRetries} - Connecting to Python OMR service...`)
+        
+        const response = await fetch(`${PYTHON_OMR_URL}/api/omr/process`, {
+          method: 'POST',
+          body: formData,
+          // Add timeout for production
+          signal: AbortSignal.timeout(30000) // 30 second timeout
+        })
+
+        if (!response.ok) {
+          const errorText = await response.text()
+          
+          // Handle specific HTTP errors
+          if (response.status === 503) {
+            throw new Error('EvalBee xizmati vaqtincha ishlamayapti. Iltimos, biroz kutib qayta urinib ko\'ring.')
+          } else if (response.status === 502) {
+            throw new Error('EvalBee serveriga ulanishda muammo. Iltimos, qayta urinib ko\'ring.')
+          } else if (response.status === 500) {
+            throw new Error('EvalBee serverida ichki xatolik. Iltimos, qayta urinib ko\'ring.')
+          } else {
+            throw new Error(`Python OMR Error: ${response.status} - ${errorText}`)
+          }
+        }
+
+        const result = await response.json()
+        console.log('✅ Direct Python OMR processing completed')
+        return result  // Python server already returns { success: true, data: {...} }
+        
+      } catch (error: any) {
+        lastError = error
+        console.error(`❌ Attempt ${attempt} failed:`, error.message)
+        
+        // Don't retry on certain errors
+        if (error.name === 'AbortError') {
+          throw new Error('EvalBee xizmati juda sekin javob bermoqda. Iltimos, qayta urinib ko\'ring.')
+        }
+        
+        if (error.message.includes('EvalBee xizmati') || error.message.includes('serverida ichki')) {
+          throw error // Don't retry service-specific errors
+        }
+        
+        // Wait before retry (except on last attempt)
+        if (attempt < maxRetries) {
+          console.log(`⏳ Waiting 2 seconds before retry...`)
+          await new Promise(resolve => setTimeout(resolve, 2000))
+        }
       }
-
-      const result = await response.json()
-      console.log('✅ Direct Python OMR processing completed')
-      return result  // Python server already returns { success: true, data: {...} }
-    } catch (error) {
-      console.error('❌ Direct Python OMR processing failed:', error)
-      throw error
     }
+    
+    // All attempts failed
+    console.error('❌ All retry attempts failed')
+    throw lastError || new Error('EvalBee xizmatiga ulanishda muammo')
   }
 
   async checkPythonOMRHealth() {
@@ -765,6 +805,11 @@ class ApiService {
         // Check if it's a network connectivity issue
         if (directMsg.includes('Failed to fetch') && backendMsg.includes('Failed to fetch')) {
           throw new Error('Internetga ulanishda muammo. Iltimos, internet aloqangizni tekshiring va qayta urinib ko\'ring.')
+        }
+        
+        // Check if services are down
+        if (directMsg.includes('503') || directMsg.includes('502') || directMsg.includes('500')) {
+          throw new Error('EvalBee xizmatlari vaqtincha ishlamayapti. Iltimos, biroz kutib qayta urinib ko\'ring.')
         }
         
         let errorMessage = 'OMR qayta ishlashda xatolik.'
