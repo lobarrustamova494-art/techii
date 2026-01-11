@@ -187,23 +187,36 @@ const EvalBeeCameraScannerPage: React.FC = () => {
 
       const processingTime = (Date.now() - startTime) / 1000
 
-      // Check if response is successful
-      if (!omrResult.success) {
-        const errorMessage = (omrResult as any).message || 'EvalBee processing failed'
-        throw new Error(errorMessage)
+      // Check if response is successful - handle both formats
+      if (omrResult && typeof omrResult === 'object') {
+        // Check for explicit success flag or valid data
+        const hasSuccess = omrResult.success === true
+        const hasValidData = omrResult.data && (omrResult.data.extractedAnswers || omrResult.extractedAnswers)
+        
+        if (!hasSuccess && !hasValidData) {
+          const errorMessage = omrResult.message || omrResult.error || 'EvalBee processing failed'
+          console.error('❌ EvalBee processing failed:', errorMessage)
+          throw new Error(errorMessage)
+        }
+      } else {
+        console.error('❌ Invalid EvalBee response format:', omrResult)
+        throw new Error('EvalBee processing returned invalid response format')
       }
 
       // Transform result to EvalBee format with camera quality integration
+      // Handle both response formats (with/without success wrapper)
+      const responseData = omrResult.data || omrResult
+      
       const evalBeeResult: EvalBeeResult = {
-        extracted_answers: omrResult.data?.extractedAnswers || [],
-        confidence_scores: omrResult.data?.results?.map((r: any) => r.confidence) || [],
-        overall_confidence: omrResult.data?.confidence || 0,
+        extracted_answers: responseData.extractedAnswers || [],
+        confidence_scores: responseData.detailedResults?.map((r: any) => r.confidence) || [],
+        overall_confidence: responseData.confidence || 0,
         processing_time: processingTime,
         layout_analysis: {
-          layout_type: omrResult.data?.processingDetails?.layout_type || 'camera_detected',
-          total_questions: omrResult.data?.processingDetails?.actual_question_count || omrResult.data?.extractedAnswers?.length || 0,
+          layout_type: responseData.processingDetails?.layout_type || 'camera_detected',
+          total_questions: responseData.processingDetails?.actual_question_count || responseData.extractedAnswers?.length || 0,
           columns: 3,
-          format_confidence: omrResult.data?.confidence || 0
+          format_confidence: responseData.confidence || 0
         },
         quality_metrics: {
           sharpness: qualityMetrics.focus * 200,
@@ -213,7 +226,7 @@ const EvalBeeCameraScannerPage: React.FC = () => {
           skew_angle: qualityMetrics.skew * 10,
           overall_quality: qualityMetrics.overall
         },
-        detailed_results: omrResult.data?.results || [],
+        detailed_results: responseData.detailedResults || [],
         error_flags: [],
         recommendations: []
       }

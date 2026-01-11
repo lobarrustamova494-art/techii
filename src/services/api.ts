@@ -405,52 +405,55 @@ class ApiService {
     const scoreResults = this.calculateScore(extractedAnswers, answerKey, scoring)
     
     return {
-      extractedAnswers,
-      confidence: data.overall_confidence || data.confidence || 0,
-      processingDetails: {
-        alignmentMarksFound: 6, // Professional engine assumes good alignment
-        bubbleDetectionAccuracy: data.overall_confidence || data.confidence || 0,
-        imageQuality: data.image_quality_metrics?.overall_quality || 0.8,
-        processingMethod: data.processing_method || 'EvalBee Professional Multi-Pass Engine',
-        imageInfo: {
-          width: 2000,
-          height: 3000,
-          format: 'JPEG',
-          size: 0
+      success: true, // Add success flag for compatibility
+      data: {
+        extractedAnswers,
+        confidence: data.overall_confidence || data.confidence || 0,
+        processingDetails: {
+          alignmentMarksFound: 6, // Professional engine assumes good alignment
+          bubbleDetectionAccuracy: data.overall_confidence || data.confidence || 0,
+          imageQuality: data.image_quality_metrics?.overall_quality || 0.8,
+          processingMethod: data.processing_method || 'EvalBee Professional Multi-Pass Engine',
+          imageInfo: {
+            width: 2000,
+            height: 3000,
+            format: 'JPEG',
+            size: 0
+          },
+          actualQuestionCount: data.question_results?.length || extractedAnswers.length,
+          expectedQuestionCount: answerKey.length,
+          processingTime: data.processing_time || 0,
+          // Professional-specific details
+          performanceMetrics: data.performance_metrics || {},
+          errorSummary: data.error_summary || {},
+          systemRecommendations: data.system_recommendations || [],
+          qualityMetrics: data.image_quality_metrics || {}
         },
-        actualQuestionCount: data.question_results?.length || extractedAnswers.length,
-        expectedQuestionCount: answerKey.length,
-        processingTime: data.processing_time || 0,
-        // Professional-specific details
-        performanceMetrics: data.performance_metrics || {},
-        errorSummary: data.error_summary || {},
-        systemRecommendations: data.system_recommendations || [],
-        qualityMetrics: data.image_quality_metrics || {}
-      },
-      detailedResults: (data.question_results || []).map((qr: any) => ({
-        question: qr.question_number,
-        detectedAnswer: qr.detected_answer,
-        confidence: qr.confidence,
-        bubbleIntensities: Object.fromEntries(
-          Object.entries(qr.bubble_analyses || {}).map(([option, analysis]: [string, any]) => [
-            option,
-            analysis.intensity || 0
-          ])
-        ),
-        bubbleCoordinates: Object.fromEntries(
-          Object.keys(qr.bubble_analyses || {}).map(option => [
-            option,
-            { x: 0, y: 0 } // Coordinates not exposed in professional result
-          ])
-        ),
-        // Professional-specific fields
-        qualityScore: qr.quality_score,
-        errorFlags: qr.error_flags || [],
-        processingNotes: qr.processing_notes || [],
-        consensusVotes: qr.consensus_votes || {},
-        bubbleAnalyses: qr.bubble_analyses || {}
-      })),
-      scoring: scoreResults
+        detailedResults: (data.question_results || []).map((qr: any) => ({
+          question: qr.question_number,
+          detectedAnswer: qr.detected_answer,
+          confidence: qr.confidence,
+          bubbleIntensities: Object.fromEntries(
+            Object.entries(qr.bubble_analyses || {}).map(([option, analysis]: [string, any]) => [
+              option,
+              analysis.intensity || 0
+            ])
+          ),
+          bubbleCoordinates: Object.fromEntries(
+            Object.keys(qr.bubble_analyses || {}).map(option => [
+              option,
+              { x: 0, y: 0 } // Coordinates not exposed in professional result
+            ])
+          ),
+          // Professional-specific fields
+          qualityScore: qr.quality_score,
+          errorFlags: qr.error_flags || [],
+          processingNotes: qr.processing_notes || [],
+          consensusVotes: qr.consensus_votes || {},
+          bubbleAnalyses: qr.bubble_analyses || {}
+        })),
+        scoring: scoreResults
+      }
     }
   }
 
