@@ -148,29 +148,37 @@ const AnnotatedImageViewer: React.FC<AnnotatedImageViewerProps> = ({
   }
 
   const generateStandardLayoutAnnotations = (newAnnotations: BubbleAnnotation[]) => {
-    // Standard OMR layout parameters (based on OMRCoordinateService)
-    const PADDING = 60 // Adjusted for display
-    const ROW_HEIGHT = 25
-    const COLUMN_WIDTH = 180
-    const BUBBLE_SPACING = 18
-    const QUESTIONS_PER_COLUMN = 15
-    const OPTIONS = ['A', 'B', 'C', 'D', 'E']
+    // Yangi OMR layout parametrlari - sizning tavsifingiz bo'yicha
+    const PADDING = 80 // Chetdan bo'shliq
+    const ROW_HEIGHT = 28 // Savollar orasidagi masofa
+    const COLUMN_WIDTH = 200 // Ustunlar orasidagi masofa
+    const BUBBLE_SPACING = 22 // Javob variantlari orasidagi masofa
+    const QUESTIONS_PER_COLUMN = 14 // Har ustunda 14 ta savol
+    const OPTIONS = ['A', 'B', 'C', 'D'] // 4 ta javob varianti
+    const ALIGNMENT_MARKS_WIDTH = 40 // Chap tomondagi alignment belgilari uchun joy
+    
+    console.log('📐 Generating standard OMR layout annotations')
+    console.log(`   Questions: ${detectedAnswers.length}`)
+    console.log(`   Columns needed: ${Math.ceil(detectedAnswers.length / QUESTIONS_PER_COLUMN)}`)
 
     for (let i = 0; i < Math.min(detectedAnswers.length, correctAnswers.length); i++) {
       const questionNumber = i + 1
       const detectedAnswer = detectedAnswers[i]
       const correctAnswer = correctAnswers[i]
 
-      // Calculate question position
+      // Qaysi ustunda va qaysi qatorda ekanligini aniqlash
       const column = Math.floor(i / QUESTIONS_PER_COLUMN)
       const rowInColumn = i % QUESTIONS_PER_COLUMN
       
-      const questionY = PADDING + 100 + (rowInColumn * ROW_HEIGHT)
-      const questionX = PADDING + 50 + (column * COLUMN_WIDTH)
+      // Savol pozitsiyasini hisoblash
+      const questionY = PADDING + 120 + (rowInColumn * ROW_HEIGHT) // 120 - header uchun joy
+      const questionX = PADDING + ALIGNMENT_MARKS_WIDTH + (column * COLUMN_WIDTH)
 
-      // Generate annotations for each option
+      console.log(`   Q${questionNumber}: Column ${column + 1}, Row ${rowInColumn + 1}, Position (${questionX}, ${questionY})`)
+
+      // Har bir javob varianti uchun bubble yaratish
       OPTIONS.forEach((option, optionIndex) => {
-        const bubbleX = questionX + 80 + (optionIndex * BUBBLE_SPACING)
+        const bubbleX = questionX + 60 + (optionIndex * BUBBLE_SPACING) // 60 - savol raqami uchun joy
         const bubbleY = questionY
 
         const isDetected = detectedAnswer === option
@@ -184,10 +192,12 @@ const AnnotatedImageViewer: React.FC<AnnotatedImageViewerProps> = ({
           isDetected,
           isCorrect,
           confidence: isDetected ? 0.9 : 0.1,
-          fillPercentage: isDetected ? 80 : 10
+          fillPercentage: isDetected ? 85 : 15
         })
       })
     }
+    
+    console.log(`📐 Generated ${newAnnotations.length} bubble annotations`)
   }
 
   const drawAnnotations = () => {

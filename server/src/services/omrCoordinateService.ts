@@ -41,15 +41,17 @@ export class OMRCoordinateService {
   private static readonly LETTER_WIDTH = 2550  // 8.5in at 300 DPI
   private static readonly LETTER_HEIGHT = 3300 // 11in at 300 DPI
   
-  // Layout constants (in pixels at 300 DPI)
+  // Layout constants (in pixels at 300 DPI) - Yangi format bo'yicha
   private static readonly PADDING = 177        // 15mm padding
   private static readonly HEADER_HEIGHT = 120  // Header section height
   private static readonly STUDENT_ID_HEIGHT = 80 // Student ID section height
-  private static readonly ROW_HEIGHT = 30      // Height between question rows
-  private static readonly COLUMN_WIDTH = 212   // Width between columns (180px * 300/254)
+  private static readonly ROW_HEIGHT = 33      // Height between question rows (28px * 300/254)
+  private static readonly COLUMN_WIDTH = 236   // Width between columns (200px * 300/254)
   private static readonly BUBBLE_SIZE = 16     // Bubble diameter
-  private static readonly BUBBLE_SPACING = 21  // Space between bubbles (18px * 300/254)
-  private static readonly MARKER_OFFSET = 41   // Offset from marker to first bubble (35px * 300/254)
+  private static readonly BUBBLE_SPACING = 26  // Space between bubbles (22px * 300/254)
+  private static readonly MARKER_OFFSET = 47   // Offset from marker to first bubble (40px * 300/254)
+  private static readonly QUESTIONS_PER_COLUMN = 14 // Har ustunda 14 ta savol
+  private static readonly ANSWER_OPTIONS = ['A', 'B', 'C', 'D'] // 4 ta javob varianti
   
   /**
    * Generate precise coordinate map for an exam
@@ -106,24 +108,41 @@ export class OMRCoordinateService {
   }
   
   /**
-   * Generate alignment mark coordinates
+   * Generate alignment mark coordinates - Yangi format bo'yicha
    */
   private static generateAlignmentMarks(width: number, height: number): Array<{ name: string; x: number; y: number }> {
-    const marks = [
-      // Left side marks
-      { name: 'L1', x: 47, y: 120 },   // 4mm from left, top position
-      { name: 'L2', x: 47, y: 382 },   // 4mm from left, mid-top position
-      { name: 'L3', x: 47, y: 655 },   // 4mm from left, mid-bottom position
-      { name: 'L4', x: 47, y: 922 },   // 4mm from left, bottom position
-      
-      // Right side marks
-      { name: 'R1', x: width - 47, y: 120 },   // 4mm from right, top position
-      { name: 'R2', x: width - 47, y: 382 },   // 4mm from right, mid-top position
-      { name: 'R3', x: width - 47, y: 655 },   // 4mm from right, mid-bottom position
-      { name: 'R4', x: width - 47, y: 922 },   // 4mm from right, bottom position
-    ]
+    const marks = []
     
-    console.log('📍 Generated alignment marks:')
+    // Har ustun chap tomonida 3 tadan qora to'rtburchak
+    const columnsCount = 4 // Maksimal ustunlar soni
+    const columnWidth = this.COLUMN_WIDTH
+    const startX = this.PADDING + 20 // Chap chetdan 20px
+    
+    for (let col = 0; col < columnsCount; col++) {
+      const columnX = startX + (col * columnWidth)
+      
+      // Har ustun uchun 3 ta alignment mark
+      marks.push(
+        { name: `C${col + 1}_T`, x: columnX, y: 150 },  // Top
+        { name: `C${col + 1}_M`, x: columnX, y: 400 },  // Middle  
+        { name: `C${col + 1}_B`, x: columnX, y: 650 }   // Bottom
+      )
+    }
+    
+    // Har savol yonida bittadan qora to'rtburchak (faqat birinchi ustun uchun namuna)
+    const questionsPerColumn = this.QUESTIONS_PER_COLUMN
+    const startY = this.PADDING + this.HEADER_HEIGHT + 50
+    
+    for (let q = 0; q < questionsPerColumn; q++) {
+      const questionY = startY + (q * this.ROW_HEIGHT)
+      marks.push({
+        name: `Q${q + 1}_M`,
+        x: startX + 30, // Savol yonida
+        y: questionY
+      })
+    }
+    
+    console.log('📍 Generated alignment marks (New Format):')
     marks.forEach(mark => {
       console.log(`   ${mark.name}: (${mark.x}, ${mark.y})`)
     })
@@ -146,10 +165,10 @@ export class OMRCoordinateService {
   }
   
   /**
-   * Generate coordinates for continuous layout (3-column)
+   * Generate coordinates for continuous layout - Yangi format bo'yicha
    */
   private static generateContinuousCoordinates(examData: any, width: number, height: number): BubbleCoordinate[] {
-    console.log('📊 Generating continuous layout coordinates...')
+    console.log('📊 Generating continuous layout coordinates (New Format)...')
     
     const coordinates: BubbleCoordinate[] = []
     
@@ -157,17 +176,20 @@ export class OMRCoordinateService {
     const allQuestions = this.flattenQuestions(examData)
     const totalQuestions = allQuestions.length
     
-    // 3-column layout parameters
-    const questionsPerColumn = Math.ceil(totalQuestions / 3)
-    const startX = this.PADDING + 94  // Starting X position (80px + padding adjustment)
-    const startY = this.PADDING + this.HEADER_HEIGHT + 118  // Starting Y after header (200px + adjustments)
+    // Yangi format parametrlari
+    const questionsPerColumn = this.QUESTIONS_PER_COLUMN // 14 ta savol har ustunda
+    const columnsNeeded = Math.ceil(totalQuestions / questionsPerColumn)
+    const startX = this.PADDING + this.MARKER_OFFSET + 70  // Alignment belgilari + savol raqami uchun joy
+    const startY = this.PADDING + this.HEADER_HEIGHT + 50  // Header dan keyin
     
+    console.log(`   Total questions: ${totalQuestions}`)
     console.log(`   Questions per column: ${questionsPerColumn}`)
+    console.log(`   Columns needed: ${columnsNeeded}`)
     console.log(`   Start position: (${startX}, ${startY})`)
     
     for (let i = 0; i < totalQuestions; i++) {
       const question = allQuestions[i]
-      if (!question) continue // Skip if question is undefined
+      if (!question) continue
       
       const columnIndex = Math.floor(i / questionsPerColumn)
       const rowIndex = i % questionsPerColumn
@@ -176,12 +198,11 @@ export class OMRCoordinateService {
       const questionX = startX + (columnIndex * this.COLUMN_WIDTH)
       const questionY = startY + (rowIndex * this.ROW_HEIGHT)
       
-      // Get answer options for this question
-      const answerOptions = this.getAnswerOptions(question.questionType)
+      console.log(`   Q${question.questionNumber}: Column ${columnIndex + 1}, Row ${rowIndex + 1}, Position (${questionX}, ${questionY})`)
       
-      // Generate coordinates for each answer option
-      answerOptions.forEach((option, optionIndex) => {
-        const bubbleX = questionX + this.MARKER_OFFSET + (optionIndex * this.BUBBLE_SPACING)
+      // Generate coordinates for each answer option (A, B, C, D)
+      this.ANSWER_OPTIONS.forEach((option, optionIndex) => {
+        const bubbleX = questionX + (optionIndex * this.BUBBLE_SPACING)
         const bubbleY = questionY
         
         coordinates.push({
@@ -189,7 +210,7 @@ export class OMRCoordinateService {
           y: bubbleY,
           option,
           questionNumber: question.questionNumber,
-          questionType: question.questionType,
+          questionType: question.questionType || 'multiple_choice_4',
           subjectName: question.subjectName,
           sectionName: question.sectionName
         })
@@ -305,16 +326,14 @@ export class OMRCoordinateService {
   }
   
   /**
-   * Get answer options for question type
+   * Get answer options for question type - Yangi format bo'yicha
    */
   private static getAnswerOptions(questionType: string): string[] {
-    if (questionType === 'true_false') return ['T', 'F']
-    if (questionType.startsWith('multiple_choice_')) {
-      const parts = questionType.split('_')
-      const optionCount = parts.length > 2 && parts[2] ? parseInt(parts[2]) : 5
-      return Array.from({ length: optionCount }, (_, i) => String.fromCharCode(65 + i))
-    }
-    return ['A', 'B', 'C', 'D', 'E'] // Default
+    // Yangi format bo'yicha har doim A, B, C, D
+    if (questionType === 'true_false') return ['A', 'B'] // T/F ni A/B sifatida
+    
+    // Har qanday multiple choice uchun A, B, C, D
+    return this.ANSWER_OPTIONS // ['A', 'B', 'C', 'D']
   }
   
   /**
