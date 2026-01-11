@@ -36,11 +36,15 @@ except ImportError as e:
 
 try:
     from evalbee_omr_engine_v2 import EvalBeeOMREngineV2
+    from evalbee_professional_omr_engine import EvalBeeProfessionalOMREngine
     EVALBEE_ENGINE_V2_AVAILABLE = True
+    EVALBEE_PROFESSIONAL_AVAILABLE = True
 except ImportError as e:
     logger.warning(f"EvalBee OMR Engine V2 not available: {e}")
     EVALBEE_ENGINE_V2_AVAILABLE = False
+    EVALBEE_PROFESSIONAL_AVAILABLE = False
     EvalBeeOMREngineV2 = None
+    EvalBeeProfessionalOMREngine = None
 
 # Initialize Flask app
 app = Flask(__name__)
@@ -64,6 +68,7 @@ perfect_processor = PerfectOMRProcessor()
 # Safe initialization of EvalBee engines
 evalbee_engine = EvalBeeOMREngine() if EVALBEE_ENGINE_AVAILABLE else None
 evalbee_v2_engine = EvalBeeOMREngineV2() if EVALBEE_ENGINE_V2_AVAILABLE else None
+evalbee_professional_engine = EvalBeeProfessionalOMREngine() if EVALBEE_PROFESSIONAL_AVAILABLE else None
 
 def convert_numpy_types(obj):
     """Convert numpy types to Python native types for JSON serialization"""
@@ -132,6 +137,7 @@ def process_omr():
         use_universal = request.form.get('universal', 'true').lower() == 'true'  # Universal coordinate detection
         use_perfect = request.form.get('perfect', 'false').lower() == 'true'  # Perfect OMR mode
         use_evalbee = request.form.get('evalbee', 'false').lower() == 'true'  # EvalBee engine (NEW)
+        use_professional = request.form.get('professional', 'false').lower() == 'true'  # EvalBee Professional engine
         
         try:
             answer_key = json.loads(answer_key_str)
@@ -155,9 +161,11 @@ def process_omr():
         logger.info(f"Use universal coordinates: {use_universal}")
         logger.info(f"Use perfect OMR: {use_perfect}")
         logger.info(f"Use EvalBee engine: {use_evalbee}")  # NEW
+        logger.info(f"Use EvalBee Professional: {use_professional}")  # NEW
         logger.info(f"Exam data provided: {exam_data is not None}")
         
         print(f"=== PARAMETERS DEBUG ===")
+        print(f"EvalBee Professional mode: {use_professional}")
         print(f"EvalBee mode: {use_evalbee}")
         print(f"Perfect mode: {use_perfect}")
         print(f"Ultra mode: {use_ultra}")
@@ -184,7 +192,19 @@ def process_omr():
         
         try:
             # Choose processor based on request
-            if use_evalbee:
+            if use_professional:
+                if EVALBEE_PROFESSIONAL_AVAILABLE and evalbee_professional_engine:
+                    processor = evalbee_professional_engine  # Use EvalBee Professional Engine
+                    processor_name = "EvalBee Professional Multi-Pass OMR Engine"
+                else:
+                    logger.warning("EvalBee Professional engine requested but not available, falling back to EvalBee V2")
+                    if EVALBEE_ENGINE_V2_AVAILABLE and evalbee_v2_engine:
+                        processor = evalbee_v2_engine
+                        processor_name = "EvalBee Professional OMR Engine V2 (Fallback)"
+                    else:
+                        processor = ultra_v2_processor
+                        processor_name = "Ultra-Precision V2 OMR Processor (Professional Fallback)"
+            elif use_evalbee:
                 if EVALBEE_ENGINE_V2_AVAILABLE and evalbee_v2_engine:
                     processor = evalbee_v2_engine  # Use EvalBee V2 Engine (NEW)
                     processor_name = "EvalBee Professional OMR Engine V2"
@@ -241,6 +261,7 @@ def process_omr():
             logger.info(f"Image path: {temp_path}")
             logger.info(f"Answer key length: {len(answer_key)}")
             logger.info(f"Exam data provided: {exam_data is not None}")
+            logger.info(f"EvalBee Professional mode: {use_professional}")  # NEW
             logger.info(f"EvalBee mode: {use_evalbee}")  # NEW
             logger.info(f"Perfect mode: {use_perfect}")
             logger.info(f"Ultra mode: {use_ultra}")
@@ -250,7 +271,48 @@ def process_omr():
                 logger.info(f"Paper size: {exam_data.get('paperSize', 'unknown')}")
             
             # Process OMR sheet using selected processor
-            if use_evalbee and EVALBEE_ENGINE_V2_AVAILABLE and evalbee_v2_engine:
+            if use_professional and EVALBEE_PROFESSIONAL_AVAILABLE and evalbee_professional_engine:
+                # EvalBee Professional engine processing
+                professional_result = processor.process_omr_professional(temp_path, answer_key)
+                
+                # Convert EvalBee Professional result to standard format
+                result = type('Result', (), {})()
+                result.extracted_answers = professional_result.extracted_answers
+                result.confidence = professional_result.overall_confidence
+                result.processing_details = {
+                    'processing_method': 'EvalBee Professional Multi-Pass Engine',
+                    'layout_type': 'professional_multi_pass',
+                    'actual_question_count': len(professional_result.question_results),
+                    'image_quality': professional_result.image_quality_metrics['overall_quality'],
+                    'processing_time': professional_result.processing_time,
+                    'performance_metrics': professional_result.performance_metrics,
+                    'error_summary': professional_result.error_summary,
+                    'system_recommendations': professional_result.system_recommendations,
+                    'quality_metrics': professional_result.image_quality_metrics
+                }
+                result.detailed_results = [
+                    {
+                        'question': qr.question_number,
+                        'detected_answer': qr.detected_answer,
+                        'confidence': qr.confidence,
+                        'quality_score': qr.quality_score,
+                        'error_flags': qr.error_flags,
+                        'processing_notes': qr.processing_notes,
+                        'consensus_votes': qr.consensus_votes,
+                        'bubble_analyses': {
+                            option: {
+                                'intensity': ba.intensity,
+                                'confidence': ba.confidence,
+                                'method': ba.method,
+                                'region_stats': ba.region_stats,
+                                'quality_flags': ba.quality_flags
+                            } for option, ba in qr.bubble_analyses.items()
+                        }
+                    } for qr in professional_result.question_results
+                ]
+                
+                logger.info("🎯 EvalBee Professional Multi-Pass Engine processing completed")
+            elif use_evalbee and EVALBEE_ENGINE_V2_AVAILABLE and evalbee_v2_engine:
                 # EvalBee V2 engine processing
                 evalbee_result = processor.process_omr_sheet(temp_path, answer_key)
                 
@@ -397,6 +459,107 @@ def calculate_score(extracted_answers, answer_key, scoring):
             'percentage': round(percentage, 1)
         }
     }
+
+@app.route('/api/omr/process_professional', methods=['POST'])
+def process_omr_professional():
+    """Process OMR using EvalBee Professional Multi-Pass Engine"""
+    try:
+        logger.info("🚀 EvalBee Professional OMR processing request received")
+        
+        # Get uploaded file
+        if 'image' not in request.files:
+            return jsonify({'error': 'No image file provided'}), 400
+        
+        file = request.files['image']
+        if file.filename == '':
+            return jsonify({'error': 'No file selected'}), 400
+        
+        if not allowed_file(file.filename):
+            return jsonify({'error': 'Invalid file type'}), 400
+        
+        # Get answer key
+        answer_key_str = request.form.get('answerKey', '[]')
+        try:
+            answer_key = json.loads(answer_key_str)
+        except json.JSONDecodeError:
+            return jsonify({'error': 'Invalid answer key format'}), 400
+        
+        if not answer_key:
+            return jsonify({'error': 'Answer key is required'}), 400
+        
+        # Save uploaded file temporarily
+        filename = secure_filename(file.filename)
+        temp_path = os.path.join(UPLOAD_FOLDER, f"temp_professional_{int(time.time())}_{filename}")
+        file.save(temp_path)
+        
+        try:
+            # Check if professional engine is available
+            if not EVALBEE_PROFESSIONAL_AVAILABLE or not evalbee_professional_engine:
+                return jsonify({
+                    'success': False,
+                    'error': 'EvalBee Professional engine not available'
+                }), 503
+            
+            # Process with EvalBee Professional Engine
+            result = evalbee_professional_engine.process_omr_professional(temp_path, answer_key)
+            
+            # Convert result to JSON-serializable format
+            response_data = {
+                'success': True,
+                'message': 'OMR sheet processed successfully with EvalBee Professional Engine',
+                'data': {
+                    'extracted_answers': result.extracted_answers,
+                    'overall_confidence': result.overall_confidence,
+                    'processing_time': result.processing_time,
+                    'image_quality_metrics': result.image_quality_metrics,
+                    'system_recommendations': result.system_recommendations,
+                    'performance_metrics': result.performance_metrics,
+                    'error_summary': result.error_summary,
+                    'question_results': [
+                        {
+                            'question_number': qr.question_number,
+                            'detected_answer': qr.detected_answer,
+                            'confidence': qr.confidence,
+                            'quality_score': qr.quality_score,
+                            'error_flags': qr.error_flags,
+                            'processing_notes': qr.processing_notes,
+                            'consensus_votes': qr.consensus_votes,
+                            'bubble_analyses': {
+                                option: {
+                                    'intensity': ba.intensity,
+                                    'confidence': ba.confidence,
+                                    'method': ba.method,
+                                    'region_stats': ba.region_stats,
+                                    'quality_flags': ba.quality_flags
+                                } for option, ba in qr.bubble_analyses.items()
+                            }
+                        } for qr in result.question_results
+                    ],
+                    'processing_method': 'EvalBee Professional Multi-Pass Engine',
+                    'engine_version': 'Professional V1.0',
+                    'answer_key': answer_key
+                }
+            }
+            
+            logger.info(f"✅ EvalBee Professional processing completed successfully")
+            logger.info(f"📊 Confidence: {result.overall_confidence:.2f}, Time: {result.processing_time:.2f}s")
+            
+            return jsonify(response_data)
+            
+        finally:
+            # Clean up temporary file
+            if os.path.exists(temp_path):
+                os.remove(temp_path)
+                
+    except Exception as e:
+        logger.error(f"❌ EvalBee Professional processing error: {e}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({
+            'success': False,
+            'error': str(e),
+            'processing_method': 'EvalBee Professional Multi-Pass Engine'
+        }), 500
 
 @app.route('/api/omr/status', methods=['GET'])
 def omr_status():

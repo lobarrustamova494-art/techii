@@ -162,8 +162,8 @@ const EvalBeeCameraScannerPage: React.FC = () => {
       const file = new File([blob], 'evalbee-camera-capture.jpg', { type: 'image/jpeg' })
       console.log('📁 File created:', file.name, file.size, 'bytes')
       
-      // Process with EvalBee engine using hybrid approach
-      console.log('📤 Sending request to EvalBee engine (hybrid processing)...')
+      // Process with EvalBee Professional engine using hybrid approach
+      console.log('📤 Sending request to EvalBee Professional engine (hybrid processing)...')
       const omrResult = await apiService.processOMRHybrid(
         file,
         exam.answerKey,
@@ -171,11 +171,13 @@ const EvalBeeCameraScannerPage: React.FC = () => {
         exam.id,
         {
           ...exam,
-          processing_mode: 'evalbee_camera_enhanced',
-          quality_enhancement: true,
-          advanced_detection: true,
+          processing_mode: 'evalbee_professional_camera',
+          multi_pass_analysis: true,
+          consensus_voting: true,
+          advanced_quality_control: true,
           camera_quality_metrics: qualityMetrics
-        }
+        },
+        true // Use professional engine
       )
 
       console.log('✅ EvalBee processing response received:', omrResult)

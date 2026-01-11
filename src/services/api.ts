@@ -243,6 +243,217 @@ class ApiService {
   }
 
   // OpenCV-based OMR methods
+  
+  /**
+   * Process OMR using EvalBee Professional Multi-Pass Engine
+   */
+  async processOMRWithEvalBeeProfessional(
+    file: File,
+    answerKey: string[],
+    scoring: { correct: number; wrong: number; blank: number },
+    examId?: string,
+    examData?: any
+  ) {
+    console.log('🚀 EvalBee Professional OMR processing started')
+    
+    try {
+      const formData = new FormData()
+      formData.append('image', file)
+      formData.append('answerKey', JSON.stringify(answerKey))
+      formData.append('scoring', JSON.stringify(scoring))
+      formData.append('professional', 'true')
+      formData.append('debug', 'true')
+      
+      if (examId) {
+        formData.append('examId', examId)
+      }
+      
+      if (examData) {
+        formData.append('examData', JSON.stringify({
+          ...examData,
+          processing_mode: 'evalbee_professional',
+          multi_pass_analysis: true,
+          consensus_voting: true,
+          advanced_quality_control: true
+        }))
+      }
+
+      // Try Python service first (professional endpoint)
+      try {
+        console.log('🐍 Trying EvalBee Professional via Python service')
+        const pythonResponse = await fetch(`${PYTHON_OMR_URL}/api/omr/process_professional`, {
+          method: 'POST',
+          body: formData,
+          headers: {
+            'Accept': 'application/json'
+          }
+        })
+
+        if (pythonResponse.ok) {
+          const result = await pythonResponse.json()
+          if (result.success) {
+            console.log('✅ EvalBee Professional Python processing successful')
+            return this.transformProfessionalResult(result, answerKey, scoring)
+          }
+        }
+      } catch (error) {
+        console.warn('⚠️ Python professional service failed:', error)
+      }
+
+      // Fallback to main endpoint with professional flag
+      console.log('🔄 Falling back to main endpoint with professional flag')
+      const response = await fetch(`${PYTHON_OMR_URL}/api/omr/process`, {
+        method: 'POST',
+        body: formData,
+        headers: {
+          'Accept': 'application/json'
+        }
+      })
+
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`)
+      }
+
+      const result = await response.json()
+      
+      if (!result.success) {
+        throw new Error(result.message || 'EvalBee Professional processing failed')
+      }
+
+      console.log('✅ EvalBee Professional processing completed')
+      return this.transformProfessionalResult(result, answerKey, scoring)
+
+    } catch (error) {
+      console.error('❌ EvalBee Professional OMR processing failed:', error)
+      throw new Error(`EvalBee Professional processing failed: ${error instanceof Error ? error.message : 'Unknown error'}`)
+    }
+  }
+
+  /**
+   * Calculate score based on extracted answers and answer key
+   */
+  private calculateScore(
+    extractedAnswers: string[],
+    answerKey: string[],
+    scoring: { correct: number; wrong: number; blank: number }
+  ) {
+    let correctCount = 0
+    let wrongCount = 0
+    let blankCount = 0
+    
+    const results = []
+    
+    for (let i = 0; i < Math.max(extractedAnswers.length, answerKey.length); i++) {
+      const studentAnswer = extractedAnswers[i] || 'BLANK'
+      const correctAnswer = answerKey[i] || ''
+      
+      let isCorrect = false
+      let points = 0
+      
+      if (studentAnswer === 'BLANK' || studentAnswer === '') {
+        blankCount++
+        points = scoring.blank
+      } else if (studentAnswer === correctAnswer) {
+        correctCount++
+        isCorrect = true
+        points = scoring.correct
+      } else {
+        wrongCount++
+        points = scoring.wrong
+      }
+      
+      results.push({
+        question: i + 1,
+        studentAnswer,
+        correctAnswer,
+        isCorrect,
+        points
+      })
+    }
+    
+    const totalScore = (correctCount * scoring.correct + 
+                       wrongCount * scoring.wrong + 
+                       blankCount * scoring.blank)
+    
+    const percentage = answerKey.length > 0 ? (correctCount / answerKey.length * 100) : 0
+    
+    return {
+      results,
+      summary: {
+        totalQuestions: answerKey.length,
+        correctAnswers: correctCount,
+        wrongAnswers: wrongCount,
+        blankAnswers: blankCount,
+        totalScore,
+        percentage: Math.round(percentage * 10) / 10
+      }
+    }
+  }
+
+  /**
+   * Transform professional processing result
+   */
+  private transformProfessionalResult(
+    result: any,
+    answerKey: string[],
+    scoring: { correct: number; wrong: number; blank: number }
+  ) {
+    const data = result.data || result
+    
+    // Calculate scoring
+    const extractedAnswers = data.extracted_answers || []
+    const scoreResults = this.calculateScore(extractedAnswers, answerKey, scoring)
+    
+    return {
+      extractedAnswers,
+      confidence: data.overall_confidence || data.confidence || 0,
+      processingDetails: {
+        alignmentMarksFound: 6, // Professional engine assumes good alignment
+        bubbleDetectionAccuracy: data.overall_confidence || data.confidence || 0,
+        imageQuality: data.image_quality_metrics?.overall_quality || 0.8,
+        processingMethod: data.processing_method || 'EvalBee Professional Multi-Pass Engine',
+        imageInfo: {
+          width: 2000,
+          height: 3000,
+          format: 'JPEG',
+          size: 0
+        },
+        actualQuestionCount: data.question_results?.length || extractedAnswers.length,
+        expectedQuestionCount: answerKey.length,
+        processingTime: data.processing_time || 0,
+        // Professional-specific details
+        performanceMetrics: data.performance_metrics || {},
+        errorSummary: data.error_summary || {},
+        systemRecommendations: data.system_recommendations || [],
+        qualityMetrics: data.image_quality_metrics || {}
+      },
+      detailedResults: (data.question_results || []).map((qr: any) => ({
+        question: qr.question_number,
+        detectedAnswer: qr.detected_answer,
+        confidence: qr.confidence,
+        bubbleIntensities: Object.fromEntries(
+          Object.entries(qr.bubble_analyses || {}).map(([option, analysis]: [string, any]) => [
+            option,
+            analysis.intensity || 0
+          ])
+        ),
+        bubbleCoordinates: Object.fromEntries(
+          Object.keys(qr.bubble_analyses || {}).map(option => [
+            option,
+            { x: 0, y: 0 } // Coordinates not exposed in professional result
+          ])
+        ),
+        // Professional-specific fields
+        qualityScore: qr.quality_score,
+        errorFlags: qr.error_flags || [],
+        processingNotes: qr.processing_notes || [],
+        consensusVotes: qr.consensus_votes || {},
+        bubbleAnalyses: qr.bubble_analyses || {}
+      })),
+      scoring: scoreResults
+    }
+  }
+
   // EvalBee-style OMR processing via Node.js backend
   async processOMRWithEvalBee(
     file: File,
@@ -344,21 +555,37 @@ class ApiService {
     }
   }
 
-  // Hybrid processing: Try direct Python first, fallback to Node.js backend
+  // Hybrid processing: Try professional engine first, then fallback options
   async processOMRHybrid(
     file: File,
     answerKey: string[],
     scoring: { correct: number; wrong: number; blank: number },
     examId?: string,
-    examData?: any
+    examData?: any,
+    useProfessional: boolean = false
   ) {
-    console.log('🔄 Hybrid OMR processing: Trying direct Python first')
+    console.log('🔄 Hybrid OMR processing started')
     
+    let professionalError: any = null
     let directError: any = null
     let backendError: any = null
     
+    // Try EvalBee Professional engine first if requested
+    if (useProfessional) {
+      try {
+        console.log('🎯 Trying EvalBee Professional Multi-Pass Engine')
+        const professionalResult = await this.processOMRWithEvalBeeProfessional(file, answerKey, scoring, examId, examData)
+        console.log('✅ EvalBee Professional processing successful')
+        return professionalResult
+      } catch (error: any) {
+        professionalError = error
+        console.log('⚠️ EvalBee Professional failed, falling back:', error?.message || 'Failed to fetch')
+      }
+    }
+    
     try {
-      // Try direct Python OMR service first
+      // Try direct Python OMR service
+      console.log('🐍 Trying direct Python OMR service')
       const directResult = await this.processOMRDirectly(file, answerKey, examId, 'evalbee')
       console.log('✅ Direct Python processing successful')
       return directResult
@@ -368,14 +595,16 @@ class ApiService {
       
       try {
         // Fallback to Node.js backend
+        console.log('🚀 Trying Node.js backend')
         const backendResult = await this.processOMRWithEvalBee(file, answerKey, scoring, examId, examData)
         console.log('✅ Node.js backend processing successful')
         return backendResult
       } catch (error: any) {
         backendError = error
-        console.error('❌ Both processing methods failed')
+        console.error('❌ All processing methods failed')
         
         // Create detailed error message
+        const professionalMsg = professionalError?.message || 'Not attempted'
         const directMsg = directError?.message || 'Failed to fetch'
         const backendMsg = backendError?.message || 'Failed to fetch'
         
@@ -384,7 +613,13 @@ class ApiService {
           throw new Error('Internetga ulanishda muammo. Iltimos, internet aloqangizni tekshiring va qayta urinib ko\'ring.')
         }
         
-        throw new Error(`OMR qayta ishlashda xatolik. Python xizmati: ${directMsg}, Backend xizmati: ${backendMsg}`)
+        let errorMessage = 'OMR qayta ishlashda xatolik.'
+        if (useProfessional) {
+          errorMessage += ` Professional: ${professionalMsg},`
+        }
+        errorMessage += ` Python: ${directMsg}, Backend: ${backendMsg}`
+        
+        throw new Error(errorMessage)
       }
     }
   }
