@@ -3,7 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom'
 import { 
   Camera, Brain, Target, CheckCircle, AlertTriangle,
   Eye, BarChart3, TrendingUp, Download, Share2,
-  RefreshCw, Bug
+  RefreshCw, Bug, Image as ImageIcon
 } from 'lucide-react'
 import Header from '@/components/layout/Header'
 import Button from '@/components/ui/Button'
@@ -12,6 +12,7 @@ import LoadingSpinner from '@/components/ui/LoadingSpinner'
 import ProgressBar from '@/components/ui/ProgressBar'
 import EvalBeeCameraScanner from '@/components/EvalBeeCameraScanner'
 import MobileDebugModal from '@/components/MobileDebugModal'
+import AnnotatedImageViewer from '@/components/AnnotatedImageViewer'
 import { useAuth } from '@/contexts/AuthContext'
 import { useConsoleLogger } from '@/hooks/useConsoleLogger'
 import { apiService } from '@/services/api'
@@ -81,6 +82,7 @@ const EvalBeeCameraScannerPage: React.FC = () => {
   const [captureQuality, setCaptureQuality] = useState<QualityMetrics | null>(null)
   const [showAdvancedMetrics, setShowAdvancedMetrics] = useState(false)
   const [showDebugModal, setShowDebugModal] = useState(false)
+  const [showAnnotatedImage, setShowAnnotatedImage] = useState(false)
 
   useEffect(() => {
     loadExam()
@@ -674,6 +676,16 @@ const EvalBeeCameraScannerPage: React.FC = () => {
                   Extracted Answers
                 </h3>
                 <div className="flex gap-2">
+                  {capturedImage && (
+                    <Button 
+                      variant="outline" 
+                      size="sm"
+                      onClick={() => setShowAnnotatedImage(true)}
+                    >
+                      <ImageIcon size={16} className="mr-1" />
+                      Tekshirilgan Rasm
+                    </Button>
+                  )}
                   <Button variant="outline" size="sm">
                     <Download size={16} className="mr-1" />
                     Export
@@ -799,6 +811,24 @@ const EvalBeeCameraScannerPage: React.FC = () => {
         onClearLogs={clearLogs}
         onExportLogs={exportLogs}
       />
+
+      {/* Annotated Image Viewer */}
+      {showAnnotatedImage && capturedImage && result && exam?.answerKey && (
+        <AnnotatedImageViewer
+          imageData={capturedImage}
+          detectedAnswers={result.extracted_answers}
+          correctAnswers={exam.answerKey}
+          bubbleCoordinates={result.detailed_results?.map(detail => ({
+            question: detail.question,
+            option: detail.bubble_coordinates ? Object.keys(detail.bubble_coordinates)[0] : 'A',
+            x: detail.bubble_coordinates ? Object.values(detail.bubble_coordinates)[0]?.x || 0 : 0,
+            y: detail.bubble_coordinates ? Object.values(detail.bubble_coordinates)[0]?.y || 0 : 0,
+            fillPercentage: detail.bubble_intensities ? Math.max(...Object.values(detail.bubble_intensities)) * 100 : 0,
+            confidence: 0.9
+          })) || []}
+          onClose={() => setShowAnnotatedImage(false)}
+        />
+      )}
     </div>
   )
 }
