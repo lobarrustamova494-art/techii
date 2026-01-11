@@ -245,6 +245,141 @@ class ApiService {
   // OpenCV-based OMR methods
   
   /**
+   * Process OMR using Anchor-Based Processor (Langor + Piksel tahlili)
+   */
+  async processOMRWithAnchorBased(
+    file: File,
+    answerKey: string[],
+    scoring: { correct: number; wrong: number; blank: number },
+    examId?: string,
+    examData?: any
+  ) {
+    console.log('🎯 Anchor-Based OMR processing started')
+    
+    try {
+      const formData = new FormData()
+      formData.append('image', file)
+      formData.append('answerKey', JSON.stringify(answerKey))
+      formData.append('scoring', JSON.stringify(scoring))
+      formData.append('anchor_based', 'true')
+      formData.append('debug', 'true')
+      
+      if (examId) {
+        formData.append('examId', examId)
+      }
+      
+      if (examData) {
+        formData.append('examData', JSON.stringify({
+          ...examData,
+          processing_mode: 'anchor_based_langor',
+          ocr_enabled: true,
+          pixel_analysis: true
+        }))
+      }
+
+      // Try Python service first (anchor-based endpoint)
+      try {
+        console.log('🎯 Trying Anchor-Based via Python service')
+        const pythonResponse = await fetch(`${PYTHON_OMR_URL}/api/omr/process_anchor_based`, {
+          method: 'POST',
+          body: formData,
+          headers: {
+            'Accept': 'application/json'
+          }
+        })
+
+        if (pythonResponse.ok) {
+          const result = await pythonResponse.json()
+          if (result.success) {
+            console.log('✅ Anchor-Based Python processing successful')
+            return this.transformAnchorBasedResult(result, answerKey, scoring)
+          }
+        }
+      } catch (error) {
+        console.warn('⚠️ Python anchor-based service failed:', error)
+      }
+
+      // Fallback to main endpoint with anchor_based flag
+      console.log('🔄 Falling back to main endpoint with anchor_based flag')
+      const response = await fetch(`${PYTHON_OMR_URL}/api/omr/process`, {
+        method: 'POST',
+        body: formData,
+        headers: {
+          'Accept': 'application/json'
+        }
+      })
+
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`)
+      }
+
+      const result = await response.json()
+      
+      if (!result.success) {
+        throw new Error(result.message || 'Anchor-Based processing failed')
+      }
+
+      console.log('✅ Anchor-Based processing completed')
+      return this.transformAnchorBasedResult(result, answerKey, scoring)
+
+    } catch (error) {
+      console.error('❌ Anchor-Based OMR processing failed:', error)
+      throw new Error(`Anchor-Based processing failed: ${error instanceof Error ? error.message : 'Unknown error'}`)
+    }
+  }
+
+  /**
+   * Transform anchor-based processing result
+   */
+  private transformAnchorBasedResult(
+    result: any,
+    answerKey: string[],
+    scoring: { correct: number; wrong: number; blank: number }
+  ) {
+    const data = result.data || result
+    
+    // Calculate scoring
+    const extractedAnswers = data.extracted_answers || []
+    const scoreResults = this.calculateScore(extractedAnswers, answerKey, scoring)
+    
+    return {
+      extractedAnswers,
+      confidence: data.confidence || 0,
+      processingDetails: {
+        alignmentMarksFound: data.anchor_points?.length || 0,
+        bubbleDetectionAccuracy: data.confidence || 0,
+        imageQuality: 0.8, // Default for anchor-based
+        processingMethod: data.processing_method || 'Anchor-Based OMR Processor (Langor + Piksel tahlili)',
+        imageInfo: {
+          width: data.processing_details?.image_dimensions?.[1] || 2000,
+          height: data.processing_details?.image_dimensions?.[0] || 3000,
+          format: 'JPEG',
+          size: 0
+        },
+        actualQuestionCount: data.processing_details?.bubbles_analyzed || extractedAnswers.length,
+        expectedQuestionCount: answerKey.length,
+        processingTime: data.processing_time || 0,
+        // Anchor-based specific details
+        anchorsFound: data.processing_details?.anchors_found || 0,
+        bubblesAnalyzed: data.processing_details?.bubbles_analyzed || 0,
+        preprocessingApplied: data.processing_details?.preprocessing_applied || false,
+        anchorPoints: data.anchor_points || [],
+        bubbleRegions: data.bubble_regions || []
+      },
+      detailedResults: (data.detailed_results || []).map((dr: any) => ({
+        question: dr.question,
+        detectedAnswer: dr.detected_answer,
+        confidence: dr.confidence,
+        bubbleIntensities: dr.bubble_intensities || {},
+        bubbleCoordinates: dr.bubble_coordinates || {},
+        // Anchor-based specific fields
+        processingMethod: dr.processing_method || 'anchor_based_density_analysis'
+      })),
+      scoring: scoreResults
+    }
+  }
+
+  /**
    * Process OMR using EvalBee Professional Multi-Pass Engine
    */
   async processOMRWithEvalBeeProfessional(
@@ -558,22 +693,37 @@ class ApiService {
     }
   }
 
-  // Hybrid processing: Try professional engine first, then fallback options
+  // Hybrid processing: Try anchor-based first, then professional, then fallback options
   async processOMRHybrid(
     file: File,
     answerKey: string[],
     scoring: { correct: number; wrong: number; blank: number },
     examId?: string,
     examData?: any,
-    useProfessional: boolean = false
+    useProfessional: boolean = false,
+    useAnchorBased: boolean = true  // Default to anchor-based for better accuracy
   ) {
     console.log('🔄 Hybrid OMR processing started')
     
+    let anchorError: any = null
     let professionalError: any = null
     let directError: any = null
     let backendError: any = null
     
-    // Try EvalBee Professional engine first if requested
+    // Try Anchor-Based processor first if requested
+    if (useAnchorBased) {
+      try {
+        console.log('🎯 Trying Anchor-Based Processor (Langor + Piksel tahlili)')
+        const anchorResult = await this.processOMRWithAnchorBased(file, answerKey, scoring, examId, examData)
+        console.log('✅ Anchor-Based processing successful')
+        return anchorResult
+      } catch (error: any) {
+        anchorError = error
+        console.log('⚠️ Anchor-Based failed, falling back:', error?.message || 'Failed to fetch')
+      }
+    }
+    
+    // Try EvalBee Professional engine if requested
     if (useProfessional) {
       try {
         console.log('🎯 Trying EvalBee Professional Multi-Pass Engine')
@@ -607,6 +757,7 @@ class ApiService {
         console.error('❌ All processing methods failed')
         
         // Create detailed error message
+        const anchorMsg = anchorError?.message || 'Not attempted'
         const professionalMsg = professionalError?.message || 'Not attempted'
         const directMsg = directError?.message || 'Failed to fetch'
         const backendMsg = backendError?.message || 'Failed to fetch'
@@ -617,6 +768,9 @@ class ApiService {
         }
         
         let errorMessage = 'OMR qayta ishlashda xatolik.'
+        if (useAnchorBased) {
+          errorMessage += ` Anchor-based: ${anchorMsg},`
+        }
         if (useProfessional) {
           errorMessage += ` Professional: ${professionalMsg},`
         }

@@ -37,14 +37,27 @@ except ImportError as e:
 try:
     from evalbee_omr_engine_v2 import EvalBeeOMREngineV2
     from evalbee_professional_omr_engine import EvalBeeProfessionalOMREngine
+    from anchor_based_omr_processor import AnchorBasedOMRProcessor
+    from realtime_quality_analyzer import RealtimeQualityAnalyzer
+    from batch_omr_processor import BatchOMRProcessor, BatchItem
+    from analytics_engine import AnalyticsEngine, ProcessingRecord
     EVALBEE_ENGINE_V2_AVAILABLE = True
     EVALBEE_PROFESSIONAL_AVAILABLE = True
+    ANCHOR_BASED_AVAILABLE = True
+    ADVANCED_FEATURES_AVAILABLE = True
 except ImportError as e:
-    logger.warning(f"EvalBee OMR Engine V2 not available: {e}")
+    logger.warning(f"Advanced OMR features not available: {e}")
     EVALBEE_ENGINE_V2_AVAILABLE = False
     EVALBEE_PROFESSIONAL_AVAILABLE = False
+    ANCHOR_BASED_AVAILABLE = False
+    ADVANCED_FEATURES_AVAILABLE = False
     EvalBeeOMREngineV2 = None
     EvalBeeProfessionalOMREngine = None
+    AnchorBasedOMRProcessor = None
+    RealtimeQualityAnalyzer = None
+    BatchOMRProcessor = None
+    AnalyticsEngine = None
+    AnchorBasedOMRProcessor = None
 
 # Initialize Flask app
 app = Flask(__name__)
@@ -69,6 +82,13 @@ perfect_processor = PerfectOMRProcessor()
 evalbee_engine = EvalBeeOMREngine() if EVALBEE_ENGINE_AVAILABLE else None
 evalbee_v2_engine = EvalBeeOMREngineV2() if EVALBEE_ENGINE_V2_AVAILABLE else None
 evalbee_professional_engine = EvalBeeProfessionalOMREngine() if EVALBEE_PROFESSIONAL_AVAILABLE else None
+anchor_based_processor = AnchorBasedOMRProcessor() if ANCHOR_BASED_AVAILABLE else None
+
+# Advanced features initialization
+quality_analyzer = RealtimeQualityAnalyzer() if ADVANCED_FEATURES_AVAILABLE else None
+batch_processor = BatchOMRProcessor() if ADVANCED_FEATURES_AVAILABLE else None
+analytics_engine = AnalyticsEngine() if ADVANCED_FEATURES_AVAILABLE else None
+anchor_based_processor = AnchorBasedOMRProcessor() if ANCHOR_BASED_AVAILABLE else None
 
 def convert_numpy_types(obj):
     """Convert numpy types to Python native types for JSON serialization"""
@@ -138,6 +158,7 @@ def process_omr():
         use_perfect = request.form.get('perfect', 'false').lower() == 'true'  # Perfect OMR mode
         use_evalbee = request.form.get('evalbee', 'false').lower() == 'true'  # EvalBee engine (NEW)
         use_professional = request.form.get('professional', 'false').lower() == 'true'  # EvalBee Professional engine
+        use_anchor_based = request.form.get('anchor_based', 'false').lower() == 'true'  # Anchor-based processor
         
         try:
             answer_key = json.loads(answer_key_str)
@@ -162,9 +183,11 @@ def process_omr():
         logger.info(f"Use perfect OMR: {use_perfect}")
         logger.info(f"Use EvalBee engine: {use_evalbee}")  # NEW
         logger.info(f"Use EvalBee Professional: {use_professional}")  # NEW
+        logger.info(f"Use Anchor-based: {use_anchor_based}")  # NEW
         logger.info(f"Exam data provided: {exam_data is not None}")
         
         print(f"=== PARAMETERS DEBUG ===")
+        print(f"Anchor-based mode: {use_anchor_based}")
         print(f"EvalBee Professional mode: {use_professional}")
         print(f"EvalBee mode: {use_evalbee}")
         print(f"Perfect mode: {use_perfect}")
@@ -192,7 +215,19 @@ def process_omr():
         
         try:
             # Choose processor based on request
-            if use_professional:
+            if use_anchor_based:
+                if ANCHOR_BASED_AVAILABLE and anchor_based_processor:
+                    processor = anchor_based_processor  # Use Anchor-Based Processor
+                    processor_name = "Anchor-Based OMR Processor (Langor + Piksel tahlili)"
+                else:
+                    logger.warning("Anchor-based processor requested but not available, falling back to Professional")
+                    if EVALBEE_PROFESSIONAL_AVAILABLE and evalbee_professional_engine:
+                        processor = evalbee_professional_engine
+                        processor_name = "EvalBee Professional Multi-Pass OMR Engine (Anchor Fallback)"
+                    else:
+                        processor = ultra_v2_processor
+                        processor_name = "Ultra-Precision V2 OMR Processor (Anchor Fallback)"
+            elif use_professional:
                 if EVALBEE_PROFESSIONAL_AVAILABLE and evalbee_professional_engine:
                     processor = evalbee_professional_engine  # Use EvalBee Professional Engine
                     processor_name = "EvalBee Professional Multi-Pass OMR Engine"
@@ -261,6 +296,7 @@ def process_omr():
             logger.info(f"Image path: {temp_path}")
             logger.info(f"Answer key length: {len(answer_key)}")
             logger.info(f"Exam data provided: {exam_data is not None}")
+            logger.info(f"Anchor-based mode: {use_anchor_based}")  # NEW
             logger.info(f"EvalBee Professional mode: {use_professional}")  # NEW
             logger.info(f"EvalBee mode: {use_evalbee}")  # NEW
             logger.info(f"Perfect mode: {use_perfect}")
@@ -271,7 +307,28 @@ def process_omr():
                 logger.info(f"Paper size: {exam_data.get('paperSize', 'unknown')}")
             
             # Process OMR sheet using selected processor
-            if use_professional and EVALBEE_PROFESSIONAL_AVAILABLE and evalbee_professional_engine:
+            if use_anchor_based and ANCHOR_BASED_AVAILABLE and anchor_based_processor:
+                # Anchor-based processing
+                anchor_result = processor.process_omr_with_anchors(temp_path, answer_key)
+                
+                # Convert Anchor-based result to standard format
+                result = type('Result', (), {})()
+                result.extracted_answers = anchor_result.extracted_answers
+                result.confidence = anchor_result.confidence
+                result.processing_details = {
+                    'processing_method': 'Anchor-Based OMR Processor (Langor + Piksel tahlili)',
+                    'layout_type': 'anchor_based_detection',
+                    'actual_question_count': len(anchor_result.extracted_answers),
+                    'anchors_found': anchor_result.processing_details['anchors_found'],
+                    'bubbles_analyzed': anchor_result.processing_details['bubbles_analyzed'],
+                    'processing_time': anchor_result.processing_time,
+                    'image_dimensions': anchor_result.processing_details['image_dimensions'],
+                    'preprocessing_applied': anchor_result.processing_details['preprocessing_applied']
+                }
+                result.detailed_results = anchor_result.detailed_results
+                
+                logger.info("🎯 Anchor-Based OMR Processor processing completed")
+            elif use_professional and EVALBEE_PROFESSIONAL_AVAILABLE and evalbee_professional_engine:
                 # EvalBee Professional engine processing
                 professional_result = processor.process_omr_professional(temp_path, answer_key)
                 
@@ -460,6 +517,110 @@ def calculate_score(extracted_answers, answer_key, scoring):
         }
     }
 
+@app.route('/api/omr/process_anchor_based', methods=['POST'])
+def process_omr_anchor_based():
+    """Process OMR using Anchor-Based Processor (Langor + Piksel tahlili)"""
+    try:
+        logger.info("🎯 Anchor-Based OMR processing request received")
+        
+        # Get uploaded file
+        if 'image' not in request.files:
+            return jsonify({'error': 'No image file provided'}), 400
+        
+        file = request.files['image']
+        if file.filename == '':
+            return jsonify({'error': 'No file selected'}), 400
+        
+        if not allowed_file(file.filename):
+            return jsonify({'error': 'Invalid file type'}), 400
+        
+        # Get answer key
+        answer_key_str = request.form.get('answerKey', '[]')
+        try:
+            answer_key = json.loads(answer_key_str)
+        except json.JSONDecodeError:
+            return jsonify({'error': 'Invalid answer key format'}), 400
+        
+        if not answer_key:
+            return jsonify({'error': 'Answer key is required'}), 400
+        
+        # Save uploaded file temporarily
+        filename = secure_filename(file.filename)
+        temp_path = os.path.join(UPLOAD_FOLDER, f"temp_anchor_{int(time.time())}_{filename}")
+        file.save(temp_path)
+        
+        try:
+            # Check if anchor-based processor is available
+            if not ANCHOR_BASED_AVAILABLE or not anchor_based_processor:
+                return jsonify({
+                    'success': False,
+                    'error': 'Anchor-Based OMR processor not available'
+                }), 503
+            
+            # Process with Anchor-Based Processor
+            result = anchor_based_processor.process_omr_with_anchors(temp_path, answer_key)
+            
+            # Convert result to JSON-serializable format
+            response_data = {
+                'success': True,
+                'message': 'OMR sheet processed successfully with Anchor-Based Processor',
+                'data': {
+                    'extracted_answers': result.extracted_answers,
+                    'confidence': result.confidence,
+                    'processing_time': result.processing_time,
+                    'processing_details': result.processing_details,
+                    'anchor_points': [
+                        {
+                            'question_number': ap.question_number,
+                            'x': ap.x,
+                            'y': ap.y,
+                            'confidence': ap.confidence,
+                            'text': ap.text,
+                            'bbox': ap.bbox
+                        } for ap in result.anchor_points
+                    ],
+                    'bubble_regions': [
+                        {
+                            'question_number': br.question_number,
+                            'option': br.option,
+                            'x': br.x,
+                            'y': br.y,
+                            'width': br.width,
+                            'height': br.height,
+                            'density': br.density,
+                            'is_filled': br.is_filled,
+                            'confidence': br.confidence
+                        } for br in result.bubble_regions
+                    ],
+                    'detailed_results': result.detailed_results,
+                    'processing_method': 'Anchor-Based OMR Processor (Langor + Piksel tahlili)',
+                    'algorithm_version': 'Anchor-Based V1.0',
+                    'answer_key': answer_key
+                }
+            }
+            
+            logger.info(f"✅ Anchor-Based processing completed successfully")
+            logger.info(f"📍 Anchors found: {len(result.anchor_points)}")
+            logger.info(f"🔍 Bubbles analyzed: {len(result.bubble_regions)}")
+            logger.info(f"📊 Confidence: {result.confidence:.2f}, Time: {result.processing_time:.2f}s")
+            
+            return jsonify(response_data)
+            
+        finally:
+            # Clean up temporary file
+            if os.path.exists(temp_path):
+                os.remove(temp_path)
+                
+    except Exception as e:
+        logger.error(f"❌ Anchor-Based processing error: {e}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({
+            'success': False,
+            'error': str(e),
+            'processing_method': 'Anchor-Based OMR Processor'
+        }), 500
+
 @app.route('/api/omr/process_professional', methods=['POST'])
 def process_omr_professional():
     """Process OMR using EvalBee Professional Multi-Pass Engine"""
@@ -561,27 +722,164 @@ def process_omr_professional():
             'processing_method': 'EvalBee Professional Multi-Pass Engine'
         }), 500
 
+@app.route('/api/quality/analyze', methods=['POST'])
+def analyze_image_quality():
+    """Real-time image quality analysis"""
+    try:
+        if not ADVANCED_FEATURES_AVAILABLE or not quality_analyzer:
+            return jsonify({'error': 'Quality analysis not available'}), 503
+        
+        logger.info("🔍 Quality analysis request received")
+        
+        # Get image data
+        if 'image' in request.files:
+            # File upload
+            file = request.files['image']
+            if file.filename == '':
+                return jsonify({'error': 'No file selected'}), 400
+            
+            # Save temporarily
+            temp_filename = f"temp_quality_{int(time.time())}_{secure_filename(file.filename)}"
+            temp_path = os.path.join(UPLOAD_FOLDER, temp_filename)
+            file.save(temp_path)
+            
+            try:
+                import cv2
+                image = cv2.imread(temp_path)
+                if image is None:
+                    return jsonify({'error': 'Could not read image file'}), 400
+                
+                feedback = quality_analyzer.analyze_image_quality(image)
+                summary = quality_analyzer.get_quality_summary(feedback)
+                
+                logger.info("✅ Quality analysis completed successfully")
+                
+                return jsonify({
+                    'success': True,
+                    'quality_analysis': summary
+                })
+            except Exception as e:
+                logger.error(f"Quality analysis processing error: {e}")
+                return jsonify({'error': f'Processing error: {str(e)}'}), 500
+            finally:
+                if os.path.exists(temp_path):
+                    os.remove(temp_path)
+        
+        elif request.is_json and 'base64_image' in request.json:
+            # Base64 image
+            base64_data = request.json['base64_image']
+            feedback = quality_analyzer.analyze_from_base64(base64_data)
+            summary = quality_analyzer.get_quality_summary(feedback)
+            
+            logger.info("✅ Base64 quality analysis completed")
+            
+            return jsonify({
+                'success': True,
+                'quality_analysis': summary
+            })
+        
+        else:
+            return jsonify({'error': 'No image data provided'}), 400
+            
+    except Exception as e:
+        logger.error(f"Quality analysis error: {e}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@app.route('/api/analytics/report', methods=['GET'])
+def get_analytics_report():
+    """Get analytics report"""
+    try:
+        if not ADVANCED_FEATURES_AVAILABLE or not analytics_engine:
+            return jsonify({'error': 'Analytics not available'}), 503
+        
+        period_days = int(request.args.get('period_days', 30))
+        exam_name = request.args.get('exam_name')
+        
+        report = analytics_engine.generate_report(period_days, exam_name)
+        
+        return jsonify({
+            'success': True,
+            'report': {
+                'period': report.period,
+                'total_processed': report.total_processed,
+                'average_confidence': report.average_confidence,
+                'average_processing_time': report.average_processing_time,
+                'average_quality': report.average_quality,
+                'success_rate': report.success_rate,
+                'common_errors': report.common_errors,
+                'quality_distribution': report.quality_distribution,
+                'confidence_distribution': report.confidence_distribution,
+                'processing_trends': report.processing_trends,
+                'recommendations_summary': report.recommendations_summary
+            }
+        })
+        
+    except Exception as e:
+        logger.error(f"Analytics report error: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@app.route('/api/analytics/performance', methods=['GET'])
+def get_performance_metrics():
+    """Get system performance metrics"""
+    try:
+        if not ADVANCED_FEATURES_AVAILABLE or not analytics_engine:
+            return jsonify({'error': 'Analytics not available'}), 503
+        
+        metrics = analytics_engine.get_performance_metrics()
+        
+        return jsonify({
+            'success': True,
+            'performance_metrics': metrics
+        })
+        
+    except Exception as e:
+        logger.error(f"Performance metrics error: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
 @app.route('/api/omr/status', methods=['GET'])
 def omr_status():
-    """OMR service status endpoint"""
+    """OMR service status endpoint with advanced features"""
     return jsonify({
         'success': True,
         'message': 'Python OMR Processor Status',
         'data': {
             'available': True,
             'method': 'OpenCV Computer Vision with Python',
+            'engines': {
+                'standard': True,
+                'optimized': True,
+                'ultra_precision': True,
+                'perfect': True,
+                'evalbee_v1': EVALBEE_ENGINE_AVAILABLE,
+                'evalbee_v2': EVALBEE_ENGINE_V2_AVAILABLE,
+                'evalbee_professional': EVALBEE_PROFESSIONAL_AVAILABLE,
+                'anchor_based': ANCHOR_BASED_AVAILABLE
+            },
+            'advanced_features': {
+                'available': ADVANCED_FEATURES_AVAILABLE,
+                'realtime_quality_analysis': ADVANCED_FEATURES_AVAILABLE,
+                'batch_processing': ADVANCED_FEATURES_AVAILABLE,
+                'analytics_engine': ADVANCED_FEATURES_AVAILABLE
+            },
             'features': [
                 'Ultra-precision coordinate mapping',
                 'Alignment mark detection',
                 'Advanced bubble intensity analysis',
                 'Multi-threshold processing',
                 'Image quality assessment',
-                'Format-aware processing'
+                'Format-aware processing',
+                'EvalBee Professional Multi-Pass Engine',
+                'Real-time quality feedback',
+                'Batch processing capabilities',
+                'Comprehensive analytics'
             ],
             'supported_formats': ['JPG', 'PNG', 'TIFF', 'BMP'],
             'max_file_size': '16MB',
             'accuracy': '95-99%',
-            'processing_time': '2-5 seconds'
+            'processing_time': '2-12 seconds',
+            'professional_grade': True
         }
     })
 
