@@ -1,371 +1,14 @@
-import React, { useState, useEffect, useRef } from 'react'
-import { useParams, useNavigate } from 'react-router-dom'
+import React, { useRef, useEffect, useState } from 'react'
 import { 
-  Camera, Brain, Target, CheckCircle, AlertTriangle,
-  Eye, BarChart3, TrendingUp, Download, Share2,
-  RefreshCw, Bug
+  Camera, X, Bug
 } from 'lucide-react'
-import Header from '@/components/layout/Header'
-import Button from '@/components/ui/Button'
-import Card from '@/components/ui/Card'
-import LoadingSpinner from '@/components/ui/LoadingSpinner'
-import ProgressBar from '@/components/ui/ProgressBar'
-import CameraScanner from '@/components/CameraScanner'
-import MobileDebugModal from '@/components/MobileDebugModal'
-import { useAuth } from '@/contexts/AuthContext'
-import { useConsoleLogger } from '@/hooks/useConsoleLogger'
-import { apiService } from '@/services/api'
 
-// Captured Image with Bubble Overlay Component
-const CapturedImageWithBubbles: React.FC<{
-  imageData: string
-  bubbles: any[]
-  correctAnswers: string[]
-  qualityMetrics: any
-}> = ({ imageData, correctAnswers, qualityMetrics }) => {
-  const canvasRef = useRef<HTMLCanvasElement>(null)
-  const imageRef = useRef<HTMLImageElement>(null)
-  const [imageLoaded, setImageLoaded] = useState(false)
-  const [imageError, setImageError] = useState(false)
-  
-  useEffect(() => {
-    console.log('🖼️ CapturedImageWithBubbles: useEffect triggered', {
-      hasImageData: !!imageData,
-      imageDataLength: imageData?.length || 0,
-      imageDataType: imageData?.substring(0, 30) || 'none',
-      correctAnswersLength: correctAnswers.length
-    })
-    
-    if (!imageData) {
-      console.log('❌ No image data provided')
-      setImageError(true)
-      return
-    }
-    
-    // Validate image data format
-    if (!imageData.startsWith('data:image/')) {
-      console.error('❌ Invalid image data format:', imageData.substring(0, 100))
-      setImageError(true)
-      return
-    }
-    
-    setImageLoaded(false)
-    setImageError(false)
-    
-    // Load image first, then setup canvas
-    const img = new Image()
-    
-    img.onload = () => {
-      console.log('✅ Image loaded successfully', {
-        naturalWidth: img.naturalWidth,
-        naturalHeight: img.naturalHeight,
-        src: img.src.substring(0, 50) + '...'
-      })
-      
-      setImageLoaded(true)
-      
-      // Setup canvas overlay after image loads with delay to ensure DOM is ready
-      setTimeout(() => {
-        if (canvasRef.current && imageRef.current) {
-          const canvas = canvasRef.current
-          const ctx = canvas.getContext('2d')
-          
-          if (ctx) {
-            // Set canvas size to match image display size
-            const displayImg = imageRef.current
-            if (displayImg && canvas && displayImg.offsetWidth > 0 && displayImg.offsetHeight > 0) {
-              canvas.width = displayImg.offsetWidth
-              canvas.height = displayImg.offsetHeight
-              
-              console.log('📐 Canvas size set to match display', {
-                canvasWidth: canvas.width,
-                canvasHeight: canvas.height,
-                displayWidth: displayImg.offsetWidth,
-                displayHeight: displayImg.offsetHeight
-              })
-              
-              // Draw bubble overlays
-              drawBubbleOverlays(ctx, canvas.width, canvas.height, correctAnswers)
-              console.log('🎯 Bubble overlays drawn')
-            } else {
-              console.warn('⚠️ Display image dimensions not ready, retrying...')
-              // Retry after another delay
-              setTimeout(() => {
-                if (displayImg && canvas && displayImg.offsetWidth > 0) {
-                  canvas.width = displayImg.offsetWidth
-                  canvas.height = displayImg.offsetHeight
-                  drawBubbleOverlays(ctx, canvas.width, canvas.height, correctAnswers)
-                  console.log('🎯 Bubble overlays drawn (retry)')
-                }
-              }, 500)
-            }
-          }
-        }
-      }, 200)
-    }
-    
-    img.onerror = (error) => {
-      console.error('❌ Image load error:', error)
-      console.error('❌ Image data details:', {
-        length: imageData.length,
-        start: imageData.substring(0, 100),
-        isValidFormat: imageData.startsWith('data:image/')
-      })
-      setImageError(true)
-    }
-    
-    // Set image source to trigger load
-    console.log('🔄 Setting image source', {
-      imageDataStart: imageData.substring(0, 50)
-    })
-    img.src = imageData
-    
-  }, [imageData, correctAnswers])
-  
-  // Redraw canvas when image ref changes size
-  useEffect(() => {
-    if (imageLoaded && imageRef.current && canvasRef.current) {
-      const handleResize = () => {
-        const canvas = canvasRef.current
-        const ctx = canvas?.getContext('2d')
-        const displayImg = imageRef.current
-        
-        if (ctx && displayImg && canvas && displayImg.offsetWidth > 0) {
-          canvas.width = displayImg.offsetWidth
-          canvas.height = displayImg.offsetHeight
-          drawBubbleOverlays(ctx, canvas.width, canvas.height, correctAnswers)
-          console.log('🔄 Canvas redrawn after resize')
-        }
-      }
-      
-      // Initial draw
-      setTimeout(handleResize, 100)
-      
-      // Listen for resize
-      window.addEventListener('resize', handleResize)
-      return () => window.removeEventListener('resize', handleResize)
-    }
-  }, [imageLoaded, correctAnswers])
-  
-  const drawBubbleOverlays = (ctx: CanvasRenderingContext2D, width: number, height: number, correctAnswers: string[]) => {
-    console.log('🎯 Drawing bubble overlays', {
-      canvasWidth: width,
-      canvasHeight: height,
-      correctAnswersCount: correctAnswers.length
-    })
-    
-    // Clear canvas first
-    ctx.clearRect(0, 0, width, height)
-    
-    // Simulate bubble positions based on OMR layout
-    const questionsPerColumn = Math.ceil(correctAnswers.length / 3)
-    const questionHeight = Math.floor(height * 0.6 / questionsPerColumn)
-    const startY = height * 0.2
-    const columnWidth = width * 0.25
-    const startX = width * 0.15
-    
-    const bubbleRadius = Math.max(8, width * 0.015) // Scale with image size
-    const optionSpacing = width * 0.04 // 4% of width
-    const options = ['A', 'B', 'C', 'D', 'E']
-    
-    console.log('📊 Layout calculations', {
-      questionsPerColumn,
-      questionHeight,
-      startY,
-      columnWidth,
-      startX,
-      bubbleRadius,
-      optionSpacing
-    })
-    
-    let bubblesDrawn = 0
-    
-    // Draw bubbles for each question
-    for (let q = 0; q < Math.min(correctAnswers.length, 30); q++) {
-      const column = Math.floor(q / questionsPerColumn)
-      const rowInColumn = q % questionsPerColumn
-      
-      const questionX = startX + column * columnWidth
-      const questionY = startY + rowInColumn * questionHeight
-      
-      // Check each option bubble for this question
-      for (let optIndex = 0; optIndex < Math.min(options.length, 4); optIndex++) {
-        const option = options[optIndex]
-        const bubbleX = questionX + optIndex * optionSpacing
-        const bubbleY = questionY
-        
-        // Skip if bubble is outside bounds
-        if (bubbleX < bubbleRadius || bubbleX >= width - bubbleRadius || 
-            bubbleY < bubbleRadius || bubbleY >= height - bubbleRadius) {
-          continue
-        }
-        
-        // Determine bubble status
-        const isCorrectAnswer = correctAnswers[q] === option
-        const isFilled = Math.random() > 0.7 // Simulate filled bubbles
-        
-        // Draw rectangle overlay
-        const rectSize = bubbleRadius * 2.5
-        const rectX = bubbleX - rectSize / 2
-        const rectY = bubbleY - rectSize / 2
-        
-        if (isFilled) {
-          if (isCorrectAnswer) {
-            // To'g'ri javob va belgilangan - yashil aylana
-            ctx.fillStyle = 'rgba(34, 197, 94, 0.8)' // Green circle
-            ctx.strokeStyle = '#22C55E'
-            ctx.lineWidth = 3
-            
-            // Draw circle instead of rectangle for correct answers
-            ctx.beginPath()
-            ctx.arc(bubbleX, bubbleY, bubbleRadius + 4, 0, 2 * Math.PI)
-            ctx.fill()
-            ctx.stroke()
-          } else {
-            // Noto'g'ri javob - sariq to'rtburchak
-            ctx.fillStyle = 'rgba(251, 191, 36, 0.8)' // Yellow rectangle
-            ctx.strokeStyle = '#F59E0B'
-            ctx.lineWidth = 2
-            ctx.fillRect(rectX, rectY, rectSize, rectSize)
-            ctx.strokeRect(rectX, rectY, rectSize, rectSize)
-          }
-        } else if (isCorrectAnswer) {
-          // To'g'ri javob lekin belgilanmagan - yashil border
-          ctx.strokeStyle = '#22C55E'
-          ctx.lineWidth = 2
-          ctx.setLineDash([4, 4])
-          ctx.beginPath()
-          ctx.arc(bubbleX, bubbleY, bubbleRadius, 0, 2 * Math.PI)
-          ctx.stroke()
-          ctx.setLineDash([])
-        }
-        
-        // Draw option letter
-        if (isFilled || isCorrectAnswer) {
-          ctx.fillStyle = isFilled && isCorrectAnswer ? 'white' : '#1F2937'
-          ctx.font = `bold ${Math.max(12, bubbleRadius)}px sans-serif`
-          ctx.textAlign = 'center'
-          ctx.textBaseline = 'middle'
-          ctx.fillText(option, bubbleX, bubbleY)
-        }
-        
-        bubblesDrawn++
-      }
-    }
-    
-    console.log('✅ Bubble overlays completed', {
-      totalBubblesDrawn: bubblesDrawn
-    })
-  }
-  
-  return (
-    <div className="space-y-4">
-      <div className="relative max-w-2xl mx-auto">
-        {/* Main image display */}
-        <div className="relative">
-          {imageError ? (
-            <div className="w-full h-64 bg-red-50 dark:bg-red-900/20 border-2 border-dashed border-red-300 dark:border-red-700 rounded-lg flex items-center justify-center">
-              <div className="text-center text-red-600 dark:text-red-400">
-                <div className="text-lg font-medium mb-2">Rasm yuklanmadi</div>
-                <div className="text-sm">Rasm ma'lumotlarini tekshiring</div>
-                <div className="text-xs mt-2 text-red-500">
-                  {imageData ? `Data length: ${imageData.length}` : 'No image data'}
-                </div>
-              </div>
-            </div>
-          ) : (
-            <>
-              {/* Loading overlay */}
-              {!imageLoaded && (
-                <div className="absolute inset-0 bg-slate-100 dark:bg-slate-800 border-2 border-dashed border-slate-300 dark:border-slate-600 rounded-lg flex items-center justify-center z-30">
-                  <div className="text-center text-slate-500 dark:text-slate-400">
-                    <div className="animate-spin w-8 h-8 border-2 border-blue-500 border-t-transparent rounded-full mx-auto mb-2"></div>
-                    <div className="text-sm">Rasm yuklanmoqda...</div>
-                  </div>
-                </div>
-              )}
-              
-              {/* Image element */}
-              <img 
-                ref={imageRef}
-                src={imageData} 
-                alt="EvalBee Camera Capture"
-                className="w-full rounded-lg border border-slate-200 dark:border-slate-700 shadow-lg"
-                onLoad={() => {
-                  console.log('📸 Display image onLoad event fired')
-                  setImageLoaded(true)
-                }}
-                onError={(e) => {
-                  console.error('❌ Display image onError event fired:', e)
-                  console.error('❌ Image src:', imageData?.substring(0, 100))
-                  setImageError(true)
-                }}
-                style={{ 
-                  display: 'block', // Always show, let error state handle visibility
-                  maxWidth: '100%',
-                  height: 'auto',
-                  opacity: imageLoaded ? 1 : 0,
-                  transition: 'opacity 0.3s ease-in-out'
-                }}
-              />
-              
-              {/* Canvas overlay - positioned absolutely over the image */}
-              <canvas
-                ref={canvasRef}
-                className="absolute inset-0 w-full h-full rounded-lg pointer-events-none"
-                style={{ 
-                  background: 'transparent',
-                  zIndex: 10,
-                  opacity: imageLoaded ? 1 : 0,
-                  transition: 'opacity 0.3s ease-in-out'
-                }}
-              />
-            </>
-          )}
-          
-          {/* Quality indicator */}
-          {qualityMetrics && imageLoaded && (
-            <div className="absolute top-2 right-2 bg-black/80 text-white px-3 py-1 rounded-lg text-sm z-20">
-              Quality: {Math.round(qualityMetrics.overall * 100)}%
-            </div>
-          )}
-        </div>
-      </div>
-      
-      {/* Debug Info */}
-      <div className="bg-blue-50 dark:bg-blue-900/20 rounded-lg p-3 text-sm">
-        <div className="font-medium text-blue-900 dark:text-blue-100 mb-2">Debug Info:</div>
-        <div className="space-y-1 text-blue-800 dark:text-blue-200">
-          <div>Image Data: {imageData ? `${imageData.length} characters` : 'None'}</div>
-          <div>Image Format: {imageData ? (imageData.startsWith('data:image/') ? 'Valid' : 'Invalid') : 'N/A'}</div>
-          <div>Image Status: {imageError ? 'Error' : imageLoaded ? 'Loaded' : 'Loading'}</div>
-          <div>Correct Answers: {correctAnswers.length} questions</div>
-          <div>Canvas: {canvasRef.current ? `${canvasRef.current.width}x${canvasRef.current.height}` : 'Not ready'}</div>
-          <div>Display Image: {imageRef.current ? `${imageRef.current.offsetWidth}x${imageRef.current.offsetHeight}` : 'Not ready'}</div>
-          <div>Image Natural Size: {imageRef.current ? `${imageRef.current.naturalWidth}x${imageRef.current.naturalHeight}` : 'Not ready'}</div>
-        </div>
-      </div>
-      
-      {/* Legend */}
-      <div className="bg-slate-50 dark:bg-slate-800 rounded-lg p-4">
-        <h4 className="font-medium text-slate-900 dark:text-white mb-3">Bubble Analysis Legend</h4>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-sm">
-          <div className="flex items-center gap-2">
-            <div className="w-6 h-6 bg-green-500 rounded-full border-2 border-green-600"></div>
-            <span className="text-slate-700 dark:text-slate-300">To'g'ri javob (belgilangan)</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <div className="w-6 h-6 bg-yellow-500 border-2 border-yellow-600"></div>
-            <span className="text-slate-700 dark:text-slate-300">Noto'g'ri javob (belgilangan)</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <div className="w-6 h-6 border-2 border-green-500 border-dashed bg-transparent rounded-full"></div>
-            <span className="text-slate-700 dark:text-slate-300">To'g'ri javob (belgilanmagan)</span>
-          </div>
-        </div>
-      </div>
-    </div>
-  )
+interface EvalBeeCameraScannerProps {
+  onCapture: (imageData: string, qualityMetrics: QualityMetrics) => void
+  onClose: () => void
+  isProcessing: boolean
+  answerKey: string[]
+  onShowDebug?: () => void
 }
 
 interface QualityMetrics {
@@ -378,849 +21,780 @@ interface QualityMetrics {
   recommendations: string[]
 }
 
-interface EvalBeeResult {
-  extracted_answers: string[]
-  confidence_scores: number[]
-  overall_confidence: number
-  processing_time: number
-  layout_analysis: {
-    layout_type: string
-    total_questions: number
-    columns: number
-    format_confidence: number
-  }
-  quality_metrics: {
-    sharpness: number
-    contrast_ratio: number
-    brightness: number
-    noise_level: number
-    skew_angle: number
-    overall_quality: number
-  }
-  detailed_results: Array<{
-    question: number
-    bubble_coordinates: Record<string, {x: number, y: number}>
-    bubble_intensities: Record<string, number>
-    status: string
-  }>
-  error_flags: string[]
-  recommendations: string[]
+interface AlignmentStatus {
+  paperDetected: boolean
+  withinFrame: boolean
+  alignment: number
+  corners: { x: number, y: number, detected?: boolean, name?: string }[]
 }
 
-const EvalBeeCameraScannerPage: React.FC = () => {
-  const { id } = useParams()
-  const navigate = useNavigate()
-  const { user } = useAuth()
+const EvalBeeCameraScanner: React.FC<EvalBeeCameraScannerProps> = ({
+  onCapture,
+  onClose,
+  isProcessing,
+  onShowDebug
+}) => {
+  const videoRef = useRef<HTMLVideoElement>(null)
+  const canvasRef = useRef<HTMLCanvasElement>(null)
+  const overlayCanvasRef = useRef<HTMLCanvasElement>(null)
+  const previewCanvasRef = useRef<HTMLCanvasElement>(null)
+  const animationFrameRef = useRef<number>()
   
-  // Console logger for mobile debugging
-  const {
-    logs,
-    isCapturing: isLoggingActive,
-    startCapturing: startLogging,
-    stopCapturing: stopLogging,
-    clearLogs,
-    exportLogs
-  } = useConsoleLogger()
-  
-  const [exam, setExam] = useState<any>(null)
-  const [loading, setLoading] = useState(true)
-  const [processing, setProcessing] = useState(false)
-  const [processingProgress, setProcessingProgress] = useState(0)
-  const [result, setResult] = useState<EvalBeeResult | null>(null)
+  const [stream, setStream] = useState<MediaStream | null>(null)
+  const [isReady, setIsReady] = useState(false)
   const [error, setError] = useState('')
-  const [showCamera, setShowCamera] = useState(false)
-  const [capturedImage, setCapturedImage] = useState<string | null>(null)
-  const [captureQuality, setCaptureQuality] = useState<QualityMetrics | null>(null)
-  const [showAdvancedMetrics, setShowAdvancedMetrics] = useState(false)
-  const [showDebugModal, setShowDebugModal] = useState(false)
+  const [facingMode] = useState<'user' | 'environment'>('environment')
+  
+  // EvalBee Core States - Lightweight Real-time Analysis
+  const [qualityMetrics, setQualityMetrics] = useState<QualityMetrics>({
+    focus: 0,
+    brightness: 0,
+    contrast: 0,
+    skew: 0,
+    overall: 0,
+    issues: [],
+    recommendations: []
+  })
+  
+  const [alignmentStatus, setAlignmentStatus] = useState<AlignmentStatus>({
+    paperDetected: false,
+    withinFrame: false,
+    alignment: 0,
+    corners: []
+  })
+  
+  const [canCapture, setCanCapture] = useState(false)
+  const [autoScanCountdown, setAutoScanCountdown] = useState(0)
 
   useEffect(() => {
-    loadExam()
-    // Start logging automatically for debugging
-    startLogging()
-    
-    // Add initial debug logs
-    console.log('🚀 EvalBeeCameraScannerPage: Component mounted')
-    console.log('📋 Exam ID:', id)
-    console.log('👤 User:', user?.name || 'Anonymous')
+    startCamera()
+    return () => {
+      stopCamera()
+      if (animationFrameRef.current) {
+        cancelAnimationFrame(animationFrameRef.current)
+      }
+    }
+  }, [facingMode])
+
+  useEffect(() => {
+    if (isReady && !isProcessing) {
+      startRealTimeAnalysis()
+    }
     
     return () => {
-      // Stop logging when component unmounts
-      console.log('🔚 EvalBeeCameraScannerPage: Component unmounting')
-      stopLogging()
+      if (animationFrameRef.current) {
+        cancelAnimationFrame(animationFrameRef.current)
+      }
     }
-  }, [id])
+  }, [isReady, isProcessing])
 
-  const loadExam = async () => {
+  const startCamera = async () => {
     try {
-      setLoading(true)
-      const response = await apiService.getExam(id!)
-      if (response.data) {
-        setExam(response.data.exam)
-      }
-    } catch (error: any) {
-      setError('Imtihon ma\'lumotlarini yuklashda xatolik')
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  // Extract correct answers from exam data (same logic as ExamDetail)
-  const getCorrectAnswers = (exam: any): string[] => {
-    const correctAnswers: string[] = []
-    
-    // First priority: Use answerKey if it exists and is properly set
-    if (exam.answerKey && exam.answerKey.length > 0) {
-      console.log('Using answerKey from exam-keys page:', exam.answerKey)
-      return exam.answerKey.map((key: string) => {
-        // Handle comma-separated multiple answers (take first one for display)
-        if (typeof key === 'string' && key.includes(',')) {
-          return key.split(',')[0].trim()
+      setError('')
+      console.log('🎥 EvalBee Camera: Starting camera initialization...')
+      
+      // EvalBee-style camera constraints - optimized for documents with better quality
+      const constraints = {
+        video: {
+          facingMode: facingMode,
+          width: { ideal: 1920, min: 1280 },
+          height: { ideal: 1440, min: 960 },
+          frameRate: { ideal: 30, min: 20 },
+          aspectRatio: { ideal: 4/3 },
+          // Enhanced settings for better image quality
+          focusMode: 'continuous',
+          exposureMode: 'continuous',
+          whiteBalanceMode: 'continuous'
         }
-        return key || 'A'
-      })
-    }
-    
-    // Second priority: Extract from exam subjects structure
-    console.log('Using correctAnswers from exam subjects structure')
-    if (exam.subjects) {
-      exam.subjects.forEach((subject: any) => {
-        if (subject.sections) {
-          subject.sections.forEach((section: any) => {
-            if (section.questions) {
-              section.questions.forEach((question: any) => {
-                correctAnswers.push(question.correctAnswer || 'A')
-              })
-            } else {
-              // If no questions array, generate default answers based on question count
-              for (let i = 0; i < section.questionCount; i++) {
-                correctAnswers.push('A') // Default to 'A' if no correct answer specified
-              }
-            }
-          })
+      }
+
+      console.log('📱 Camera constraints:', constraints)
+
+      const mediaStream = await navigator.mediaDevices.getUserMedia(constraints)
+      setStream(mediaStream)
+
+      console.log('✅ Camera stream obtained successfully')
+
+      if (videoRef.current) {
+        videoRef.current.srcObject = mediaStream
+        
+        // Enhanced video settings
+        videoRef.current.onloadedmetadata = () => {
+          console.log('📺 Video metadata loaded, camera ready for analysis')
+          console.log(`📐 Video dimensions: ${videoRef.current?.videoWidth}x${videoRef.current?.videoHeight}`)
+          setIsReady(true)
+          setupOverlayCanvas()
         }
-      })
-    }
-    
-    return correctAnswers
-  }
-
-  const handleCameraCapture = async (imageData: string) => {
-    console.log('📸 EvalBeeCameraScannerPage: Image captured from camera', {
-      imageDataLength: imageData.length,
-      imageDataType: imageData.substring(0, 30),
-      imageDataPreview: imageData.substring(0, 50) + '...'
-    })
-    
-    // Validate image data format
-    if (!imageData.startsWith('data:image/')) {
-      console.error('❌ Invalid image data format:', imageData.substring(0, 100))
-      setError('Noto\'g\'ri rasm formati')
-      return
-    }
-    
-    console.log('✅ Image data format is valid')
-    console.log('🔄 Setting captured image state...')
-    
-    // Default quality metrics since CameraScanner doesn't provide them
-    const defaultQualityMetrics: QualityMetrics = {
-      focus: 0.8,
-      brightness: 0.7,
-      contrast: 0.8,
-      skew: 0.1,
-      overall: 0.8,
-      issues: [],
-      recommendations: []
-    }
-    
-    setCapturedImage(imageData)
-    setCaptureQuality(defaultQualityMetrics)
-    setShowCamera(false)
-    
-    console.log('✅ Image state updated successfully')
-    console.log('🔄 Starting automatic EvalBee processing...')
-    
-    // Automatically process with EvalBee engine
-    await processWithEvalBee(imageData, defaultQualityMetrics)
-  }
-
-  const processWithEvalBee = async (imageData: string, qualityMetrics: QualityMetrics) => {
-    if (!exam || !exam.answerKey || exam.answerKey.length === 0) {
-      setError('Imtihon kalitlari belgilanmagan')
-      return
-    }
-
-    setProcessing(true)
-    setProcessingProgress(0)
-    setError('')
-
-    // Simulate processing progress with EvalBee-style stages
-    const progressStages = [
-      { progress: 15, message: "Image quality analysis..." },
-      { progress: 30, message: "Bubble detection..." },
-      { progress: 50, message: "Layout structure analysis..." },
-      { progress: 70, message: "Answer extraction..." },
-      { progress: 85, message: "Confidence calculation..." },
-      { progress: 95, message: "Final validation..." }
-    ]
-
-    let currentStage = 0
-    const progressInterval = setInterval(() => {
-      if (currentStage < progressStages.length) {
-        setProcessingProgress(progressStages[currentStage].progress)
-        currentStage++
-      } else {
-        clearInterval(progressInterval)
+        
+        // Optimize video element for better performance
+        videoRef.current.setAttribute('playsinline', 'true')
+        videoRef.current.setAttribute('webkit-playsinline', 'true')
       }
-    }, 800)
-
-    try {
-      console.log('🚀 EvalBee Camera Processing started')
-      console.log('📊 Quality metrics:', qualityMetrics)
-      console.log('📋 Answer key:', exam.answerKey)
-      console.log('🏷️ Exam ID:', exam.id)
+    } catch (err: any) {
+      console.error('❌ EvalBee Camera Error:', err)
+      let errorMessage = 'Kameraga kirish imkoni yo\'q.'
       
-      const startTime = Date.now()
-      
-      // Convert base64 to File for API
-      console.log('🔄 Converting image data to file...')
-      const blob = await fetch(imageData).then(r => r.blob())
-      const file = new File([blob], 'evalbee-camera-capture.jpg', { type: 'image/jpeg' })
-      console.log('📁 File created:', file.name, file.size, 'bytes')
-      
-      // Process with EvalBee engine using hybrid approach
-      console.log('📤 Sending request to EvalBee engine (hybrid processing)...')
-      const omrResult = await apiService.processOMRHybrid(
-        file,
-        exam.answerKey,
-        exam.scoring || { correct: 1, wrong: 0, blank: 0 },
-        exam.id,
-        {
-          ...exam,
-          processing_mode: 'evalbee_camera_enhanced',
-          quality_enhancement: true,
-          advanced_detection: true,
-          camera_quality_metrics: qualityMetrics
-        }
-      )
-
-      console.log('✅ EvalBee processing response received:', omrResult)
-
-      clearInterval(progressInterval)
-      setProcessingProgress(100)
-
-      const processingTime = (Date.now() - startTime) / 1000
-
-      // Check if response is successful
-      if (!omrResult.success) {
-        const errorMessage = (omrResult as any).message || 'EvalBee processing failed'
-        throw new Error(errorMessage)
-      }
-
-      // Transform result to EvalBee format with camera quality integration
-      const evalBeeResult: EvalBeeResult = {
-        extracted_answers: omrResult.data?.extractedAnswers || [],
-        confidence_scores: omrResult.data?.results?.map((r: any) => r.confidence) || [],
-        overall_confidence: omrResult.data?.confidence || 0,
-        processing_time: processingTime,
-        layout_analysis: {
-          layout_type: omrResult.data?.processingDetails?.layout_type || 'camera_detected',
-          total_questions: omrResult.data?.processingDetails?.actual_question_count || omrResult.data?.extractedAnswers?.length || 0,
-          columns: 3,
-          format_confidence: omrResult.data?.confidence || 0
-        },
-        quality_metrics: {
-          sharpness: qualityMetrics.focus * 200,
-          contrast_ratio: qualityMetrics.contrast,
-          brightness: qualityMetrics.brightness * 255,
-          noise_level: (1 - qualityMetrics.overall) * 100,
-          skew_angle: qualityMetrics.skew * 10,
-          overall_quality: qualityMetrics.overall
-        },
-        detailed_results: omrResult.data?.results || [],
-        error_flags: [],
-        recommendations: []
-      }
-
-      // Generate EvalBee-style error flags and recommendations
-      if (qualityMetrics.focus < 0.7) {
-        evalBeeResult.error_flags.push('LOW_CAMERA_FOCUS')
-        evalBeeResult.recommendations.push('Camera focus was not optimal. Consider using manual focus.')
-      }
-
-      if (qualityMetrics.brightness < 0.3 || qualityMetrics.brightness > 0.8) {
-        evalBeeResult.error_flags.push('POOR_LIGHTING')
-        evalBeeResult.recommendations.push('Lighting conditions were not ideal. Use better lighting.')
-      }
-
-      if (qualityMetrics.contrast < 0.5) {
-        evalBeeResult.error_flags.push('LOW_CONTRAST')
-        evalBeeResult.recommendations.push('Low contrast detected. Ensure clear distinction between paper and background.')
-      }
-
-      if (qualityMetrics.overall < 0.7) {
-        evalBeeResult.error_flags.push('LOW_IMAGE_QUALITY')
-        evalBeeResult.recommendations.push('Overall image quality could be improved. Retake photo with better conditions.')
-      }
-
-      const blankCount = evalBeeResult.extracted_answers.filter(a => a === 'BLANK').length
-      if (blankCount > evalBeeResult.extracted_answers.length * 0.2) {
-        evalBeeResult.error_flags.push('HIGH_BLANK_RATE')
-        evalBeeResult.recommendations.push('Many blank answers detected. Check bubble filling quality.')
-      }
-
-      setResult(evalBeeResult)
-
-      console.log('✅ EvalBee Camera processing completed successfully!')
-      console.log(`📊 Results: ${evalBeeResult.extracted_answers.length} answers, ${(evalBeeResult.overall_confidence * 100).toFixed(1)}% confidence`)
-
-    } catch (error: any) {
-      console.error('❌ EvalBee Camera processing error:', error)
-      console.error('❌ Error details:', {
-        message: error.message,
-        stack: error.stack,
-        response: error.response?.data
-      })
-      
-      let errorMessage = 'EvalBee kamera bilan qayta ishlashda xatolik'
-      
-      if (error.message) {
-        errorMessage += ': ' + error.message
-      }
-      
-      if (error.response?.data?.message) {
-        errorMessage += ' (' + error.response.data.message + ')'
+      if (err.name === 'NotAllowedError') {
+        errorMessage = 'Kamera ruxsati berilmagan. Brauzer sozlamalarini tekshiring.'
+      } else if (err.name === 'NotFoundError') {
+        errorMessage = 'Kamera topilmadi. Qurilmangizda kamera borligini tekshiring.'
+      } else if (err.name === 'NotReadableError') {
+        errorMessage = 'Kamera band. Boshqa ilovalarni yoping va qayta urinib ko\'ring.'
       }
       
       setError(errorMessage)
-    } finally {
-      clearInterval(progressInterval)
-      setProcessing(false)
     }
   }
 
-  const resetCapture = () => {
-    setResult(null)
-    setCapturedImage(null)
-    setCaptureQuality(null)
-    setError('')
-    setProcessingProgress(0)
+  const stopCamera = () => {
+    if (stream) {
+      stream.getTracks().forEach(track => track.stop())
+      setStream(null)
+    }
+    setIsReady(false)
   }
 
-  const getQualityColor = (score: number) => {
-    if (score >= 0.8) return 'text-green-600'
-    if (score >= 0.6) return 'text-yellow-600'
-    return 'text-red-600'
+  const setupOverlayCanvas = () => {
+    if (!overlayCanvasRef.current || !videoRef.current) return
+    
+    const canvas = overlayCanvasRef.current
+    const video = videoRef.current
+    
+    canvas.width = video.videoWidth
+    canvas.height = video.videoHeight
+    
+    // Setup preview canvas too
+    if (previewCanvasRef.current) {
+      previewCanvasRef.current.width = 200 // Small preview size
+      previewCanvasRef.current.height = 150
+    }
   }
 
-  const getQualityLabel = (score: number) => {
-    if (score >= 0.8) return 'Excellent'
-    if (score >= 0.6) return 'Good'
-    return 'Needs Improvement'
+  // EvalBee Core: Lightweight Real-time Analysis (NO HEAVY OpenCV)
+  const startRealTimeAnalysis = () => {
+    const analyzeFrame = () => {
+      if (!videoRef.current || !canvasRef.current || isProcessing) {
+        animationFrameRef.current = requestAnimationFrame(analyzeFrame)
+        return
+      }
+
+      const video = videoRef.current
+      const canvas = canvasRef.current
+      const ctx = canvas.getContext('2d')
+      
+      if (!ctx) {
+        animationFrameRef.current = requestAnimationFrame(analyzeFrame)
+        return
+      }
+
+      // Capture frame for lightweight analysis
+      canvas.width = video.videoWidth
+      canvas.height = video.videoHeight
+      ctx.drawImage(video, 0, 0, canvas.width, canvas.height)
+      
+      const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height)
+      
+      // EvalBee Method: Fast, lightweight quality checks
+      performLightweightAnalysis(imageData)
+      
+      animationFrameRef.current = requestAnimationFrame(analyzeFrame)
+    }
+    
+    analyzeFrame()
   }
 
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-slate-50 dark:bg-slate-900">
-        {user && <Header user={user} />}
-        <div className="flex items-center justify-center h-96">
-          <LoadingSpinner size="lg" />
-        </div>
-      </div>
+  // EvalBee Core: Fast Analysis (grayscale + basic checks only)
+  const performLightweightAnalysis = (imageData: ImageData) => {
+    const { data, width, height } = imageData
+    
+    // Convert to grayscale (lightweight)
+    const grayscale = new Array(width * height)
+    for (let i = 0; i < data.length; i += 4) {
+      const gray = 0.299 * data[i] + 0.587 * data[i + 1] + 0.114 * data[i + 2]
+      grayscale[i / 4] = gray
+    }
+    
+    // 1. Fast Focus Check (Laplacian variance - simplified)
+    const focus = calculateFastFocus(grayscale, width, height)
+    
+    // 2. Fast Brightness Check
+    const brightness = calculateFastBrightness(grayscale)
+    
+    // 3. Fast Alignment Check
+    const alignment = detectPaperAlignment(grayscale, width, height)
+    
+    // 4. Overall Quality (EvalBee method)
+    const overall = (focus * 0.4 + brightness * 0.3 + alignment.alignment * 0.3)
+    
+    // Debug logging for mobile debugging
+    console.log('📊 EvalBee Camera Analysis:', {
+      focus: Math.round(focus * 100) + '%',
+      brightness: Math.round(brightness * 100) + '%',
+      alignment: Math.round(alignment.alignment * 100) + '%',
+      overall: Math.round(overall * 100) + '%',
+      detectedMarkers: alignment.corners.filter(c => c.detected).length,
+      paperDetected: alignment.paperDetected
+    })
+    
+    // Update states
+    setQualityMetrics({
+      focus,
+      brightness,
+      contrast: alignment.alignment, // Using alignment as contrast proxy
+      skew: 1 - alignment.alignment,
+      overall,
+      issues: generateIssues(focus, brightness, alignment),
+      recommendations: generateRecommendations(focus, brightness, alignment)
+    })
+    
+    setAlignmentStatus(alignment)
+    
+    // EvalBee Logic: Strict requirements for capture based on 4 corner markers
+    const detectedMarkers = alignment.corners.filter(c => c.detected).length
+    const canCaptureNow = (
+      focus >= 0.7 &&           // Good focus required
+      brightness >= 0.3 &&      // Adequate lighting
+      brightness <= 0.8 &&      
+      alignment.paperDetected && // Paper must be detected
+      detectedMarkers >= 3 &&    // At least 3 out of 4 corners detected
+      alignment.alignment >= 0.75 // Good alignment required (75%+ corners)
     )
+    
+    if (canCaptureNow !== canCapture) {
+      console.log('🎯 Capture status changed:', canCaptureNow ? 'Ready to capture' : 'Not ready', {
+        focus: focus >= 0.7,
+        brightness: brightness >= 0.3 && brightness <= 0.8,
+        paperDetected: alignment.paperDetected,
+        markersDetected: `${detectedMarkers}/4`,
+        alignmentGood: alignment.alignment >= 0.75
+      })
+    }
+    
+    setCanCapture(canCaptureNow)
+    
+    // EvalBee Feature: Auto-scan when conditions are perfect
+    if (canCaptureNow && overall >= 0.9) {
+      if (autoScanCountdown === 0) {
+        console.log('✨ Perfect conditions detected! Starting auto-capture countdown...')
+        setAutoScanCountdown(3) // 3 second countdown
+        setTimeout(() => {
+          if (canCapture && overall >= 0.9) {
+            console.log('📸 Auto-capture triggered!')
+            captureImage()
+          }
+          setAutoScanCountdown(0)
+        }, 3000)
+      }
+    } else {
+      setAutoScanCountdown(0)
+    }
+    
+    // Draw simple guide overlay
+    drawSimpleGuide(alignment)
+    
+    // Update preview canvas
+    updatePreview()
   }
 
-  if (showCamera) {
-    return (
-      <CameraScanner
-        onCapture={handleCameraCapture}
-        onClose={() => setShowCamera(false)}
-        isScanning={processing}
-      />
+  // Fast focus calculation (simplified Laplacian)
+  const calculateFastFocus = (grayscale: number[], width: number, height: number): number => {
+    let variance = 0
+    let count = 0
+    
+    // Sample every 4th pixel for speed
+    for (let y = 2; y < height - 2; y += 4) {
+      for (let x = 2; x < width - 2; x += 4) {
+        const idx = y * width + x
+        const laplacian = 
+          -grayscale[idx - width] - grayscale[idx - 1] + 4 * grayscale[idx] - grayscale[idx + 1] - grayscale[idx + width]
+        
+        variance += laplacian * laplacian
+        count++
+      }
+    }
+    
+    return Math.min(1, (variance / count) / 500)
+  }
+
+  // Fast brightness calculation
+  const calculateFastBrightness = (grayscale: number[]): number => {
+    // Sample every 10th pixel for speed
+    let sum = 0
+    let count = 0
+    
+    for (let i = 0; i < grayscale.length; i += 10) {
+      sum += grayscale[i]
+      count++
+    }
+    
+    return (sum / count) / 255
+  }
+
+  // EvalBee Core: Paper alignment detection with 4 corner markers
+  const detectPaperAlignment = (grayscale: number[], width: number, height: number): AlignmentStatus => {
+    // Define 4 corner marker positions
+    const markerSize = 30
+    const margin = 80 // Distance from edges
+    
+    const cornerMarkers = [
+      { x: margin, y: margin, name: 'TL', detected: false }, // Top-left
+      { x: width - margin, y: margin, name: 'TR', detected: false }, // Top-right
+      { x: margin, y: height - margin, name: 'BL', detected: false }, // Bottom-left
+      { x: width - margin, y: height - margin, name: 'BR', detected: false } // Bottom-right
+    ]
+    
+    // Detect dark rectangular markers in corners
+    let detectedMarkers = 0
+    
+    cornerMarkers.forEach(marker => {
+      let darkPixels = 0
+      let totalPixels = 0
+      
+      for (let dy = -markerSize/2; dy <= markerSize/2; dy++) {
+        for (let dx = -markerSize/2; dx <= markerSize/2; dx++) {
+          const x = Math.floor(marker.x + dx)
+          const y = Math.floor(marker.y + dy)
+          
+          if (x >= 0 && x < width && y >= 0 && y < height) {
+            const idx = y * width + x
+            const pixel = grayscale[idx]
+            
+            if (pixel < 100) darkPixels++ // Dark threshold
+            totalPixels++
+          }
+        }
+      }
+      
+      const darkRatio = totalPixels > 0 ? darkPixels / totalPixels : 0
+      if (darkRatio > 0.6) { // 60% dark pixels = marker detected
+        marker.detected = true
+        detectedMarkers++
+      }
+    })
+    
+    // Calculate alignment quality
+    const markerDetectionRatio = detectedMarkers / 4
+    const paperDetected = detectedMarkers >= 3 // At least 3 out of 4 corners
+    const withinFrame = true
+    const alignment = markerDetectionRatio
+    
+    // Store marker positions for overlay
+    const corners = cornerMarkers.map(m => ({ x: m.x, y: m.y, detected: m.detected, name: m.name }))
+    
+    return {
+      paperDetected,
+      withinFrame,
+      alignment,
+      corners
+    }
+  }
+
+  const generateIssues = (focus: number, brightness: number, alignment: AlignmentStatus): string[] => {
+    const issues = []
+    
+    if (focus < 0.7) issues.push('Rasm aniq emas')
+    if (brightness < 0.3) issues.push('Yorug\'lik kam')
+    if (brightness > 0.8) issues.push('Juda yorqin')
+    if (!alignment.paperDetected) issues.push('Qog\'oz topilmadi')
+    if (alignment.alignment < 0.8) issues.push('Qog\'oz qiyshaygan')
+    
+    return issues
+  }
+
+  const generateRecommendations = (focus: number, brightness: number, alignment: AlignmentStatus): string[] => {
+    const recommendations = []
+    
+    if (focus < 0.7) recommendations.push('📱 Kamerani yaqinlashtiring va fokusni sozlang')
+    if (brightness < 0.3) recommendations.push('💡 Ko\'proq yorug\'lik kerak')
+    if (brightness > 0.8) recommendations.push('🌤️ Yorug\'likni kamaytiring')
+    if (!alignment.paperDetected) recommendations.push('📄 OMR varaqni ramkaga joylashtiring')
+    if (alignment.alignment < 0.8) recommendations.push('📐 Qog\'ozni to\'g\'ri joylashtiring')
+    
+    return recommendations
+  }
+
+  // Simple guide overlay - shows paper frame and basic alignment
+  const drawSimpleGuide = (alignment: AlignmentStatus) => {
+    if (!overlayCanvasRef.current) return
+    
+    const canvas = overlayCanvasRef.current
+    const ctx = canvas.getContext('2d')
+    if (!ctx) return
+    
+    ctx.clearRect(0, 0, canvas.width, canvas.height)
+    
+    // Simple paper frame guide
+    const margin = 0.12
+    const frameX = canvas.width * margin
+    const frameY = canvas.height * margin
+    const frameWidth = canvas.width * (1 - 2 * margin)
+    const frameHeight = canvas.height * (1 - 2 * margin)
+    
+    // Frame color based on paper detection
+    const frameColor = alignment.paperDetected ? '#10B981' : '#3B82F6'
+    const frameOpacity = alignment.paperDetected ? 0.9 : 0.7
+    
+    // Draw main guide frame with glow effect
+    ctx.strokeStyle = frameColor
+    ctx.globalAlpha = frameOpacity
+    ctx.lineWidth = 3
+    ctx.shadowColor = frameColor
+    ctx.shadowBlur = 10
+    ctx.setLineDash([15, 8])
+    ctx.strokeRect(frameX, frameY, frameWidth, frameHeight)
+    
+    // Reset shadow
+    ctx.shadowBlur = 0
+    
+    // Draw corner guides (L-shapes in corners) with better visibility
+    ctx.setLineDash([])
+    ctx.lineWidth = 4
+    ctx.globalAlpha = 1.0
+    const cornerSize = 50
+    
+    // Corner colors based on detection
+    alignment.corners.forEach((corner) => {
+      const cornerColor = corner.detected ? '#10B981' : '#EF4444'
+      ctx.strokeStyle = cornerColor
+      ctx.shadowColor = cornerColor
+      ctx.shadowBlur = 8
+      
+      const x = corner.x
+      const y = corner.y
+      
+      // Draw L-shape for each corner
+      ctx.beginPath()
+      if (corner.name === 'TL') {
+        // Top-left
+        ctx.moveTo(x, y + cornerSize)
+        ctx.lineTo(x, y)
+        ctx.lineTo(x + cornerSize, y)
+      } else if (corner.name === 'TR') {
+        // Top-right
+        ctx.moveTo(x - cornerSize, y)
+        ctx.lineTo(x, y)
+        ctx.lineTo(x, y + cornerSize)
+      } else if (corner.name === 'BL') {
+        // Bottom-left
+        ctx.moveTo(x, y - cornerSize)
+        ctx.lineTo(x, y)
+        ctx.lineTo(x + cornerSize, y)
+      } else if (corner.name === 'BR') {
+        // Bottom-right
+        ctx.moveTo(x - cornerSize, y)
+        ctx.lineTo(x, y)
+        ctx.lineTo(x, y - cornerSize)
+      }
+      ctx.stroke()
+    })
+    
+    // Reset shadow
+    ctx.shadowBlur = 0
+    ctx.globalAlpha = 1.0
+    
+    // Center instruction (only when no paper detected)
+    if (!alignment.paperDetected) {
+      // Semi-transparent background
+      ctx.fillStyle = 'rgba(0, 0, 0, 0.8)'
+      ctx.fillRect(canvas.width/2 - 140, canvas.height/2 - 40, 280, 80)
+      
+      // Border glow
+      ctx.strokeStyle = '#3B82F6'
+      ctx.lineWidth = 2
+      ctx.shadowColor = '#3B82F6'
+      ctx.shadowBlur = 10
+      ctx.strokeRect(canvas.width/2 - 140, canvas.height/2 - 40, 280, 80)
+      ctx.shadowBlur = 0
+      
+      // Text
+      ctx.fillStyle = 'white'
+      ctx.font = 'bold 18px sans-serif'
+      ctx.textAlign = 'center'
+      ctx.fillText('OMR varaqni ramkaga', canvas.width/2, canvas.height/2 - 8)
+      ctx.fillText('joylashtiring', canvas.width/2, canvas.height/2 + 18)
+    }
+    
+    // Show capture preview area (what will be captured)
+    if (alignment.paperDetected) {
+      // Draw capture area outline with animated effect
+      ctx.strokeStyle = '#FFD700'
+      ctx.globalAlpha = 0.8
+      ctx.lineWidth = 2
+      ctx.shadowColor = '#FFD700'
+      ctx.shadowBlur = 15
+      ctx.setLineDash([8, 4])
+      
+      // Slightly smaller area than guide frame (actual capture area)
+      const captureMargin = 0.15
+      const captureX = canvas.width * captureMargin
+      const captureY = canvas.height * captureMargin
+      const captureWidth = canvas.width * (1 - 2 * captureMargin)
+      const captureHeight = canvas.height * (1 - 2 * captureMargin)
+      
+      ctx.strokeRect(captureX, captureY, captureWidth, captureHeight)
+      
+      // Reset effects
+      ctx.shadowBlur = 0
+      ctx.globalAlpha = 1.0
+      ctx.setLineDash([])
+    }
+  }
+
+  // Update preview canvas to show what will be captured
+  const updatePreview = () => {
+    if (!previewCanvasRef.current || !videoRef.current || !alignmentStatus.paperDetected) return
+    
+    const previewCanvas = previewCanvasRef.current
+    const previewCtx = previewCanvas.getContext('2d')
+    const video = videoRef.current
+    
+    if (!previewCtx) return
+    
+    // Clear preview
+    previewCtx.clearRect(0, 0, previewCanvas.width, previewCanvas.height)
+    
+    // Calculate capture area (same as overlay)
+    const captureMargin = 0.18
+    const sourceX = video.videoWidth * captureMargin
+    const sourceY = video.videoHeight * captureMargin
+    const sourceWidth = video.videoWidth * (1 - 2 * captureMargin)
+    const sourceHeight = video.videoHeight * (1 - 2 * captureMargin)
+    
+    // Draw cropped video frame to preview canvas
+    previewCtx.drawImage(
+      video,
+      sourceX, sourceY, sourceWidth, sourceHeight, // Source area
+      0, 0, previewCanvas.width, previewCanvas.height // Destination area
     )
+    
+    // Add preview border
+    previewCtx.strokeStyle = '#FFD700'
+    previewCtx.lineWidth = 2
+    previewCtx.strokeRect(0, 0, previewCanvas.width, previewCanvas.height)
+  }
+
+  const captureImage = async () => {
+    if (!videoRef.current || !canvasRef.current || !isReady || !canCapture) return
+
+    console.log('📸 EvalBee Camera: Starting image capture...')
+
+    // EvalBee Method: Stop video stream during processing
+    if (animationFrameRef.current) {
+      cancelAnimationFrame(animationFrameRef.current)
+    }
+
+    const video = videoRef.current
+    const canvas = canvasRef.current
+    const context = canvas.getContext('2d')
+
+    if (!context) return
+
+    // Capture high-quality frame
+    canvas.width = video.videoWidth
+    canvas.height = video.videoHeight
+    context.drawImage(video, 0, 0, canvas.width, canvas.height)
+
+    console.log('📷 Image captured:', {
+      width: canvas.width,
+      height: canvas.height,
+      quality: Math.round(qualityMetrics.overall * 100) + '%'
+    })
+
+    // Get image data
+    const finalImageData = canvas.toDataURL('image/jpeg', 0.95)
+    
+    console.log('✅ EvalBee Camera: Image capture completed successfully')
+    
+    // Call parent callback
+    onCapture(finalImageData, qualityMetrics)
   }
 
   return (
-    <div className="min-h-screen bg-slate-50 dark:bg-slate-900">
-      {user && <Header user={user} />}
-      
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Header Section */}
-        <div className="mb-8">
-          <div className="flex items-center gap-3 mb-4">
-            <div className="p-3 bg-gradient-to-r from-green-500 to-blue-600 rounded-xl">
-              <Camera className="w-8 h-8 text-white" />
-            </div>
+    <div className="fixed inset-0 bg-black z-50 flex flex-col">
+      {/* Camera View - Full Screen */}
+      <div className="flex-1 relative overflow-hidden">
+        {error ? (
+          <div className="flex items-center justify-center h-full text-white text-center p-4">
             <div>
-              <h1 className="text-3xl font-bold text-slate-900 dark:text-white">
-                EvalBee Camera Scanner
-              </h1>
-              <p className="text-slate-600 dark:text-slate-400">
-                Professional real-time OMR scanning with quality control
-              </p>
+              <Camera size={48} className="mx-auto mb-4 opacity-50" />
+              <p className="text-lg mb-2">Kamera xatoligi</p>
+              <p className="text-sm opacity-75 mb-4">{error}</p>
+              <button 
+                onClick={startCamera} 
+                className="px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg text-white transition-colors"
+              >
+                Qayta urinish
+              </button>
             </div>
           </div>
-          
-          {exam && (
-            <div className="bg-white dark:bg-slate-800 rounded-xl p-6 shadow-sm border border-slate-200 dark:border-slate-700">
-              <div className="flex items-center justify-between">
-                <div>
-                  <h2 className="text-xl font-semibold text-slate-900 dark:text-white mb-2">
-                    {exam.title}
-                  </h2>
-                  <div className="flex items-center gap-6 text-sm text-slate-600 dark:text-slate-400">
-                    <div className="flex items-center gap-2">
-                      <Target size={16} />
-                      <span>{exam.answerKey?.length || 0} questions</span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <Eye size={16} />
-                      <span>Real-time quality control</span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <Brain size={16} />
-                      <span>EvalBee Engine</span>
-                    </div>
-                  </div>
+        ) : (
+          <>
+            {/* Video Element - Full Screen */}
+            <video
+              ref={videoRef}
+              autoPlay
+              playsInline
+              muted
+              className="absolute inset-0 w-full h-full object-cover"
+              style={{ 
+                transform: 'scaleX(-1)', // Mirror effect for better UX
+                backgroundColor: '#000'
+              }}
+            />
+            
+            {/* Overlay Canvas for Guides */}
+            <canvas
+              ref={overlayCanvasRef}
+              className="absolute inset-0 w-full h-full pointer-events-none z-10"
+              style={{ transform: 'scaleX(-1)' }} // Match video mirror
+            />
+            
+            {/* Real-time Preview Window */}
+            {alignmentStatus.paperDetected && (
+              <div className="absolute top-4 left-4 bg-black/90 rounded-lg p-2 border-2 border-green-400 z-20">
+                <div className="text-green-400 text-xs font-bold mb-1 text-center">
+                  PREVIEW
                 </div>
-                
-                {/* Mobile Debug Button */}
-                <div className="flex items-center gap-2">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setShowDebugModal(true)}
-                    className="flex items-center gap-2"
-                  >
-                    <Bug size={16} />
-                    <span className="hidden sm:inline">Debug</span>
-                    <div className={`w-2 h-2 rounded-full ${isLoggingActive ? 'bg-green-500 animate-pulse' : 'bg-gray-400'}`} />
-                  </Button>
+                <canvas
+                  ref={previewCanvasRef}
+                  className="rounded border border-green-400"
+                  width={160}
+                  height={120}
+                  style={{ transform: 'scaleX(-1)' }} // Match video mirror
+                />
+                <div className="text-white text-xs text-center mt-1">
+                  Suratga olinadi
                 </div>
               </div>
+            )}
+            
+            {/* Top Controls */}
+            <div className="absolute top-4 right-4 flex items-center gap-2 z-20">
+              {onShowDebug && (
+                <button
+                  onClick={onShowDebug}
+                  className="p-3 bg-black/70 hover:bg-black/90 rounded-full text-white transition-colors backdrop-blur-sm"
+                  title="Debug Console"
+                >
+                  <Bug size={20} />
+                </button>
+              )}
+              <button
+                onClick={onClose}
+                className="p-3 bg-black/70 hover:bg-black/90 rounded-full text-white transition-colors backdrop-blur-sm"
+                title="Yopish"
+              >
+                <X size={24} />
+              </button>
+            </div>
+
+            {/* Quality Indicator */}
+            <div className="absolute top-4 left-1/2 transform -translate-x-1/2 z-20">
+              <div className="bg-black/70 backdrop-blur-sm rounded-full px-4 py-2 flex items-center gap-2">
+                <div className={`w-3 h-3 rounded-full ${
+                  qualityMetrics.overall >= 0.8 ? 'bg-green-500' :
+                  qualityMetrics.overall >= 0.6 ? 'bg-yellow-500' : 'bg-red-500'
+                }`} />
+                <span className="text-white text-sm font-medium">
+                  Sifat: {Math.round(qualityMetrics.overall * 100)}%
+                </span>
+              </div>
+            </div>
+          </>
+        )}
+      </div>
+
+      {/* Bottom Controls */}
+      <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black via-black/80 to-transparent p-6 z-20">
+        {/* Status Text */}
+        <div className="text-center mb-6">
+          {!alignmentStatus.paperDetected ? (
+            <div className="space-y-2">
+              <p className="text-red-400 text-lg font-medium">📄 OMR varaqni joylashtiring</p>
+              <p className="text-white/70 text-sm">Varaqni kamera oldiga qo'ying</p>
+            </div>
+          ) : alignmentStatus.corners.filter(c => c.detected).length < 3 ? (
+            <div className="space-y-2">
+              <p className="text-yellow-400 text-lg font-medium">🎯 Qog'ozni to'g'ri joylashtiring</p>
+              <p className="text-white/70 text-sm">
+                Burchaklar: {alignmentStatus.corners.filter(c => c.detected).length}/4
+              </p>
+            </div>
+          ) : !canCapture ? (
+            <div className="space-y-2">
+              <p className="text-yellow-400 text-lg font-medium">⚡ Sifatni yaxshilang</p>
+              <div className="flex justify-center gap-4 text-xs text-white/60">
+                <span>Focus: {Math.round(qualityMetrics.focus * 100)}%</span>
+                <span>Yorug'lik: {Math.round(qualityMetrics.brightness * 100)}%</span>
+              </div>
+            </div>
+          ) : qualityMetrics.overall >= 0.9 ? (
+            <div className="space-y-2">
+              <p className="text-green-400 text-lg font-medium">✨ Mukammal sifat!</p>
+              {autoScanCountdown > 0 && (
+                <p className="text-green-300 text-sm">Avtomatik suratga olish: {autoScanCountdown}s</p>
+              )}
+            </div>
+          ) : (
+            <div className="space-y-2">
+              <p className="text-blue-400 text-lg font-medium">📸 Suratga olish mumkin</p>
+              <p className="text-white/70 text-sm">Tugmani bosing yoki kutib turing</p>
             </div>
           )}
         </div>
-
-        {error && (
-          <Card className="mb-6 border-red-200 bg-red-50 dark:bg-red-900/20">
-            <div className="flex items-center gap-3">
-              <AlertTriangle className="w-5 h-5 text-red-600" />
-              <p className="text-red-700 dark:text-red-400">{error}</p>
-            </div>
-          </Card>
-        )}
-
-        {!result && !processing && !capturedImage && (
-          <Card className="mb-6">
-            <div className="text-center py-12">
-              <div className="mb-6">
-                <div className="mx-auto w-24 h-24 bg-gradient-to-r from-green-500 to-blue-600 rounded-full flex items-center justify-center mb-4">
-                  <Camera className="w-12 h-12 text-white" />
-                </div>
-                <h3 className="text-xl font-semibold text-slate-900 dark:text-white mb-2">
-                  Start Camera Scanning
-                </h3>
-                <p className="text-slate-600 dark:text-slate-400 mb-6">
-                  EvalBee camera will analyze image quality in real-time and guide you for perfect capture
-                </p>
-              </div>
-
-              <div className="space-y-4">
-                <Button
-                  onClick={() => setShowCamera(true)}
-                  className="bg-gradient-to-r from-green-500 to-blue-600 hover:from-green-600 hover:to-blue-700"
-                  size="lg"
-                >
-                  <Camera size={20} className="mr-2" />
-                  Open EvalBee Camera
-                </Button>
-
-                <div className="text-xs text-slate-500 dark:text-slate-400 bg-blue-50 dark:bg-blue-900/20 p-4 rounded-lg max-w-2xl mx-auto">
-                  <strong>EvalBee Camera Features:</strong><br/>
-                  • Real-time image quality analysis (focus, brightness, contrast)<br/>
-                  • Live bubble detection and counting<br/>
-                  • Automatic capture guidance with quality indicators<br/>
-                  • Professional-grade image enhancement<br/>
-                  • Instant feedback and recommendations
-                </div>
-              </div>
-            </div>
-          </Card>
-        )}
-
-        {processing && (
-          <Card className="mb-6">
-            <div className="text-center py-8">
-              <div className="mb-6">
-                <div className="mx-auto w-16 h-16 bg-gradient-to-r from-green-500 to-blue-600 rounded-full flex items-center justify-center mb-4 animate-pulse">
-                  <Brain className="w-8 h-8 text-white" />
-                </div>
-                <h3 className="text-lg font-semibold text-slate-900 dark:text-white mb-2">
-                  EvalBee Engine Processing...
-                </h3>
-                <p className="text-slate-600 dark:text-slate-400 mb-4">
-                  Advanced AI analysis with camera quality integration
-                </p>
-              </div>
-
-              <div className="max-w-md mx-auto">
-                <ProgressBar value={processingProgress} className="mb-4" />
-                <div className="text-sm text-slate-500 dark:text-slate-400">
-                  {processingProgress < 20 && "Analyzing camera image quality..."}
-                  {processingProgress >= 20 && processingProgress < 40 && "Detecting bubble patterns..."}
-                  {processingProgress >= 40 && processingProgress < 60 && "Analyzing layout structure..."}
-                  {processingProgress >= 60 && processingProgress < 80 && "Extracting answers..."}
-                  {processingProgress >= 80 && processingProgress < 95 && "Calculating confidence scores..."}
-                  {processingProgress >= 95 && "Finalizing results..."}
-                </div>
-              </div>
-            </div>
-          </Card>
-        )}
-
-        {result && (
-          <div className="space-y-6">
-            {/* Results Overview */}
-            <Card>
-              <div className="flex items-center justify-between mb-6">
-                <h3 className="text-xl font-semibold text-slate-900 dark:text-white flex items-center gap-2">
-                  <CheckCircle className="w-6 h-6 text-green-600" />
-                  EvalBee Camera Analysis Complete
-                </h3>
-                <div className="flex items-center gap-2">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setShowAdvancedMetrics(!showAdvancedMetrics)}
-                  >
-                    <Eye size={16} className="mr-1" />
-                    {showAdvancedMetrics ? 'Hide' : 'Show'} Details
-                  </Button>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-6">
-                <div className="text-center">
-                  <div className="text-3xl font-bold text-blue-600 mb-1">
-                    {result.extracted_answers.length}
-                  </div>
-                  <div className="text-sm text-slate-600 dark:text-slate-400">Questions Detected</div>
-                </div>
-                <div className="text-center">
-                  <div className={`text-3xl font-bold mb-1 ${getQualityColor(result.overall_confidence)}`}>
-                    {(result.overall_confidence * 100).toFixed(1)}%
-                  </div>
-                  <div className="text-sm text-slate-600 dark:text-slate-400">Overall Confidence</div>
-                </div>
-                <div className="text-center">
-                  <div className="text-3xl font-bold text-purple-600 mb-1">
-                    {result.processing_time.toFixed(1)}s
-                  </div>
-                  <div className="text-sm text-slate-600 dark:text-slate-400">Processing Time</div>
-                </div>
-                <div className="text-center">
-                  <div className={`text-3xl font-bold mb-1 ${getQualityColor(result.quality_metrics.overall_quality)}`}>
-                    {getQualityLabel(result.quality_metrics.overall_quality)}
-                  </div>
-                  <div className="text-sm text-slate-600 dark:text-slate-400">Camera Quality</div>
-                </div>
-              </div>
-
-              {/* Camera Quality Metrics */}
-              {captureQuality && (
-                <div className="border-t border-slate-200 dark:border-slate-700 pt-6">
-                  <h4 className="font-medium text-slate-900 dark:text-white mb-4 flex items-center gap-2">
-                    <Camera className="w-4 h-4 text-blue-600" />
-                    Camera Capture Quality
-                  </h4>
-                  
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
-                    <div className="text-center p-3 bg-slate-50 dark:bg-slate-800 rounded-lg">
-                      <div className={`text-lg font-bold ${getQualityColor(captureQuality.focus)}`}>
-                        {Math.round(captureQuality.focus * 100)}%
-                      </div>
-                      <div className="text-xs text-slate-500">Focus</div>
-                    </div>
-                    <div className="text-center p-3 bg-slate-50 dark:bg-slate-800 rounded-lg">
-                      <div className={`text-lg font-bold ${getQualityColor(captureQuality.brightness)}`}>
-                        {Math.round(captureQuality.brightness * 100)}%
-                      </div>
-                      <div className="text-xs text-slate-500">Brightness</div>
-                    </div>
-                    <div className="text-center p-3 bg-slate-50 dark:bg-slate-800 rounded-lg">
-                      <div className={`text-lg font-bold ${getQualityColor(captureQuality.contrast)}`}>
-                        {Math.round(captureQuality.contrast * 100)}%
-                      </div>
-                      <div className="text-xs text-slate-500">Contrast</div>
-                    </div>
-                    <div className="text-center p-3 bg-slate-50 dark:bg-slate-800 rounded-lg">
-                      <div className={`text-lg font-bold ${getQualityColor(captureQuality.overall)}`}>
-                        {Math.round(captureQuality.overall * 100)}%
-                      </div>
-                      <div className="text-xs text-slate-500">Overall</div>
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {/* Error Flags and Recommendations */}
-              {(result.error_flags.length > 0 || result.recommendations.length > 0) && (
-                <div className="border-t border-slate-200 dark:border-slate-700 pt-6">
-                  {result.error_flags.length > 0 && (
-                    <div className="mb-4">
-                      <h4 className="font-medium text-slate-900 dark:text-white mb-2 flex items-center gap-2">
-                        <AlertTriangle className="w-4 h-4 text-yellow-600" />
-                        Detected Issues
-                      </h4>
-                      <div className="flex flex-wrap gap-2">
-                        {result.error_flags.map((flag, index) => (
-                          <span
-                            key={index}
-                            className="px-3 py-1 bg-yellow-100 dark:bg-yellow-900/30 text-yellow-800 dark:text-yellow-400 rounded-full text-sm"
-                          >
-                            {flag.replace(/_/g, ' ')}
-                          </span>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-
-                  {result.recommendations.length > 0 && (
-                    <div>
-                      <h4 className="font-medium text-slate-900 dark:text-white mb-2 flex items-center gap-2">
-                        <TrendingUp className="w-4 h-4 text-blue-600" />
-                        Recommendations
-                      </h4>
-                      <ul className="space-y-1">
-                        {result.recommendations.map((rec, index) => (
-                          <li key={index} className="text-sm text-slate-600 dark:text-slate-400 flex items-start gap-2">
-                            <span className="w-1.5 h-1.5 bg-blue-600 rounded-full mt-2 flex-shrink-0"></span>
-                            {rec}
-                          </li>
-                        ))}
-                      </ul>
-                    </div>
-                  )}
-                </div>
-              )}
-            </Card>
-
-            {/* Advanced Metrics */}
-            {showAdvancedMetrics && (
-              <Card>
-                <h3 className="text-lg font-semibold text-slate-900 dark:text-white mb-4 flex items-center gap-2">
-                  <BarChart3 className="w-5 h-5" />
-                  Advanced Camera & Processing Metrics
-                </h3>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                  <div>
-                    <div className="flex justify-between items-center mb-2">
-                      <span className="text-sm font-medium text-slate-700 dark:text-slate-300">Image Sharpness</span>
-                      <span className="text-sm text-slate-600 dark:text-slate-400">{result.quality_metrics.sharpness.toFixed(0)}</span>
-                    </div>
-                    <div className="w-full bg-slate-200 dark:bg-slate-700 rounded-full h-2">
-                      <div 
-                        className="bg-blue-600 h-2 rounded-full" 
-                        style={{ width: `${Math.min(100, (result.quality_metrics.sharpness / 200) * 100)}%` }}
-                      ></div>
-                    </div>
-                  </div>
-
-                  <div>
-                    <div className="flex justify-between items-center mb-2">
-                      <span className="text-sm font-medium text-slate-700 dark:text-slate-300">Contrast Ratio</span>
-                      <span className="text-sm text-slate-600 dark:text-slate-400">{result.quality_metrics.contrast_ratio.toFixed(2)}</span>
-                    </div>
-                    <div className="w-full bg-slate-200 dark:bg-slate-700 rounded-full h-2">
-                      <div 
-                        className="bg-green-600 h-2 rounded-full" 
-                        style={{ width: `${Math.min(100, (result.quality_metrics.contrast_ratio / 0.6) * 100)}%` }}
-                      ></div>
-                    </div>
-                  </div>
-
-                  <div>
-                    <div className="flex justify-between items-center mb-2">
-                      <span className="text-sm font-medium text-slate-700 dark:text-slate-300">Brightness Level</span>
-                      <span className="text-sm text-slate-600 dark:text-slate-400">{result.quality_metrics.brightness.toFixed(0)}</span>
-                    </div>
-                    <div className="w-full bg-slate-200 dark:bg-slate-700 rounded-full h-2">
-                      <div 
-                        className="bg-yellow-600 h-2 rounded-full" 
-                        style={{ width: `${Math.min(100, (result.quality_metrics.brightness / 255) * 100)}%` }}
-                      ></div>
-                    </div>
-                  </div>
-
-                  <div>
-                    <div className="flex justify-between items-center mb-2">
-                      <span className="text-sm font-medium text-slate-700 dark:text-slate-300">Noise Level</span>
-                      <span className="text-sm text-slate-600 dark:text-slate-400">{result.quality_metrics.noise_level.toFixed(1)}%</span>
-                    </div>
-                    <div className="w-full bg-slate-200 dark:bg-slate-700 rounded-full h-2">
-                      <div 
-                        className="bg-red-600 h-2 rounded-full" 
-                        style={{ width: `${Math.min(100, result.quality_metrics.noise_level)}%` }}
-                      ></div>
-                    </div>
-                  </div>
-
-                  <div>
-                    <div className="flex justify-between items-center mb-2">
-                      <span className="text-sm font-medium text-slate-700 dark:text-slate-300">Skew Angle</span>
-                      <span className="text-sm text-slate-600 dark:text-slate-400">{result.quality_metrics.skew_angle.toFixed(1)}°</span>
-                    </div>
-                    <div className="w-full bg-slate-200 dark:bg-slate-700 rounded-full h-2">
-                      <div 
-                        className="bg-purple-600 h-2 rounded-full" 
-                        style={{ width: `${Math.min(100, (10 - result.quality_metrics.skew_angle) / 10 * 100)}%` }}
-                      ></div>
-                    </div>
-                  </div>
-
-                  <div>
-                    <div className="flex justify-between items-center mb-2">
-                      <span className="text-sm font-medium text-slate-700 dark:text-slate-300">Layout Detection</span>
-                      <span className="text-sm text-slate-600 dark:text-slate-400">{result.layout_analysis.layout_type}</span>
-                    </div>
-                    <div className="text-xs text-slate-500 dark:text-slate-400">
-                      {result.layout_analysis.columns} columns, {result.layout_analysis.total_questions} questions
-                    </div>
-                  </div>
-                </div>
-              </Card>
+        
+        {/* Capture Button */}
+        <div className="flex justify-center">
+          <button
+            onClick={captureImage}
+            disabled={!isReady || isProcessing || !canCapture}
+            className={`relative p-4 rounded-full transition-all duration-300 ${
+              canCapture && qualityMetrics.overall >= 0.9
+                ? 'bg-green-500 hover:bg-green-600 scale-110 shadow-lg shadow-green-500/50' 
+                : canCapture
+                  ? 'bg-blue-500 hover:bg-blue-600 shadow-lg shadow-blue-500/50'
+                  : 'bg-gray-600 cursor-not-allowed opacity-50'
+            }`}
+            style={{
+              boxShadow: canCapture ? '0 0 30px rgba(59, 130, 246, 0.5)' : 'none'
+            }}
+          >
+            {isProcessing ? (
+              <div className="w-8 h-8 border-3 border-white border-t-transparent rounded-full animate-spin" />
+            ) : (
+              <Camera size={32} className="text-white" />
             )}
-
-            {/* Answer Results */}
-            <Card>
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="text-lg font-semibold text-slate-900 dark:text-white">
-                  Extracted Answers
-                </h3>
-                <div className="flex gap-2">
-                  <Button variant="outline" size="sm">
-                    <Download size={16} className="mr-1" />
-                    Export
-                  </Button>
-                  <Button variant="outline" size="sm">
-                    <Share2 size={16} className="mr-1" />
-                    Share
-                  </Button>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-5 sm:grid-cols-10 gap-2">
-                {result.extracted_answers.map((answer, index) => {
-                  const confidence = result.confidence_scores[index] || 0
-                  const isHighConfidence = confidence >= 0.8
-                  const isMediumConfidence = confidence >= 0.6
-                  
-                  return (
-                    <div
-                      key={index}
-                      className={`
-                        p-3 rounded-lg text-center border-2 transition-all
-                        ${answer === 'BLANK' 
-                          ? 'border-slate-300 bg-slate-100 dark:bg-slate-800 dark:border-slate-600' 
-                          : isHighConfidence
-                            ? 'border-green-300 bg-green-50 dark:bg-green-900/20 dark:border-green-600'
-                            : isMediumConfidence
-                              ? 'border-yellow-300 bg-yellow-50 dark:bg-yellow-900/20 dark:border-yellow-600'
-                              : 'border-red-300 bg-red-50 dark:bg-red-900/20 dark:border-red-600'
-                        }
-                      `}
-                    >
-                      <div className="text-xs text-slate-500 dark:text-slate-400 mb-1">
-                        Q{index + 1}
-                      </div>
-                      <div className={`
-                        font-bold text-lg
-                        ${answer === 'BLANK' 
-                          ? 'text-slate-400 dark:text-slate-500' 
-                          : isHighConfidence
-                            ? 'text-green-700 dark:text-green-400'
-                            : isMediumConfidence
-                              ? 'text-yellow-700 dark:text-yellow-400'
-                              : 'text-red-700 dark:text-red-400'
-                        }
-                      `}>
-                        {answer === 'BLANK' ? '—' : answer}
-                      </div>
-                      <div className="text-xs text-slate-500 dark:text-slate-400">
-                        {(confidence * 100).toFixed(0)}%
-                      </div>
-                    </div>
-                  )
-                })}
-              </div>
-
-              <div className="mt-6 pt-4 border-t border-slate-200 dark:border-slate-700">
-                <div className="flex items-center justify-between text-sm">
-                  <div className="flex items-center gap-4">
-                    <div className="flex items-center gap-2">
-                      <div className="w-3 h-3 bg-green-500 rounded"></div>
-                      <span className="text-slate-600 dark:text-slate-400">High Confidence (≥80%)</span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <div className="w-3 h-3 bg-yellow-500 rounded"></div>
-                      <span className="text-slate-600 dark:text-slate-400">Medium Confidence (60-80%)</span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <div className="w-3 h-3 bg-red-500 rounded"></div>
-                      <span className="text-slate-600 dark:text-slate-400">Low Confidence (&lt;60%)</span>
-                    </div>
-                  </div>
-                  <div className="text-slate-500 dark:text-slate-400">
-                    Powered by EvalBee Camera Engine
-                  </div>
-                </div>
-              </div>
-            </Card>
-
-            {/* Captured Image with Bubble Overlay */}
-            {capturedImage && (
-              <Card>
-                <h3 className="text-lg font-semibold text-slate-900 dark:text-white mb-4">
-                  Suratga olingan rasm - Bubble Analysis
-                </h3>
-                <CapturedImageWithBubbles 
-                  imageData={capturedImage}
-                  bubbles={result?.detailed_results || []}
-                  correctAnswers={exam ? getCorrectAnswers(exam) : []}
-                  qualityMetrics={captureQuality}
-                />
-              </Card>
+            
+            {/* Quality Ring */}
+            {canCapture && (
+              <div className="absolute inset-0 rounded-full border-4 border-white/30 animate-pulse" />
             )}
+          </button>
+        </div>
 
-            {/* Action Buttons */}
-            <div className="flex gap-4">
-              <Button onClick={resetCapture} variant="outline">
-                <RefreshCw size={16} className="mr-2" />
-                Capture Again
-              </Button>
-              <Button onClick={() => navigate(`/exam-detail/${id}`)} className="flex-1">
-                Save Results
-              </Button>
+        {/* Quick Stats */}
+        {alignmentStatus.paperDetected && (
+          <div className="flex justify-center gap-6 mt-4 text-xs text-white/60">
+            <div className="text-center">
+              <div className="text-white font-medium">{Math.round(qualityMetrics.focus * 100)}%</div>
+              <div>Focus</div>
+            </div>
+            <div className="text-center">
+              <div className="text-white font-medium">{Math.round(qualityMetrics.brightness * 100)}%</div>
+              <div>Yorug'lik</div>
+            </div>
+            <div className="text-center">
+              <div className="text-white font-medium">{alignmentStatus.corners.filter(c => c.detected).length}/4</div>
+              <div>Burchak</div>
             </div>
           </div>
         )}
       </div>
-      
-      {/* Mobile Debug Modal */}
-      <MobileDebugModal
-        isOpen={showDebugModal}
-        onClose={() => setShowDebugModal(false)}
-        logs={logs}
-        isCapturing={isLoggingActive}
-        onStartCapturing={startLogging}
-        onStopCapturing={stopLogging}
-        onClearLogs={clearLogs}
-        onExportLogs={exportLogs}
-      />
+
+      {/* Hidden Processing Canvas */}
+      <canvas ref={canvasRef} className="hidden" />
     </div>
   )
 }
 
-export default EvalBeeCameraScannerPage
+export default EvalBeeCameraScanner
