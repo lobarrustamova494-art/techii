@@ -986,37 +986,37 @@ class ApiService {
       }
     }
   }
-  // Hybrid processing: Try GROQ AI first (default), then anchor-based, then professional, then cloud, then fallback options
+  // Hybrid processing: Try Professional first (production stable), then anchor-based, then GROQ AI, then cloud, then fallback options
   async processOMRHybrid(
     file: File,
     answerKey: string[],
     scoring: { correct: number; wrong: number; blank: number },
     examId?: string,
     examData?: any,
-    useGroqAI: boolean = true,  // Default to GROQ AI for best accuracy
-    useProfessional: boolean = true,  // Enable professional as backup
+    useGroqAI: boolean = import.meta.env.VITE_ENABLE_GROQ_AI === 'true',  // Control via environment variable
+    useProfessional: boolean = true,  // Enable professional as primary
     useAnchorBased: boolean = true,
     useCloud: boolean = false
   ) {
     console.log('🔄 Hybrid OMR processing started')
     
-    let groqAIError: any = null
-    let anchorError: any = null
     let professionalError: any = null
+    let anchorError: any = null
+    let groqAIError: any = null
     let cloudError: any = null
     let directError: any = null
     let backendError: any = null
     
-    // Try GROQ AI first if requested
-    if (useGroqAI) {
+    // Try EvalBee Professional engine first (most stable for production)
+    if (useProfessional) {
       try {
-        console.log('🤖 Trying GROQ AI OMR Analyzer')
-        const groqResult = await this.processOMRWithGroqAI(file, answerKey, scoring, examId, examData)
-        console.log('✅ GROQ AI processing successful')
-        return groqResult
+        console.log('🎯 Trying EvalBee Professional Multi-Pass Engine')
+        const professionalResult = await this.processOMRWithEvalBeeProfessional(file, answerKey, scoring, examId, examData)
+        console.log('✅ EvalBee Professional processing successful')
+        return professionalResult
       } catch (error: any) {
-        groqAIError = error
-        console.log('⚠️ GROQ AI failed, falling back:', error?.message || 'Failed to fetch')
+        professionalError = error
+        console.log('⚠️ EvalBee Professional failed, falling back:', error?.message || 'Failed to fetch')
       }
     }
     
@@ -1033,16 +1033,16 @@ class ApiService {
       }
     }
     
-    // Try EvalBee Professional engine if requested
-    if (useProfessional) {
+    // Try GROQ AI if requested (only if enabled)
+    if (useGroqAI) {
       try {
-        console.log('🎯 Trying EvalBee Professional Multi-Pass Engine')
-        const professionalResult = await this.processOMRWithEvalBeeProfessional(file, answerKey, scoring, examId, examData)
-        console.log('✅ EvalBee Professional processing successful')
-        return professionalResult
+        console.log('🤖 Trying GROQ AI OMR Analyzer')
+        const groqResult = await this.processOMRWithGroqAI(file, answerKey, scoring, examId, examData)
+        console.log('✅ GROQ AI processing successful')
+        return groqResult
       } catch (error: any) {
-        professionalError = error
-        console.log('⚠️ EvalBee Professional failed, falling back:', error?.message || 'Failed to fetch')
+        groqAIError = error
+        console.log('⚠️ GROQ AI failed, falling back:', error?.message || 'Failed to fetch')
       }
     }
     
@@ -1080,9 +1080,9 @@ class ApiService {
         console.error('❌ All processing methods failed')
         
         // Create detailed error message
-        const groqMsg = groqAIError?.message || 'Not attempted'
-        const anchorMsg = anchorError?.message || 'Not attempted'
         const professionalMsg = professionalError?.message || 'Not attempted'
+        const anchorMsg = anchorError?.message || 'Not attempted'
+        const groqMsg = groqAIError?.message || 'Not attempted'
         const cloudMsg = cloudError?.message || 'Not attempted'
         const directMsg = directError?.message || 'Failed to fetch'
         const backendMsg = backendError?.message || 'Failed to fetch'
@@ -1098,14 +1098,14 @@ class ApiService {
         }
         
         let errorMessage = 'OMR qayta ishlashda xatolik.'
-        if (useGroqAI) {
-          errorMessage += ` GROQ AI: ${groqMsg},`
+        if (useProfessional) {
+          errorMessage += ` Professional: ${professionalMsg},`
         }
         if (useAnchorBased) {
           errorMessage += ` Anchor-based: ${anchorMsg},`
         }
-        if (useProfessional) {
-          errorMessage += ` Professional: ${professionalMsg},`
+        if (useGroqAI) {
+          errorMessage += ` GROQ AI: ${groqMsg},`
         }
         if (useCloud) {
           errorMessage += ` Cloud: ${cloudMsg},`

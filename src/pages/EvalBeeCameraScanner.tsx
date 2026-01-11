@@ -165,8 +165,8 @@ const EvalBeeCameraScannerPage: React.FC = () => {
       const file = new File([blob], 'evalbee-camera-capture.jpg', { type: 'image/jpeg' })
       console.log('📁 File created:', file.name, file.size, 'bytes')
       
-      // Process with Anchor-Based processor using hybrid approach
-      console.log('📤 Sending request to Anchor-Based processor (hybrid processing)...')
+      // Process with EvalBee Professional as primary (most stable for production)
+      console.log('📤 Sending request to EvalBee Professional (hybrid processing)...')
       const omrResult = await apiService.processOMRHybrid(
         file,
         exam.answerKey,
@@ -174,14 +174,16 @@ const EvalBeeCameraScannerPage: React.FC = () => {
         exam.id,
         {
           ...exam,
-          processing_mode: 'anchor_based_camera',
-          ocr_enabled: true,
-          pixel_analysis: true,
-          langor_detection: true,
+          processing_mode: 'evalbee_professional_camera',
+          multi_pass_analysis: true,
+          consensus_voting: true,
+          advanced_quality_control: true,
           camera_quality_metrics: qualityMetrics
         },
-        false, // useProfessional = false
-        true   // useAnchorBased = true
+        import.meta.env.VITE_ENABLE_GROQ_AI === 'true', // useGroqAI - controlled by environment variable
+        true,  // useProfessional = true (enable as primary - most stable)
+        true,  // useAnchorBased = true (enable as secondary backup)
+        false  // useCloud = false (disable for production)
       )
 
       console.log('✅ EvalBee processing response received:', omrResult)
@@ -284,6 +286,8 @@ const EvalBeeCameraScannerPage: React.FC = () => {
           errorMessage = 'Serverga ulanishda muammo. Iltimos, internet aloqangizni tekshiring va qayta urinib ko\'ring.'
         } else if (error.message.includes('EvalBee processing failed')) {
           errorMessage = 'EvalBee xizmati vaqtincha ishlamayapti. Iltimos, biroz kutib qayta urinib ko\'ring.'
+        } else if (error.message.includes('GROQ AI')) {
+          errorMessage = 'AI tahlil xizmati vaqtincha ishlamayapti. An\'anaviy usul bilan qayta ishlash amalga oshirilmoqda.'
         } else {
           errorMessage += ': ' + error.message
         }

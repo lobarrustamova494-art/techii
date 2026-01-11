@@ -146,8 +146,14 @@ quality_controller = AdvancedQualityController() if QUALITY_CONTROL_AVAILABLE el
 groq_ai_analyzer = None
 if GROQ_AI_AVAILABLE:
     try:
-        groq_ai_analyzer = GroqAIOMRAnalyzer()
-        logger.info("✅ GROQ AI OMR Analyzer initialized")
+        # Only initialize if API key is available
+        api_key = os.getenv('GROQ_API')
+        if api_key:
+            groq_ai_analyzer = GroqAIOMRAnalyzer()
+            logger.info("✅ GROQ AI OMR Analyzer initialized")
+        else:
+            logger.info("⚠️ GROQ API key not found - GROQ AI disabled")
+            GROQ_AI_AVAILABLE = False
     except Exception as e:
         logger.error(f"❌ Failed to initialize GROQ AI: {e}")
         GROQ_AI_AVAILABLE = False
