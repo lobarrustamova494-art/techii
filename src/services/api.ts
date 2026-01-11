@@ -354,24 +354,37 @@ class ApiService {
   ) {
     console.log('🔄 Hybrid OMR processing: Trying direct Python first')
     
+    let directError: any = null
+    let backendError: any = null
+    
     try {
       // Try direct Python OMR service first
       const directResult = await this.processOMRDirectly(file, answerKey, examId, 'evalbee')
       console.log('✅ Direct Python processing successful')
       return directResult
-    } catch (directError: any) {
-      console.log('⚠️ Direct Python failed, falling back to Node.js backend:', directError?.message || 'Unknown error')
+    } catch (error: any) {
+      directError = error
+      console.log('⚠️ Direct Python failed, falling back to Node.js backend:', error?.message || 'Failed to fetch')
       
       try {
         // Fallback to Node.js backend
         const backendResult = await this.processOMRWithEvalBee(file, answerKey, scoring, examId, examData)
         console.log('✅ Node.js backend processing successful')
         return backendResult
-      } catch (backendError: any) {
+      } catch (error: any) {
+        backendError = error
         console.error('❌ Both processing methods failed')
-        const directMsg = directError?.message || 'Unknown direct error'
-        const backendMsg = backendError?.message || 'Unknown backend error'
-        throw new Error(`All processing methods failed. Direct: ${directMsg}, Backend: ${backendMsg}`)
+        
+        // Create detailed error message
+        const directMsg = directError?.message || 'Failed to fetch'
+        const backendMsg = backendError?.message || 'Failed to fetch'
+        
+        // Check if it's a network connectivity issue
+        if (directMsg.includes('Failed to fetch') && backendMsg.includes('Failed to fetch')) {
+          throw new Error('Internetga ulanishda muammo. Iltimos, internet aloqangizni tekshiring va qayta urinib ko\'ring.')
+        }
+        
+        throw new Error(`OMR qayta ishlashda xatolik. Python xizmati: ${directMsg}, Backend xizmati: ${backendMsg}`)
       }
     }
   }

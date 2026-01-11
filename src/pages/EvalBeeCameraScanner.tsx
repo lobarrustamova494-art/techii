@@ -259,7 +259,13 @@ const EvalBeeCameraScannerPage: React.FC = () => {
       let errorMessage = 'EvalBee kamera bilan qayta ishlashda xatolik'
       
       if (error.message) {
-        errorMessage += ': ' + error.message
+        if (error.message.includes('Internetga ulanishda muammo')) {
+          errorMessage = error.message
+        } else if (error.message.includes('Failed to fetch')) {
+          errorMessage = 'Serverga ulanishda muammo. Iltimos, internet aloqangizni tekshiring.'
+        } else {
+          errorMessage += ': ' + error.message
+        }
       }
       
       if (error.response?.data?.message) {
