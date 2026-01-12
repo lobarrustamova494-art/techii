@@ -35,7 +35,7 @@ const OMRSheet: React.FC<OMRSheetProps> = ({
   }
 
   // Calculate total questions and organize data
-  const totalQuestions = examData.subjects.reduce((total, subject) => 
+  const totalQuestions = examData.subjects.reduce((total, subject) =>
     total + subject.sections.reduce((sectionTotal, section) => sectionTotal + section.questionCount, 0), 0
   )
 
@@ -87,18 +87,18 @@ const OMRSheet: React.FC<OMRSheetProps> = ({
   ]
   return (
     <div className={`omr-sheet bg-white ${paperSize === 'a4' ? 'w-[210mm] min-h-[297mm]' : 'w-[8.5in] min-h-[11in]'} mx-auto shadow-lg print:shadow-none print:p-0 relative print:bg-white`} style={{ padding: '15mm' }}>
-      
+
       {/* Alignment marks - 8 black rectangles (4 on each side) matching template system */}
       <div className="absolute left-4 w-3 h-3 bg-black" style={{ top: '102px' }}></div>  {/* L1 */}
       <div className="absolute left-4 w-3 h-3 bg-black" style={{ top: '324px' }}></div>  {/* L2 */}
       <div className="absolute left-4 w-3 h-3 bg-black" style={{ top: '555px' }}></div>  {/* L3 */}
       <div className="absolute left-4 w-3 h-3 bg-black" style={{ top: '782px' }}></div>  {/* L4 */}
-      
+
       <div className="absolute right-4 w-3 h-3 bg-black" style={{ top: '102px' }}></div>  {/* R1 */}
       <div className="absolute right-4 w-3 h-3 bg-black" style={{ top: '324px' }}></div>  {/* R2 */}
       <div className="absolute right-4 w-3 h-3 bg-black" style={{ top: '555px' }}></div>  {/* R3 */}
       <div className="absolute right-4 w-3 h-3 bg-black" style={{ top: '782px' }}></div>  {/* R4 */}
-      
+
       {/* Header with exam information */}
       <div className="border-2 border-black mb-6">
         <div className="border-b-2 border-black p-2">
@@ -136,12 +136,19 @@ const OMRSheet: React.FC<OMRSheetProps> = ({
         // Continuous structure - questions flow across columns
         <div className="grid grid-cols-3 gap-8">
           {columns.map((columnQuestions, columnIndex) => (
-            <div key={columnIndex}>
+            <div key={columnIndex} className="relative">
               {columnQuestions.length > 0 && (
                 <div className="mb-4">
+                  {/* Column Markers - 3 distinct squares to identify column start */}
+                  <div className="absolute -left-6 top-0 flex flex-col gap-2">
+                    <div className="w-4 h-4 bg-black"></div>
+                    <div className="w-4 h-4 bg-black"></div>
+                    <div className="w-4 h-4 bg-black"></div>
+                  </div>
+
                   {/* Column header with answer options */}
-                  <div className="flex items-center gap-1 mb-1">
-                    <div className="w-2"></div>
+                  <div className="flex items-center gap-1 mb-1 ml-2">
+                    <div className="w-3"></div>
                     <span className="w-4"></span>
                     <div className="flex gap-1">
                       {getAnswerOptions(columnQuestions[0].questionType).map((letter) => (
@@ -149,22 +156,22 @@ const OMRSheet: React.FC<OMRSheetProps> = ({
                       ))}
                     </div>
                   </div>
-                  
+
                   {/* Questions in this column */}
-                  <div className="space-y-1">
+                  <div className="space-y-2 ml-2">
                     {columnQuestions.map((question) => (
                       <div key={question.questionNumber} className="flex items-center gap-1">
-                        <div className="w-2 h-2 bg-black"></div>
+                        {/* Question Row Marker - Timing Mark */}
+                        <div className="w-3 h-3 bg-black"></div>
                         <span className="text-sm font-bold w-4 text-right">{question.questionNumber}</span>
                         <div className="flex gap-1">
                           {getAnswerOptions(question.questionType).map((letter) => (
-                            <div 
-                              key={letter} 
-                              className={`w-4 h-4 border-2 border-black rounded-full relative ${
-                                isCorrectAnswer(question.questionNumber, letter) 
-                                  ? 'bg-green-100' 
+                            <div
+                              key={letter}
+                              className={`w-4 h-4 border-2 border-black rounded-full relative ${isCorrectAnswer(question.questionNumber, letter)
+                                  ? 'bg-green-100'
                                   : ''
-                              }`}
+                                }`}
                             >
                               {isCorrectAnswer(question.questionNumber, letter) && (
                                 <div className="absolute -inset-1 border-2 border-green-500 bg-green-200 bg-opacity-30 rounded"></div>
@@ -188,7 +195,7 @@ const OMRSheet: React.FC<OMRSheetProps> = ({
               <div className="text-center text-lg font-bold mb-4">
                 {subject.name}
               </div>
-              
+
               {subject.sections.map((section, sectionIndex) => {
                 const sectionStartQuestion = examData.subjects
                   .slice(0, subjectIndex)
@@ -202,7 +209,7 @@ const OMRSheet: React.FC<OMRSheetProps> = ({
                     <div className="text-center text-sm font-bold mb-3">
                       {section.name}
                     </div>
-                    
+
                     {/* Section header with answer options */}
                     <div className="flex items-center gap-1 mb-1">
                       <div className="w-2"></div>
@@ -213,7 +220,7 @@ const OMRSheet: React.FC<OMRSheetProps> = ({
                         ))}
                       </div>
                     </div>
-                    
+
                     {/* Questions in this section */}
                     <div className="space-y-1">
                       {Array.from({ length: section.questionCount }, (_, i) => (
@@ -222,13 +229,12 @@ const OMRSheet: React.FC<OMRSheetProps> = ({
                           <span className="text-sm font-bold w-4 text-right">{sectionStartQuestion + i}</span>
                           <div className="flex gap-1">
                             {getAnswerOptions(section.questionType).map((letter) => (
-                              <div 
-                                key={letter} 
-                                className={`w-4 h-4 border-2 border-black rounded-full relative ${
-                                  isCorrectAnswer(sectionStartQuestion + i, letter) 
-                                    ? 'bg-green-100' 
+                              <div
+                                key={letter}
+                                className={`w-4 h-4 border-2 border-black rounded-full relative ${isCorrectAnswer(sectionStartQuestion + i, letter)
+                                    ? 'bg-green-100'
                                     : ''
-                                }`}
+                                  }`}
                               >
                                 {isCorrectAnswer(sectionStartQuestion + i, letter) && (
                                   <div className="absolute -inset-1 border-2 border-green-500 bg-green-200 bg-opacity-30 rounded"></div>

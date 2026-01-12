@@ -99,6 +99,36 @@ except ImportError as e:
     OMR_SHEET_ANALYZER_AVAILABLE = False
     OMRSheetAnalyzer = None
 
+# Safe import for AI Enhanced OMR Engine
+try:
+    from ai_enhanced_omr_engine import AIEnhancedOMREngine
+    AI_ENHANCED_ENGINE_AVAILABLE = True
+    logger.info("✅ AI Enhanced OMR Engine available")
+except ImportError as e:
+    logger.warning(f"AI Enhanced OMR Engine not available: {e}")
+    AI_ENHANCED_ENGINE_AVAILABLE = False
+    AIEnhancedOMREngine = None
+
+# Safe import for Enhanced Column Detector
+try:
+    from enhanced_column_detector import EnhancedColumnDetector
+    ENHANCED_COLUMN_DETECTOR_AVAILABLE = True
+    logger.info("✅ Enhanced Column Detector available")
+except ImportError as e:
+    logger.warning(f"Enhanced Column Detector not available: {e}")
+    ENHANCED_COLUMN_DETECTOR_AVAILABLE = False
+    EnhancedColumnDetector = None
+
+# Safe import for Enhanced Bubble Analyzer
+try:
+    from enhanced_bubble_analyzer import EnhancedBubbleAnalyzer
+    ENHANCED_BUBBLE_ANALYZER_AVAILABLE = True
+    logger.info("✅ Enhanced Bubble Analyzer available")
+except ImportError as e:
+    logger.warning(f"Enhanced Bubble Analyzer not available: {e}")
+    ENHANCED_BUBBLE_ANALYZER_AVAILABLE = False
+    EnhancedBubbleAnalyzer = None
+
 # Safe import for GROQ AI OMR Analyzer
 try:
     from groq_ai_omr_analyzer import GroqAIOMRAnalyzer
@@ -108,6 +138,26 @@ except ImportError as e:
     logger.warning(f"GROQ AI OMR Analyzer not available: {e}")
     GROQ_AI_AVAILABLE = False
     GroqAIOMRAnalyzer = None
+
+# Safe import for Advanced Layout OMR Processor
+try:
+    from improved_layout_processor import ImprovedLayoutOMRProcessor
+    IMPROVED_LAYOUT_AVAILABLE = True
+    logger.info("✅ Improved Layout OMR Processor available")
+except ImportError as e:
+    logger.warning(f"Improved Layout OMR Processor not available: {e}")
+    IMPROVED_LAYOUT_AVAILABLE = False
+    ImprovedLayoutOMRProcessor = None
+
+# Safe import for Advanced Layout OMR Processor (legacy)
+try:
+    from advanced_layout_omr_processor import AdvancedLayoutOMRProcessor
+    ADVANCED_LAYOUT_AVAILABLE = True
+    logger.info("✅ Advanced Layout OMR Processor available")
+except ImportError as e:
+    logger.warning(f"Advanced Layout OMR Processor not available: {e}")
+    ADVANCED_LAYOUT_AVAILABLE = False
+    AdvancedLayoutOMRProcessor = None
 # Safe import for Cloud Processor
 try:
     from cloud_processor import cloud_processor
@@ -869,7 +919,12 @@ def omr_status():
                 'evalbee_v1': EVALBEE_ENGINE_AVAILABLE,
                 'evalbee_v2': EVALBEE_ENGINE_V2_AVAILABLE,
                 'evalbee_professional': EVALBEE_PROFESSIONAL_AVAILABLE,
-                'anchor_based': ANCHOR_BASED_AVAILABLE
+                'anchor_based': ANCHOR_BASED_AVAILABLE,
+                'ai_enhanced': AI_ENHANCED_ENGINE_AVAILABLE,
+                'enhanced_column_detector': ENHANCED_COLUMN_DETECTOR_AVAILABLE,
+                'enhanced_bubble_analyzer': ENHANCED_BUBBLE_ANALYZER_AVAILABLE,
+                'advanced_layout': ADVANCED_LAYOUT_AVAILABLE,
+                'improved_layout': IMPROVED_LAYOUT_AVAILABLE
             },
             'advanced_features': {
                 'available': ADVANCED_FEATURES_AVAILABLE,
@@ -887,7 +942,18 @@ def omr_status():
                 'EvalBee Professional Multi-Pass Engine',
                 'Real-time quality feedback',
                 'Batch processing capabilities',
-                'Comprehensive analytics'
+                'Comprehensive analytics',
+                'AI Enhanced OMR Engine',
+                'Column alignment mark detection (3 per column)',
+                'Question alignment mark detection (1 per question)',
+                'Column structure analysis',
+                '40%+ bubble fill threshold',
+                'AI pattern recognition',
+                'Layout-aware processing',
+                'Improved Layout Processor',
+                'Intelligent structure detection',
+                'Smart column grouping',
+                'Question marker identification'
             ],
             'supported_formats': ['JPG', 'PNG', 'TIFF', 'BMP'],
             'max_file_size': '16MB',
@@ -896,6 +962,394 @@ def omr_status():
             'professional_grade': True
         }
     })
+
+@app.route('/api/omr/process_ai_enhanced', methods=['POST'])
+def process_omr_ai_enhanced():
+    """Process OMR using AI Enhanced Engine with column detection and 40%+ bubble analysis"""
+    try:
+        logger.info("🧠 AI Enhanced OMR processing request received")
+        
+        # Check if AI Enhanced engine is available
+        if not AI_ENHANCED_ENGINE_AVAILABLE or not AIEnhancedOMREngine:
+            return jsonify({
+                'success': False,
+                'error': 'AI Enhanced OMR Engine not available'
+            }), 503
+        
+        # Get uploaded file
+        if 'image' not in request.files:
+            return jsonify({'error': 'No image file provided'}), 400
+        
+        file = request.files['image']
+        if file.filename == '':
+            return jsonify({'error': 'No file selected'}), 400
+        
+        if not allowed_file(file.filename):
+            return jsonify({'error': 'Invalid file type'}), 400
+        
+        # Get parameters
+        answer_key_str = request.form.get('answerKey', '[]')
+        exam_data_str = request.form.get('examData', '{}')
+        
+        try:
+            answer_key = json.loads(answer_key_str) if answer_key_str != '[]' else None
+            exam_data = json.loads(exam_data_str) if exam_data_str != '{}' else None
+        except json.JSONDecodeError as e:
+            return jsonify({'error': f'Invalid JSON data: {e}'}), 400
+        
+        # Save uploaded file temporarily
+        filename = secure_filename(file.filename)
+        temp_path = os.path.join(UPLOAD_FOLDER, f"temp_ai_enhanced_{int(time.time())}_{filename}")
+        file.save(temp_path)
+        
+        try:
+            # Initialize AI Enhanced OMR Engine
+            ai_engine = AIEnhancedOMREngine()
+            
+            # Process with AI Enhanced Engine
+            result = ai_engine.process_omr_with_ai(temp_path, answer_key)
+            
+            # Convert result to JSON-serializable format
+            response_data = {
+                'success': True,
+                'message': 'OMR sheet processed successfully with AI Enhanced Engine',
+                'data': {
+                    'extracted_answers': result.extracted_answers,
+                    'confidence': result.confidence,
+                    'processing_time': result.processing_time,
+                    'layout_analysis': result.layout_analysis,
+                    'bubble_analysis': result.bubble_analysis,
+                    'image_quality': result.image_quality,
+                    'processing_details': result.processing_details,
+                    'recommendations': result.recommendations,
+                    'error_flags': result.error_flags,
+                    'processing_method': 'AI Enhanced OMR Engine',
+                    'algorithm_version': 'AI Enhanced V1.0',
+                    'features_used': [
+                        'Column alignment mark detection (3 per column)',
+                        'Question alignment mark detection (1 per question)',
+                        'Column structure analysis',
+                        'Question distribution analysis',
+                        '40%+ bubble fill threshold',
+                        'AI pattern recognition',
+                        'Consistency validation',
+                        'Statistical analysis',
+                        'Outlier detection'
+                    ]
+                }
+            }
+            
+            logger.info(f"✅ AI Enhanced processing completed successfully")
+            logger.info(f"📋 Columns detected: {result.layout_analysis['total_columns']}")
+            logger.info(f"🎯 Questions analyzed: {len(result.extracted_answers)}")
+            logger.info(f"📊 Confidence: {result.confidence:.2f}, Time: {result.processing_time:.2f}s")
+            
+            return jsonify(response_data)
+            
+        finally:
+            # Clean up temporary file
+            if os.path.exists(temp_path):
+                os.remove(temp_path)
+                
+    except Exception as e:
+        logger.error(f"❌ AI Enhanced processing error: {e}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({
+            'success': False,
+            'error': str(e),
+            'processing_method': 'AI Enhanced OMR Engine'
+        }), 500
+
+@app.route('/api/omr/analyze_layout', methods=['POST'])
+def analyze_omr_layout():
+    """Analyze OMR layout structure (columns, alignment marks, question distribution)"""
+    try:
+        logger.info("🏗️ OMR Layout analysis request received")
+        
+        # Check if Enhanced Column Detector is available
+        if not ENHANCED_COLUMN_DETECTOR_AVAILABLE or not EnhancedColumnDetector:
+            return jsonify({
+                'success': False,
+                'error': 'Enhanced Column Detector not available'
+            }), 503
+        
+        # Get uploaded file
+        if 'image' not in request.files:
+            return jsonify({'error': 'No image file provided'}), 400
+        
+        file = request.files['image']
+        if file.filename == '':
+            return jsonify({'error': 'No file selected'}), 400
+        
+        if not allowed_file(file.filename):
+            return jsonify({'error': 'Invalid file type'}), 400
+        
+        # Save uploaded file temporarily
+        filename = secure_filename(file.filename)
+        temp_path = os.path.join(UPLOAD_FOLDER, f"temp_layout_{int(time.time())}_{filename}")
+        file.save(temp_path)
+        
+        try:
+            # Initialize Enhanced Column Detector
+            detector = EnhancedColumnDetector()
+            
+            # Analyze layout
+            result = detector.analyze_omr_layout(temp_path)
+            
+            # Convert result to JSON-serializable format
+            response_data = {
+                'success': True,
+                'message': 'OMR layout analyzed successfully',
+                'data': {
+                    'total_columns': len(result.columns),
+                    'total_questions': result.total_questions,
+                    'column_spacing': result.column_spacing,
+                    'question_spacing': result.question_spacing,
+                    'layout_confidence': result.layout_confidence,
+                    'columns': [
+                        {
+                            'column_number': col.column_number,
+                            'question_count': col.question_count,
+                            'x_start': col.x_start,
+                            'x_end': col.x_end,
+                            'column_width': col.column_width,
+                            'alignment_marks_count': len(col.alignment_marks),
+                            'questions_per_column': col.questions_per_column
+                        }
+                        for col in result.columns
+                    ],
+                    'alignment_marks': {
+                        'column_marks': len(result.column_alignment_marks),
+                        'question_marks': len(result.question_alignment_marks),
+                        'total_marks': len(result.column_alignment_marks) + len(result.question_alignment_marks)
+                    },
+                    'processing_notes': result.processing_notes,
+                    'analysis_method': 'Enhanced Column Detection',
+                    'features_detected': [
+                        f'{len(result.column_alignment_marks)} column alignment marks (3 per column)',
+                        f'{len(result.question_alignment_marks)} question alignment marks (1 per question)',
+                        f'{len(result.columns)} columns with question distribution',
+                        f'{result.column_spacing}px average column spacing',
+                        f'{result.question_spacing}px average question spacing'
+                    ]
+                }
+            }
+            
+            logger.info(f"✅ Layout analysis completed successfully")
+            logger.info(f"📋 Columns: {len(result.columns)}, Questions: {result.total_questions}")
+            logger.info(f"🎯 Alignment marks: {len(result.column_alignment_marks)} column, {len(result.question_alignment_marks)} question")
+            
+            return jsonify(response_data)
+            
+        finally:
+            # Clean up temporary file
+            if os.path.exists(temp_path):
+                os.remove(temp_path)
+                
+    except Exception as e:
+        logger.error(f"❌ Layout analysis error: {e}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({
+            'success': False,
+            'error': str(e),
+            'analysis_method': 'Enhanced Column Detection'
+        }), 500
+
+@app.route('/api/omr/process_improved_layout', methods=['POST'])
+def process_omr_improved_layout():
+    """Process OMR using Improved Layout Processor with intelligent structure detection"""
+    try:
+        logger.info("🚀 Improved Layout OMR processing request received")
+        
+        # Check if Improved Layout Processor is available
+        if not IMPROVED_LAYOUT_AVAILABLE or not ImprovedLayoutOMRProcessor:
+            return jsonify({
+                'success': False,
+                'error': 'Improved Layout OMR Processor not available'
+            }), 503
+        
+        # Get uploaded file
+        if 'image' not in request.files:
+            return jsonify({'error': 'No image file provided'}), 400
+        
+        file = request.files['image']
+        if file.filename == '':
+            return jsonify({'error': 'No file selected'}), 400
+        
+        if not allowed_file(file.filename):
+            return jsonify({'error': 'Invalid file type'}), 400
+        
+        # Get exam data from request
+        exam_data = {}
+        if 'examData' in request.form:
+            try:
+                exam_data = json.loads(request.form['examData'])
+            except json.JSONDecodeError:
+                exam_data = {}
+        
+        # Default exam data
+        exam_data.setdefault('total_questions', 40)
+        exam_data.setdefault('options_per_question', 5)
+        
+        # Save uploaded file temporarily
+        filename = secure_filename(file.filename)
+        temp_path = os.path.join(UPLOAD_FOLDER, f"temp_improved_{int(time.time())}_{filename}")
+        file.save(temp_path)
+        
+        try:
+            # Initialize Improved Layout Processor
+            processor = ImprovedLayoutOMRProcessor()
+            
+            # Process OMR sheet
+            start_time = time.time()
+            result = processor.process_omr_sheet(temp_path, exam_data)
+            processing_time = time.time() - start_time
+            
+            # Add processing metadata
+            result['processing_time'] = processing_time
+            result['processor_type'] = 'Improved Layout Processor'
+            result['image_filename'] = filename
+            
+            # Clean up temporary file
+            if os.path.exists(temp_path):
+                os.remove(temp_path)
+            
+            return jsonify({
+                'success': True,
+                'message': 'OMR processed successfully with Improved Layout Processor',
+                'data': result,
+                'processing_method': 'Intelligent Structure Detection',
+                'features': [
+                    'Smart column detection',
+                    'Question marker identification', 
+                    'Bubble fill analysis (40%+ threshold)',
+                    'Debug visualization'
+                ]
+            })
+            
+        except Exception as e:
+            # Clean up temporary file on error
+            if os.path.exists(temp_path):
+                os.remove(temp_path)
+            raise e
+            
+    except Exception as e:
+        logger.error(f"Error in improved layout OMR processing: {e}")
+        return jsonify({
+            'success': False,
+            'error': str(e),
+            'processing_method': 'Improved Layout Processor'
+        }), 500
+
+@app.route('/api/omr/analyze_bubbles', methods=['POST'])
+def analyze_omr_bubbles():
+    """Analyze OMR bubbles with 40%+ fill detection"""
+    try:
+        logger.info("🔍 OMR Bubble analysis request received")
+        
+        # Check if Enhanced Bubble Analyzer is available
+        if not ENHANCED_BUBBLE_ANALYZER_AVAILABLE or not EnhancedBubbleAnalyzer:
+            return jsonify({
+                'success': False,
+                'error': 'Enhanced Bubble Analyzer not available'
+            }), 503
+        
+        # Get uploaded file
+        if 'image' not in request.files:
+            return jsonify({'error': 'No image file provided'}), 400
+        
+        file = request.files['image']
+        if file.filename == '':
+            return jsonify({'error': 'No file selected'}), 400
+        
+        if not allowed_file(file.filename):
+            return jsonify({'error': 'Invalid file type'}), 400
+        
+        # Get parameters
+        expected_questions = int(request.form.get('expectedQuestions', 40))
+        
+        # Save uploaded file temporarily
+        filename = secure_filename(file.filename)
+        temp_path = os.path.join(UPLOAD_FOLDER, f"temp_bubbles_{int(time.time())}_{filename}")
+        file.save(temp_path)
+        
+        try:
+            # Initialize Enhanced Bubble Analyzer
+            analyzer = EnhancedBubbleAnalyzer()
+            
+            # Analyze bubbles
+            result = analyzer.analyze_bubbles(temp_path, expected_questions)
+            
+            # Convert result to JSON-serializable format
+            response_data = {
+                'success': True,
+                'message': 'OMR bubbles analyzed successfully',
+                'data': {
+                    'extracted_answers': result.extracted_answers,
+                    'overall_confidence': result.overall_confidence,
+                    'processing_time': result.processing_time,
+                    'image_quality_metrics': result.image_quality_metrics,
+                    'detection_stats': result.bubble_detection_stats,
+                    'layout_analysis': {
+                        'total_columns': len(result.layout_analysis.columns),
+                        'total_questions': result.layout_analysis.total_questions,
+                        'column_spacing': result.layout_analysis.column_spacing,
+                        'question_spacing': result.layout_analysis.question_spacing,
+                        'layout_confidence': result.layout_analysis.layout_confidence
+                    },
+                    'question_details': [
+                        {
+                            'question_number': q.question_number,
+                            'column_number': q.column_number,
+                            'detected_answer': q.detected_answer,
+                            'confidence': q.confidence,
+                            'multiple_marks': q.multiple_marks,
+                            'no_marks': q.no_marks,
+                            'quality_score': q.quality_score,
+                            'bubble_fill_percentages': {
+                                option: bubble.fill_percentage 
+                                for option, bubble in q.bubbles.items()
+                            },
+                            'processing_notes': q.processing_notes
+                        }
+                        for q in result.question_analyses
+                    ],
+                    'recommendations': result.recommendations,
+                    'analysis_method': 'Enhanced Bubble Analysis',
+                    'fill_threshold': '40%+ for marked bubbles',
+                    'features_used': [
+                        '40%+ fill threshold detection',
+                        'Pixel-level bubble analysis',
+                        'Multi-threshold processing',
+                        'Quality assessment',
+                        'Confidence scoring',
+                        'Layout-aware processing'
+                    ]
+                }
+            }
+            
+            logger.info(f"✅ Bubble analysis completed successfully")
+            logger.info(f"🎯 Questions: {len(result.question_analyses)}, Confidence: {result.overall_confidence:.2f}")
+            logger.info(f"📊 Answered: {result.bubble_detection_stats['answered_questions']}/{result.bubble_detection_stats['total_questions']}")
+            
+            return jsonify(response_data)
+            
+        finally:
+            # Clean up temporary file
+            if os.path.exists(temp_path):
+                os.remove(temp_path)
+                
+    except Exception as e:
+        logger.error(f"❌ Bubble analysis error: {e}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({
+            'success': False,
+            'error': str(e),
+            'analysis_method': 'Enhanced Bubble Analysis'
+        }), 500
 
 @app.route('/api/omr/debug/<path:filename>', methods=['GET'])
 def get_debug_image(filename):

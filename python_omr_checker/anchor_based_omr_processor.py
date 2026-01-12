@@ -89,7 +89,7 @@ class AnchorBasedOMRProcessor:
             'vertical_offset': 0,      # Raqamdan bubble gacha vertikal masofa
             'horizontal_offset': 50,   # Raqamdan bubble gacha gorizontal masofa
             'options': ['A', 'B', 'C', 'D'],
-            'density_threshold': 0.3   # Bubble to'ldirilganlik chegarasi
+            'density_threshold': 0.4   # Bubble to'ldirilganlik chegarasi (40%)
         }
         
         # Image preprocessing parameters
@@ -125,47 +125,255 @@ class AnchorBasedOMRProcessor:
             coordinates[q_num] = (start_x, start_y + i * 48)
         
         return coordinates
-    
+
+    def detect_alignment_marks(self, image: np.ndarray) -> Optional[np.ndarray]:
+        """
+        Detect the 4 corner alignment marks (black squares)
+        Returns 4 points: [Top-Left, Top-Right, Bottom-Right, Bottom-Left]
+        """
+        logger.info("🔍 Detecting alignment marks...")
+        
+        # Binary threshold (inverse, so black is white)
+        _, binary = cv2.threshold(image, 100, 255, cv2.THRESH_BINARY_INV)
+        
+        # Find contours
+        contours, _ = cv2.findContours(binary, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+        
+        # Filter for square-like contours of appropriate size
+        squares = []
+        height, width = image.shape
+        min_area = (width * height) * 0.0001  # Minimum size relative to image
+        max_area = (width * height) * 0.01    # Maximum size
+        
+        for cnt in contours:
+            area = cv2.contourArea(cnt)
+            if min_area < area < max_area:
+                perimeter = cv2.arcLength(cnt, True)
+                approx = cv2.approxPolyDP(cnt, 0.05 * perimeter, True)
+                
+                # Check if it's a square (4 corners)
+                if len(approx) == 4:
+                    x, y, w, h = cv2.boundingRect(approx)
+                    aspect_ratio = float(w) / h
+                    if 0.8 <= aspect_ratio <= 1.2:  # Square shape
+                        squares.append(approx.reshape(4, 2))
+        
+        if len(squares) < 4:
+            logger.warning(f"⚠️ Found only {len(squares)} potential alignment marks (need 4+)")
+            return None
+            
+        # We expect 8 marks (4 left, 4 right). We need the 4 corners.
+        # Convert all square centers to points
+        points = []
+        for sq in squares:
+            M = cv2.moments(sq)
+            if M["m00"] != 0:
+                cX = int(M["m10"] / M["m00"])
+                cY = int(M["m01"] / M["m00"])
+                points.append([cX, cY])
+        
+        points = np.array(points)
+        
+        # Sort points to find corners
+        # Top-Left: Smallest sum (x+y)
+        # Bottom-Right: Largest sum (x+y)
+        # Top-Right: Smallest diff (y-x)
+        # Bottom-Left: Largest diff (y-x)
+        
+        sum_pts = points.sum(axis=1)
+        diff_pts = np.diff(points, axis=1)
+        
+        tl = points[np.argmin(sum_pts)]
+        br = points[np.argmax(sum_pts)]
+        tr = points[np.argmin(diff_pts)]
+        bl = points[np.argmax(diff_pts)]
+        
+        # Verify geometry (should form a rough rectangle)
+        # Check if we have distinct points
+        if np.array_equal(tl, br) or np.array_equal(tl, tr):
+            logger.warning("⚠️ Could not distinguish unique corners")
+            return None
+            
+        logger.info(f"✅ Alignment marks detected: TL{tl}, TR{tr}, BR{br}, BL{bl}")
+        return np.array([tl, tr, br, bl], dtype="float32")
+
+    def four_point_transform(self, image: np.ndarray, pts: np.ndarray) -> Tuple[np.ndarray, np.ndarray]:
+        """
+        Apply perspective transform to warp image to standard view
+        """
+        (tl, tr, br, bl) = pts
+        
+        # Compute width of new image
+        widthA = np.sqrt(((br[0] - bl[0]) ** 2) + ((br[1] - bl[1]) ** 2))
+        widthB = np.sqrt(((tr[0] - tl[0]) ** 2) + ((tr[1] - tl[1]) ** 2))
+        maxWidth = max(int(widthA), int(widthB))
+        
+        # Compute height of new image
+        heightA = np.sqrt(((tr[0] - br[0]) ** 2) + ((tr[1] - br[1]) ** 2))
+        heightB = np.sqrt(((tl[0] - bl[0]) ** 2) + ((tl[1] - bl[1]) ** 2))
+        maxHeight = max(int(heightA), int(heightB))
+        
+        # Target points for standard view
+        dst = np.array([
+            [0, 0],
+            [maxWidth - 1, 0],
+            [maxWidth - 1, maxHeight - 1],
+            [0, maxHeight - 1]
+        ], dtype="float32")
+        
+        # Compute perspective transform matrix
+        M = cv2.getPerspectiveTransform(pts, dst)
+        warped = cv2.warpPerspective(image, M, (maxWidth, maxHeight))
+        
+        return warped, M
+
+    def detect_timing_tracks(self, image: np.ndarray) -> List[AnchorPoint]:
+        """
+        Detect timing tracks (row markers) for each column.
+        Strategy:
+        1. Find Column Markers (3 large squares) to identify column starts.
+        2. From each column start, scan down to find Row Markers (small squares).
+        """
+        logger.info("🔍 Detecting Timing Tracks...")
+        
+        height, width = image.shape
+        anchor_points = []
+        
+        # Binary threshold (inverse, so black is white)
+        _, binary = cv2.threshold(image, 100, 255, cv2.THRESH_BINARY_INV)
+        
+        # Find contours
+        contours, _ = cv2.findContours(binary, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+        
+        # Separate contours by size
+        # Column Markers: w-4 h-4 (~16px area) -> Larger
+        # Row Markers: w-3 h-3 (~9px area) -> Smaller
+        
+        column_markers = []
+        row_markers = []
+        
+        # Adjust area thresholds based on image resolution (assuming standard A4 ~2000px height)
+        # These are relative heuristics
+        total_area = width * height
+        
+        for cnt in contours:
+            x, y, w, h = cv2.boundingRect(cnt)
+            area = w * h
+            aspect_ratio = float(w) / h
+            
+            # Filter for squares
+            if 0.6 <= aspect_ratio <= 1.4:
+                # Heuristic for Column Marker (Large)
+                # Assuming image width ~1500px, w-4 is roughly 25-30px
+                if 20 <= w <= 60 and 20 <= h <= 60:
+                    column_markers.append((x, y, w, h))
+                
+                # Heuristic for Row Marker (Small)
+                # w-3 is roughly 15-20px
+                elif 10 <= w <= 25 and 10 <= h <= 25:
+                    row_markers.append((x, y, w, h))
+        
+        logger.info(f"Found {len(column_markers)} potential column markers and {len(row_markers)} row markers")
+        
+        # Sort column markers by X position to group them into columns
+        column_markers.sort(key=lambda m: m[0])
+        
+        # Group column markers into columns (based on X proximity)
+        columns = []
+        if column_markers:
+            current_col = [column_markers[0]]
+            for i in range(1, len(column_markers)):
+                if abs(column_markers[i][0] - current_col[-1][0]) < 50: # Same column
+                    current_col.append(column_markers[i])
+                else:
+                    columns.append(current_col)
+                    current_col = [column_markers[i]]
+            columns.append(current_col)
+        
+        # We expect 3 columns
+        logger.info(f"Identified {len(columns)} potential columns")
+        
+        # Process each column
+        question_counter = 1
+        for col_idx, col_markers in enumerate(columns):
+            if not col_markers: continue
+            
+            # Determine column X range
+            col_x = int(np.mean([m[0] for m in col_markers]))
+            
+            # Find row markers that align with this column X
+            col_row_markers = [
+                rm for rm in row_markers 
+                if abs(rm[0] - col_x) < 30 and rm[1] > min(m[1] for m in col_markers) # Below column header
+            ]
+            
+            # Sort by Y position
+            col_row_markers.sort(key=lambda rm: rm[1])
+            
+            # Create AnchorPoints
+            for rm in col_row_markers:
+                x, y, w, h = rm
+                anchor_points.append(AnchorPoint(
+                    question_number=question_counter,
+                    x=x + w//2,
+                    y=y + h//2,
+                    confidence=1.0,
+                    text=f"{question_counter}",
+                    bbox=(x, y, w, h)
+                ))
+                question_counter += 1
+                
+        return anchor_points
+
     def process_omr_with_anchors(self, image_path: str, answer_key: List[str]) -> AnchorBasedResult:
         """Anchor-based OMR qayta ishlash asosiy funksiyasi"""
-        logger.info("=== ANCHOR-BASED OMR PROCESSING STARTED ===")
-        
-        if not self.tesseract_available:
-            logger.info("🔄 Using coordinate-based fallback (Tesseract not available)")
+        logger.info("=== TIMING TRACK OMR PROCESSING STARTED ===")
         
         start_time = time.time()
         
         try:
             # Step 1: Rasmni yuklash va preprocessing
-            original_image, processed_image = self.preprocess_image(image_path)
+            original_image, gray_image, processed_image = self.preprocess_image(image_path)
             
-            # Step 2: Anchor nuqtalarni topish (OCR yoki fallback)
-            if self.tesseract_available:
-                logger.info("🔍 Attempting OCR-based anchor detection")
-                anchor_points = self.detect_anchor_points_ocr(processed_image, original_image)
-                
-                # If OCR fails or returns no results, fallback to coordinates
-                if not anchor_points:
-                    logger.warning("⚠️ OCR detection failed or returned no results, using fallback")
-                    anchor_points = self.detect_anchor_points_fallback(processed_image)
+            # Step 2: Detect Global Alignment Marks (4 corners)
+            alignment_marks = self.detect_alignment_marks(processed_image)
+            
+            warped_image = processed_image
+            warped_gray = gray_image
+            
+            if alignment_marks is not None:
+                logger.info("✅ Using Alignment-Based Rectification")
+                warped_image, M = self.four_point_transform(processed_image, alignment_marks)
+                warped_gray, _ = self.four_point_transform(gray_image, alignment_marks)
             else:
-                logger.info("🔄 Using coordinate-based fallback (Tesseract not available)")
-                anchor_points = self.detect_anchor_points_fallback(processed_image)
+                logger.warning("⚠️ Alignment marks not found, proceeding with unrectified image")
+
+            # Step 3: Detect Timing Tracks (Row Markers)
+            anchor_points = self.detect_timing_tracks(warped_image)
             
-            # Step 3: Har bir anchor uchun bubble koordinatalarini hisoblash
-            bubble_regions = self.calculate_bubble_coordinates(anchor_points, processed_image)
+            if not anchor_points:
+                logger.warning("⚠️ No timing tracks found! Falling back to grid/OCR logic.")
+                # Fallback logic could go here if needed, but timing tracks are primary now
+                if self.tesseract_available:
+                     anchor_points = self.detect_anchor_points_ocr(warped_image, warped_image)
+                if not anchor_points:
+                     height, width = warped_image.shape[:2]
+                     anchor_points = self.generate_grid_anchors(width, height)
+
+            # Step 4: Calculate Bubble Coordinates relative to Row Markers
+            bubble_regions = self.calculate_bubble_coordinates(anchor_points, warped_image)
             
-            # Step 4: Bubble density tahlili
-            analyzed_bubbles = self.analyze_bubble_density(bubble_regions, processed_image)
+            # Step 5: Bubble density tahlili (Grayscale)
+            analyzed_bubbles = self.analyze_bubble_density(bubble_regions, warped_gray)
             
-            # Step 5: Javoblarni aniqlash
+            # Step 6: Javoblarni aniqlash
             extracted_answers = self.determine_answers_from_bubbles(analyzed_bubbles)
             
-            # Step 6: Natijalarni tayyorlash
+            # Step 7: Natijalarni tayyorlash
             processing_time = time.time() - start_time
             confidence = self.calculate_overall_confidence(analyzed_bubbles)
             
-            processing_method = 'Anchor-Based OMR with OCR' if self.tesseract_available else 'Anchor-Based OMR with Coordinate Fallback'
+            processing_method = 'Timing Track OMR' if alignment_marks is not None else 'Unrectified Timing Track OMR'
             
             result = AnchorBasedResult(
                 extracted_answers=extracted_answers,
@@ -179,12 +387,12 @@ class AnchorBasedOMRProcessor:
                     'processing_method': processing_method,
                     'image_dimensions': original_image.shape[:2],
                     'preprocessing_applied': True,
-                    'tesseract_available': self.tesseract_available
+                    'alignment_marks_detected': alignment_marks is not None
                 },
                 detailed_results=self.create_detailed_results(analyzed_bubbles)
             )
             
-            logger.info(f"✅ Anchor-based processing completed in {processing_time:.2f}s")
+            logger.info(f"✅ Processing completed in {processing_time:.2f}s")
             logger.info(f"📍 Anchors found: {len(anchor_points)}")
             logger.info(f"🔍 Bubbles analyzed: {len(analyzed_bubbles)}")
             logger.info(f"📊 Overall confidence: {confidence:.2f}")
@@ -195,8 +403,8 @@ class AnchorBasedOMRProcessor:
             logger.error(f"❌ Anchor-based processing failed: {e}")
             raise
     
-    def preprocess_image(self, image_path: str) -> Tuple[np.ndarray, np.ndarray]:
-        """Rasmni preprocessing qilish"""
+    def preprocess_image(self, image_path: str) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
+        """Rasmni preprocessing qilish. Returns (original, gray, processed)"""
         logger.info("🔧 Image preprocessing started")
         
         # Original rasmni yuklash
@@ -226,7 +434,7 @@ class AnchorBasedOMRProcessor:
         processed = cv2.morphologyEx(processed, cv2.MORPH_CLOSE, kernel)
         
         logger.info("✅ Image preprocessing completed")
-        return original, processed
+        return original, gray, processed
     
     def detect_anchor_points_ocr(self, processed_image: np.ndarray, original_image: np.ndarray) -> List[AnchorPoint]:
         """OCR yordamida savol raqamlarini (anchor points) topish"""
@@ -293,6 +501,46 @@ class AnchorBasedOMRProcessor:
             logger.error(f"❌ OCR anchor detection failed: {e}")
             return []
     
+    def generate_grid_anchors(self, width: int, height: int) -> List[AnchorPoint]:
+        """Generate anchor points based on the warped image grid"""
+        logger.info(f"📏 Generating grid anchors for {width}x{height} image")
+        anchor_points = []
+        
+        # Estimated relative positions for 3-column layout on warped image
+        # These ratios are based on the alignment marks forming the bounding box
+        
+        # Column X positions (relative to width)
+        # Based on OMRSheet.tsx layout relative to alignment marks
+        col_x_ratios = [0.15, 0.45, 0.75]
+        
+        # Row Y positions (relative to height)
+        # Assuming questions start slightly below the top mark and end before bottom mark
+        start_y_ratio = 0.15
+        row_spacing_ratio = 0.06
+        
+        # Column 1: Q1-14
+        for i in range(14):
+            q_num = i + 1
+            x = int(width * col_x_ratios[0])
+            y = int(height * (start_y_ratio + i * row_spacing_ratio))
+            anchor_points.append(AnchorPoint(q_num, x, y, 0.9, f"{q_num}.", (x-10, y-10, 20, 20)))
+            
+        # Column 2: Q15-27
+        for i in range(13):
+            q_num = i + 15
+            x = int(width * col_x_ratios[1])
+            y = int(height * (start_y_ratio + i * row_spacing_ratio))
+            anchor_points.append(AnchorPoint(q_num, x, y, 0.9, f"{q_num}.", (x-10, y-10, 20, 20)))
+            
+        # Column 3: Q28-40
+        for i in range(13):
+            q_num = i + 28
+            x = int(width * col_x_ratios[2])
+            y = int(height * (start_y_ratio + i * row_spacing_ratio))
+            anchor_points.append(AnchorPoint(q_num, x, y, 0.9, f"{q_num}.", (x-10, y-10, 20, 20)))
+            
+        return anchor_points
+
     def detect_anchor_points_fallback(self, processed_image: np.ndarray) -> List[AnchorPoint]:
         """Fallback method: Use predefined coordinates when OCR is not available"""
         logger.info("🎯 Using fallback coordinate-based anchor detection")
@@ -375,6 +623,9 @@ class AnchorBasedOMRProcessor:
         
         analyzed_bubbles = []
         
+        # Update threshold to 0.4 (40%) as requested
+        self.bubble_params['density_threshold'] = 0.4
+        
         for bubble in bubble_regions:
             # Bubble hududini ajratib olish
             x, y = bubble.x, bubble.y
@@ -389,17 +640,20 @@ class AnchorBasedOMRProcessor:
             if bubble_region.size == 0:
                 continue
             
-            # Density hisoblash (qora piksellar foizi)
-            # Adaptive threshold qo'llanilgan rasmda: 0 = qora, 255 = oq
-            total_pixels = bubble_region.size
-            dark_pixels = np.sum(bubble_region == 0)  # Qora piksellar
-            density = dark_pixels / total_pixels if total_pixels > 0 else 0
+            # Density hisoblash (Grayscale intensity asosida)
+            # 0 = qora (to'la), 255 = oq (bo'sh)
+            # Density = 1.0 - (mean_intensity / 255.0)
+            # Agar mean = 0 (qora) -> density = 1.0
+            # Agar mean = 255 (oq) -> density = 0.0
             
-            # Bubble to'ldirilganligini aniqlash
+            mean_intensity = np.mean(bubble_region)
+            density = 1.0 - (mean_intensity / 255.0)
+            
+            # Bubble to'ldirilganligini aniqlash (40% dan yuqori)
             is_filled = density >= self.bubble_params['density_threshold']
             
             # Confidence hisoblash
-            confidence = min(1.0, density * 2) if is_filled else max(0.1, 1.0 - density)
+            confidence = min(1.0, density * 1.5) if is_filled else max(0.1, 1.0 - density)
             
             # Yangilangan bubble ma'lumotlari
             updated_bubble = BubbleRegion(

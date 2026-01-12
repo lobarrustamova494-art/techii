@@ -1,0 +1,63 @@
+#!/usr/bin/env node
+
+const { spawn } = require('child_process');
+const path = require('path');
+
+async function testAdvancedLayoutProcessor() {
+    console.log('🚀 Testing Advanced Layout OMR Processor...\n');
+    
+    const pythonScript = path.join(__dirname, 'python_omr_checker', 'advanced_layout_omr_processor.py');
+    const testImage = 'test_image_40_questions.jpg';
+    
+    return new Promise((resolve, reject) => {
+        const pythonProcess = spawn('python', [pythonScript], {
+            cwd: __dirname,
+            stdio: ['pipe', 'pipe', 'pipe']
+        });
+        
+        let stdout = '';
+        let stderr = '';
+        
+        pythonProcess.stdout.on('data', (data) => {
+            stdout += data.toString();
+        });
+        
+        pythonProcess.stderr.on('data', (data) => {
+            stderr += data.toString();
+        });
+        
+        pythonProcess.on('close', (code) => {
+            console.log('📊 Python Output:');
+            console.log(stdout);
+            
+            if (stderr) {
+                console.log('⚠️ Python Errors:');
+                console.log(stderr);
+            }
+            
+            if (code === 0) {
+                console.log('✅ Advanced Layout Processor test completed successfully!');
+                resolve(true);
+            } else {
+                console.log(`❌ Advanced Layout Processor test failed with code ${code}`);
+                reject(new Error(`Process exited with code ${code}`));
+            }
+        });
+        
+        pythonProcess.on('error', (error) => {
+            console.error('❌ Failed to start Python process:', error);
+            reject(error);
+        });
+    });
+}
+
+// Run the test
+testAdvancedLayoutProcessor()
+    .then(() => {
+        console.log('\n🎉 All tests completed!');
+        process.exit(0);
+    })
+    .catch((error) => {
+        console.error('\n💥 Test failed:', error);
+        process.exit(1);
+    });

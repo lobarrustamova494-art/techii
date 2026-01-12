@@ -245,6 +245,179 @@ class ApiService {
   // OpenCV-based OMR methods
 
   /**
+   * Process OMR using AI Enhanced Engine with column detection and 40%+ bubble analysis
+   */
+  async processOMRWithAIEnhanced(
+    file: File,
+    answerKey: string[],
+    scoring: { correct: number; wrong: number; blank: number },
+    examId?: string,
+    examData?: any
+  ) {
+    console.log('🧠 AI Enhanced OMR processing started')
+
+    try {
+      const formData = new FormData()
+      formData.append('image', file)
+      if (answerKey && answerKey.length > 0) {
+        formData.append('answerKey', JSON.stringify(answerKey))
+      }
+      formData.append('scoring', JSON.stringify(scoring))
+
+      if (examId) {
+        formData.append('examId', examId)
+      }
+
+      if (examData) {
+        formData.append('examData', JSON.stringify({
+          ...examData,
+          processing_mode: 'ai_enhanced',
+          column_detection: true,
+          bubble_fill_threshold: 0.4,
+          ai_processing: true
+        }))
+      }
+
+      console.log('🧠 Sending request to AI Enhanced OMR Engine')
+      const response = await fetch(`${PYTHON_OMR_URL}/api/omr/process_ai_enhanced`, {
+        method: 'POST',
+        body: formData,
+        headers: {
+          'Accept': 'application/json'
+        }
+      })
+
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`)
+      }
+
+      const result = await response.json()
+
+      if (!result.success) {
+        throw new Error(result.message || 'AI Enhanced processing failed')
+      }
+
+      console.log('✅ AI Enhanced processing completed')
+      console.log(`📋 Columns detected: ${result.data.layout_analysis.total_columns}`)
+      console.log(`🎯 Questions analyzed: ${result.data.extracted_answers.length}`)
+      console.log(`📊 Confidence: ${result.data.confidence}`)
+
+      return {
+        success: true,
+        data: {
+          extractedAnswers: result.data.extracted_answers,
+          confidence: result.data.confidence,
+          processingDetails: {
+            ...result.data.processing_details,
+            layoutAnalysis: result.data.layout_analysis,
+            bubbleAnalysis: result.data.bubble_analysis,
+            imageQuality: result.data.image_quality,
+            recommendations: result.data.recommendations,
+            errorFlags: result.data.error_flags,
+            processingMethod: 'AI Enhanced OMR Engine',
+            algorithmVersion: 'AI Enhanced V1.0',
+            featuresUsed: result.data.features_used
+          },
+          detailedResults: result.data.bubble_analysis.question_details || []
+        }
+      }
+
+    } catch (error: any) {
+      console.error('❌ AI Enhanced OMR processing error:', error)
+      throw new Error(`AI Enhanced OMR processing failed: ${error.message}`)
+    }
+  }
+
+  /**
+   * Analyze OMR layout structure (columns, alignment marks, question distribution)
+   */
+  async analyzeOMRLayout(file: File) {
+    console.log('🏗️ OMR Layout analysis started')
+
+    try {
+      const formData = new FormData()
+      formData.append('image', file)
+
+      console.log('🏗️ Sending request to Layout Analyzer')
+      const response = await fetch(`${PYTHON_OMR_URL}/api/omr/analyze_layout`, {
+        method: 'POST',
+        body: formData,
+        headers: {
+          'Accept': 'application/json'
+        }
+      })
+
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`)
+      }
+
+      const result = await response.json()
+
+      if (!result.success) {
+        throw new Error(result.message || 'Layout analysis failed')
+      }
+
+      console.log('✅ Layout analysis completed')
+      console.log(`📋 Columns: ${result.data.total_columns}, Questions: ${result.data.total_questions}`)
+      console.log(`🎯 Alignment marks: ${result.data.alignment_marks.total_marks}`)
+
+      return {
+        success: true,
+        data: result.data
+      }
+
+    } catch (error: any) {
+      console.error('❌ Layout analysis error:', error)
+      throw new Error(`Layout analysis failed: ${error.message}`)
+    }
+  }
+
+  /**
+   * Analyze OMR bubbles with 40%+ fill detection
+   */
+  async analyzeOMRBubbles(file: File, expectedQuestions: number = 40) {
+    console.log('🔍 OMR Bubble analysis started')
+
+    try {
+      const formData = new FormData()
+      formData.append('image', file)
+      formData.append('expectedQuestions', expectedQuestions.toString())
+
+      console.log('🔍 Sending request to Bubble Analyzer')
+      const response = await fetch(`${PYTHON_OMR_URL}/api/omr/analyze_bubbles`, {
+        method: 'POST',
+        body: formData,
+        headers: {
+          'Accept': 'application/json'
+        }
+      })
+
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`)
+      }
+
+      const result = await response.json()
+
+      if (!result.success) {
+        throw new Error(result.message || 'Bubble analysis failed')
+      }
+
+      console.log('✅ Bubble analysis completed')
+      console.log(`🎯 Questions: ${result.data.detection_stats.total_questions}`)
+      console.log(`📊 Answered: ${result.data.detection_stats.answered_questions}`)
+
+      return {
+        success: true,
+        data: result.data
+      }
+
+    } catch (error: any) {
+      console.error('❌ Bubble analysis error:', error)
+      throw new Error(`Bubble analysis failed: ${error.message}`)
+    }
+  }
+
+  /**
    * Process OMR using Anchor-Based Processor (Langor + Piksel tahlili)
    */
   async processOMRWithAnchorBased(
