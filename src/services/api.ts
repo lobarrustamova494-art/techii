@@ -277,30 +277,8 @@ class ApiService {
         }))
       }
 
-      // Try Python service first (anchor-based endpoint)
-      try {
-        console.log('🎯 Trying Anchor-Based via Python service')
-        const pythonResponse = await fetch(`${PYTHON_OMR_URL}/api/omr/process_anchor_based`, {
-          method: 'POST',
-          body: formData,
-          headers: {
-            'Accept': 'application/json'
-          }
-        })
-
-        if (pythonResponse.ok) {
-          const result = await pythonResponse.json()
-          if (result.success) {
-            console.log('✅ Anchor-Based Python processing successful')
-            return this.transformAnchorBasedResult(result, answerKey, scoring)
-          }
-        }
-      } catch (error) {
-        console.warn('⚠️ Python anchor-based service failed:', error)
-      }
-
-      // Fallback to main endpoint with anchor_based flag
-      console.log('🔄 Falling back to main endpoint with anchor_based flag')
+      // Use main endpoint with anchor_based flag (more stable)
+      console.log('🎯 Sending request to Anchor-Based OMR (via main endpoint)')
       const response = await fetch(`${PYTHON_OMR_URL}/api/omr/process`, {
         method: 'POST',
         body: formData,
