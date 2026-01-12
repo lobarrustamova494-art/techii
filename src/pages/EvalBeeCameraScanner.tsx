@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { 
+import {
   Camera, Brain, Target, CheckCircle, AlertTriangle,
   Eye, BarChart3, TrendingUp, Download, Share2,
   RefreshCw, Bug, Image as ImageIcon, Activity
@@ -49,7 +49,7 @@ interface EvalBeeResult {
   }
   detailed_results: Array<{
     question: number
-    bubble_coordinates: Record<string, {x: number, y: number}>
+    bubble_coordinates: Record<string, { x: number, y: number }>
     bubble_intensities: Record<string, number>
     status: string
   }>
@@ -61,7 +61,7 @@ const EvalBeeCameraScannerPage: React.FC = () => {
   const { id } = useParams()
   const navigate = useNavigate()
   const { user } = useAuth()
-  
+
   // Console logger for mobile debugging
   const {
     logs,
@@ -71,7 +71,7 @@ const EvalBeeCameraScannerPage: React.FC = () => {
     clearLogs,
     exportLogs
   } = useConsoleLogger()
-  
+
   const [exam, setExam] = useState<any>(null)
   const [loading, setLoading] = useState(true)
   const [processing, setProcessing] = useState(false)
@@ -91,7 +91,7 @@ const EvalBeeCameraScannerPage: React.FC = () => {
     loadExam()
     // Start logging automatically for debugging
     startLogging()
-    
+
     return () => {
       // Stop logging when component unmounts
       stopLogging()
@@ -116,7 +116,7 @@ const EvalBeeCameraScannerPage: React.FC = () => {
     setCapturedImage(imageData)
     setCaptureQuality(qualityMetrics)
     setShowCamera(false)
-    
+
     // Automatically process with EvalBee engine
     await processWithEvalBee(imageData, qualityMetrics)
   }
@@ -156,15 +156,15 @@ const EvalBeeCameraScannerPage: React.FC = () => {
       console.log('📊 Quality metrics:', qualityMetrics)
       console.log('📋 Answer key:', exam.answerKey)
       console.log('🏷️ Exam ID:', exam.id)
-      
+
       const startTime = Date.now()
-      
+
       // Convert base64 to File for API
       console.log('🔄 Converting image data to file...')
       const blob = await fetch(imageData).then(r => r.blob())
       const file = new File([blob], 'evalbee-camera-capture.jpg', { type: 'image/jpeg' })
       console.log('📁 File created:', file.name, file.size, 'bytes')
-      
+
       // Process with EvalBee Professional as primary (most stable for production)
       console.log('📤 Sending request to EvalBee Professional (hybrid processing)...')
       const omrResult = await apiService.processOMRHybrid(
@@ -174,15 +174,15 @@ const EvalBeeCameraScannerPage: React.FC = () => {
         exam.id,
         {
           ...exam,
-          processing_mode: 'evalbee_professional_camera',
+          processing_mode: 'anchor_based_camera',
           multi_pass_analysis: true,
           consensus_voting: true,
           advanced_quality_control: true,
           camera_quality_metrics: qualityMetrics
         },
         import.meta.env.VITE_ENABLE_GROQ_AI === 'true', // useGroqAI - controlled by environment variable
-        true,  // useProfessional = true (enable as primary - most stable)
-        true,  // useAnchorBased = true (enable as secondary backup)
+        false, // useProfessional = false (disable professional engine)
+        true,  // useAnchorBased = true (enable as primary)
         false  // useCloud = false (disable for production)
       )
 
@@ -198,7 +198,7 @@ const EvalBeeCameraScannerPage: React.FC = () => {
         // Check for explicit success flag or valid data
         const hasSuccess = omrResult.success === true
         const hasValidData = omrResult.data && (omrResult.data.extractedAnswers || omrResult.extractedAnswers)
-        
+
         if (!hasSuccess && !hasValidData) {
           const errorMessage = omrResult.message || omrResult.error || 'EvalBee processing failed'
           console.error('❌ EvalBee processing failed:', errorMessage)
@@ -212,7 +212,7 @@ const EvalBeeCameraScannerPage: React.FC = () => {
       // Transform result to EvalBee format with camera quality integration
       // Handle both response formats (with/without success wrapper)
       const responseData = omrResult.data || omrResult
-      
+
       const evalBeeResult: EvalBeeResult = {
         extracted_answers: responseData.extractedAnswers || [],
         confidence_scores: responseData.detailedResults?.map((r: any) => r.confidence) || [],
@@ -276,9 +276,9 @@ const EvalBeeCameraScannerPage: React.FC = () => {
         stack: error.stack,
         response: error.response?.data
       })
-      
+
       let errorMessage = 'EvalBee kamera bilan qayta ishlashda xatolik'
-      
+
       if (error.message) {
         if (error.message.includes('Internetga ulanishda muammo')) {
           errorMessage = error.message
@@ -292,16 +292,16 @@ const EvalBeeCameraScannerPage: React.FC = () => {
           errorMessage += ': ' + error.message
         }
       }
-      
+
       if (error.response?.data?.message) {
         errorMessage += ' (' + error.response.data.message + ')'
       }
-      
+
       // Add helpful suggestions for common issues
       if (error.message?.includes('network') || error.message?.includes('fetch')) {
         errorMessage += '\n\nTavsiyalar:\n• Internet aloqangizni tekshiring\n• Sahifani yangilab qayta urinib ko\'ring\n• Biroz kutib qayta urinib ko\'ring'
       }
-      
+
       setError(errorMessage)
     } finally {
       clearInterval(progressInterval)
@@ -386,7 +386,7 @@ const EvalBeeCameraScannerPage: React.FC = () => {
   return (
     <div className="min-h-screen bg-slate-50 dark:bg-slate-900">
       {user && <Header user={user} />}
-      
+
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Header Section */}
         <div className="mb-8">
@@ -403,7 +403,7 @@ const EvalBeeCameraScannerPage: React.FC = () => {
               </p>
             </div>
           </div>
-          
+
           {exam && (
             <div className="bg-white dark:bg-slate-800 rounded-xl p-6 shadow-sm border border-slate-200 dark:border-slate-700">
               <div className="flex items-center justify-between">
@@ -426,7 +426,7 @@ const EvalBeeCameraScannerPage: React.FC = () => {
                     </div>
                   </div>
                 </div>
-                
+
                 {/* Mobile Debug Button */}
                 <div className="flex items-center gap-2">
                   <Button
@@ -452,7 +452,7 @@ const EvalBeeCameraScannerPage: React.FC = () => {
                 <AlertTriangle className="w-5 h-5 text-red-600" />
                 <p className="text-red-700 dark:text-red-400 flex-1">{error}</p>
               </div>
-              
+
               {/* Diagnostic Tools */}
               <div className="flex items-center gap-2 pt-2 border-t border-red-200 dark:border-red-800">
                 <Button
@@ -465,7 +465,7 @@ const EvalBeeCameraScannerPage: React.FC = () => {
                   <Activity size={16} className="mr-1" />
                   {runningDiagnostics ? 'Tekshirilmoqda...' : 'Xizmatlarni Tekshirish'}
                 </Button>
-                
+
                 {diagnosticResult && (
                   <Button
                     variant="outline"
@@ -488,23 +488,21 @@ const EvalBeeCameraScannerPage: React.FC = () => {
                       <div key={index} className="flex items-center justify-between text-sm">
                         <span className="text-slate-600 dark:text-slate-400">{service.name}</span>
                         <div className="flex items-center gap-2">
-                          <div className={`w-2 h-2 rounded-full ${
-                            service.status === 'online' ? 'bg-green-500' :
+                          <div className={`w-2 h-2 rounded-full ${service.status === 'online' ? 'bg-green-500' :
                             service.status === 'slow' ? 'bg-yellow-500' : 'bg-red-500'
-                          }`} />
-                          <span className={`text-xs ${
-                            service.status === 'online' ? 'text-green-600' :
+                            }`} />
+                          <span className={`text-xs ${service.status === 'online' ? 'text-green-600' :
                             service.status === 'slow' ? 'text-yellow-600' : 'text-red-600'
-                          }`}>
+                            }`}>
                             {service.status === 'online' ? 'Ishlayapti' :
-                             service.status === 'slow' ? 'Sekin' : 'Ishlamayapti'}
+                              service.status === 'slow' ? 'Sekin' : 'Ishlamayapti'}
                           </span>
                           <span className="text-xs text-slate-500">({service.responseTime}ms)</span>
                         </div>
                       </div>
                     ))}
                   </div>
-                  
+
                   {diagnosticResult.recommendations.length > 0 && (
                     <div className="mt-3 pt-3 border-t border-slate-200 dark:border-slate-700">
                       <h5 className="text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">Tavsiyalar:</h5>
@@ -550,11 +548,11 @@ const EvalBeeCameraScannerPage: React.FC = () => {
                 </Button>
 
                 <div className="text-xs text-slate-500 dark:text-slate-400 bg-blue-50 dark:bg-blue-900/20 p-4 rounded-lg max-w-2xl mx-auto">
-                  <strong>EvalBee Kamera Imkoniyatlari:</strong><br/>
-                  • Real-time rasm sifati tahlili (fokus, yorug'lik, kontrast)<br/>
-                  • Jonli bubble aniqlash va sanash<br/>
-                  • Sifat ko'rsatkichlari bilan avtomatik suratga olish yo'l-yo'riqlari<br/>
-                  • Professional darajadagi rasm yaxshilash<br/>
+                  <strong>EvalBee Kamera Imkoniyatlari:</strong><br />
+                  • Real-time rasm sifati tahlili (fokus, yorug'lik, kontrast)<br />
+                  • Jonli bubble aniqlash va sanash<br />
+                  • Sifat ko'rsatkichlari bilan avtomatik suratga olish yo'l-yo'riqlari<br />
+                  • Professional darajadagi rasm yaxshilash<br />
                   • Tezkor fikr-mulohaza va tavsiyalar
                 </div>
               </div>
@@ -647,7 +645,7 @@ const EvalBeeCameraScannerPage: React.FC = () => {
                     <Camera className="w-4 h-4 text-blue-600" />
                     Kamera Suratga Olish Sifati
                   </h4>
-                  
+
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
                     <div className="text-center p-3 bg-slate-50 dark:bg-slate-800 rounded-lg">
                       <div className={`text-lg font-bold ${getQualityColor(captureQuality.focus)}`}>
@@ -734,8 +732,8 @@ const EvalBeeCameraScannerPage: React.FC = () => {
                       <span className="text-sm text-slate-600 dark:text-slate-400">{result.quality_metrics.sharpness.toFixed(0)}</span>
                     </div>
                     <div className="w-full bg-slate-200 dark:bg-slate-700 rounded-full h-2">
-                      <div 
-                        className="bg-blue-600 h-2 rounded-full" 
+                      <div
+                        className="bg-blue-600 h-2 rounded-full"
                         style={{ width: `${Math.min(100, (result.quality_metrics.sharpness / 200) * 100)}%` }}
                       ></div>
                     </div>
@@ -747,8 +745,8 @@ const EvalBeeCameraScannerPage: React.FC = () => {
                       <span className="text-sm text-slate-600 dark:text-slate-400">{result.quality_metrics.contrast_ratio.toFixed(2)}</span>
                     </div>
                     <div className="w-full bg-slate-200 dark:bg-slate-700 rounded-full h-2">
-                      <div 
-                        className="bg-green-600 h-2 rounded-full" 
+                      <div
+                        className="bg-green-600 h-2 rounded-full"
                         style={{ width: `${Math.min(100, (result.quality_metrics.contrast_ratio / 0.6) * 100)}%` }}
                       ></div>
                     </div>
@@ -760,8 +758,8 @@ const EvalBeeCameraScannerPage: React.FC = () => {
                       <span className="text-sm text-slate-600 dark:text-slate-400">{result.quality_metrics.brightness.toFixed(0)}</span>
                     </div>
                     <div className="w-full bg-slate-200 dark:bg-slate-700 rounded-full h-2">
-                      <div 
-                        className="bg-yellow-600 h-2 rounded-full" 
+                      <div
+                        className="bg-yellow-600 h-2 rounded-full"
                         style={{ width: `${Math.min(100, (result.quality_metrics.brightness / 255) * 100)}%` }}
                       ></div>
                     </div>
@@ -773,8 +771,8 @@ const EvalBeeCameraScannerPage: React.FC = () => {
                       <span className="text-sm text-slate-600 dark:text-slate-400">{result.quality_metrics.noise_level.toFixed(1)}%</span>
                     </div>
                     <div className="w-full bg-slate-200 dark:bg-slate-700 rounded-full h-2">
-                      <div 
-                        className="bg-red-600 h-2 rounded-full" 
+                      <div
+                        className="bg-red-600 h-2 rounded-full"
                         style={{ width: `${Math.min(100, result.quality_metrics.noise_level)}%` }}
                       ></div>
                     </div>
@@ -786,8 +784,8 @@ const EvalBeeCameraScannerPage: React.FC = () => {
                       <span className="text-sm text-slate-600 dark:text-slate-400">{result.quality_metrics.skew_angle.toFixed(1)}°</span>
                     </div>
                     <div className="w-full bg-slate-200 dark:bg-slate-700 rounded-full h-2">
-                      <div 
-                        className="bg-purple-600 h-2 rounded-full" 
+                      <div
+                        className="bg-purple-600 h-2 rounded-full"
                         style={{ width: `${Math.min(100, (10 - result.quality_metrics.skew_angle) / 10 * 100)}%` }}
                       ></div>
                     </div>
@@ -814,8 +812,8 @@ const EvalBeeCameraScannerPage: React.FC = () => {
                 </h3>
                 <div className="flex gap-2">
                   {capturedImage && (
-                    <Button 
-                      variant="outline" 
+                    <Button
+                      variant="outline"
                       size="sm"
                       onClick={() => setShowAnnotatedImage(true)}
                     >
@@ -839,14 +837,14 @@ const EvalBeeCameraScannerPage: React.FC = () => {
                   const confidence = result.confidence_scores[index] || 0
                   const isHighConfidence = confidence >= 0.8
                   const isMediumConfidence = confidence >= 0.6
-                  
+
                   return (
                     <div
                       key={index}
                       className={`
                         p-3 rounded-lg text-center border-2 transition-all
-                        ${answer === 'BLANK' 
-                          ? 'border-slate-300 bg-slate-100 dark:bg-slate-800 dark:border-slate-600' 
+                        ${answer === 'BLANK'
+                          ? 'border-slate-300 bg-slate-100 dark:bg-slate-800 dark:border-slate-600'
                           : isHighConfidence
                             ? 'border-green-300 bg-green-50 dark:bg-green-900/20 dark:border-green-600'
                             : isMediumConfidence
@@ -860,8 +858,8 @@ const EvalBeeCameraScannerPage: React.FC = () => {
                       </div>
                       <div className={`
                         font-bold text-lg
-                        ${answer === 'BLANK' 
-                          ? 'text-slate-400 dark:text-slate-500' 
+                        ${answer === 'BLANK'
+                          ? 'text-slate-400 dark:text-slate-500'
                           : isHighConfidence
                             ? 'text-green-700 dark:text-green-400'
                             : isMediumConfidence
@@ -909,8 +907,8 @@ const EvalBeeCameraScannerPage: React.FC = () => {
                   Suratga Olingan Rasm
                 </h3>
                 <div className="relative max-w-md mx-auto">
-                  <img 
-                    src={capturedImage} 
+                  <img
+                    src={capturedImage}
                     alt="EvalBee Camera Capture"
                     className="w-full rounded-lg border border-slate-200 dark:border-slate-700"
                   />
@@ -936,7 +934,7 @@ const EvalBeeCameraScannerPage: React.FC = () => {
           </div>
         )}
       </div>
-      
+
       {/* Mobile Debug Modal */}
       <MobileDebugModal
         isOpen={showDebugModal}
