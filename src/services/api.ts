@@ -986,6 +986,57 @@ class ApiService {
       }
     }
   }
+  // OMR Sheet Analysis with AI (Langor + Piksel algoritmi)
+  async processOMRSheetAnalysis(
+    file: File,
+    answerKey: string[],
+    examData?: any
+  ) {
+    console.log('🔍 OMR Sheet AI Analysis started')
+    
+    try {
+      const formData = new FormData()
+      formData.append('image', file)
+      formData.append('answerKey', JSON.stringify(answerKey))
+      
+      if (examData) {
+        formData.append('examData', JSON.stringify({
+          ...examData,
+          processing_mode: 'omr_sheet_analysis',
+          ai_analysis: true,
+          anchor_detection: true,
+          pixel_analysis: true
+        }))
+      }
+
+      console.log('🔍 Calling OMR Sheet Analyzer endpoint')
+      const response = await fetch(`${PYTHON_OMR_URL}/api/omr/analyze_sheet`, {
+        method: 'POST',
+        body: formData,
+        headers: {
+          'Accept': 'application/json'
+        }
+      })
+
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`)
+      }
+
+      const result = await response.json()
+      
+      if (!result.success) {
+        throw new Error(result.error || 'OMR Sheet analysis failed')
+      }
+
+      console.log('✅ OMR Sheet analysis completed')
+      return result
+
+    } catch (error) {
+      console.error('❌ OMR Sheet analysis failed:', error)
+      throw new Error(`OMR Sheet analysis failed: ${error instanceof Error ? error.message : 'Unknown error'}`)
+    }
+  }
+
   // Hybrid processing: Try Professional first (production stable), then anchor-based, then GROQ AI, then cloud, then fallback options
   async processOMRHybrid(
     file: File,

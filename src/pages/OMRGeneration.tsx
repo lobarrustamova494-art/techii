@@ -6,6 +6,7 @@ import Button from '@/components/ui/Button'
 import Card from '@/components/ui/Card'
 import LoadingSpinner from '@/components/ui/LoadingSpinner'
 import OMRSheet from '@/components/OMRSheet'
+import OMRSheetAnalyzer from '@/components/OMRSheetAnalyzer'
 import { ExamData } from '@/types'
 import { exportToPDF } from '@/utils/exportUtils'
 import { apiService } from '@/services/api'
@@ -31,6 +32,7 @@ const OMRGeneration: React.FC = () => {
   const [isSaving, setIsSaving] = useState(false)
   const [exportProgress, setExportProgress] = useState(0)
   const [showCorrectAnswers, setShowCorrectAnswers] = useState(false)
+  const [showAIAnalyzer, setShowAIAnalyzer] = useState(false)
   
   const [config, setConfig] = useState<OMRConfig>({
     selectedExam: examData ? 'current_exam' : '',
@@ -347,10 +349,37 @@ const OMRGeneration: React.FC = () => {
               </div>
               To'g'ri javoblarni ko'rsatish
             </Button>
+            
+            <Button
+              onClick={() => setShowAIAnalyzer(!showAIAnalyzer)}
+              variant="outline"
+              className={`w-full sm:w-auto ${
+                showAIAnalyzer 
+                  ? 'bg-purple-50 border-purple-500 text-purple-700 hover:bg-purple-100' 
+                  : 'hover:bg-gray-50'
+              }`}
+            >
+              <div className="w-4 h-4 border-2 border-current rounded mr-2 flex items-center justify-center">
+                {showAIAnalyzer && <div className="w-2 h-2 bg-current rounded-sm"></div>}
+              </div>
+              AI Tahlilchini ko'rsatish
+            </Button>
           </div>
         </div>
         
         <div className="p-4 sm:p-8 overflow-auto">
+          {/* AI Analyzer Section */}
+          {showAIAnalyzer && (
+            <div className="mb-8">
+              <OMRSheetAnalyzer 
+                examData={examData}
+                onAnalysisComplete={(result) => {
+                  console.log('AI Analysis completed:', result)
+                }}
+              />
+            </div>
+          )}
+          
           <div ref={printRef}>
             <OMRSheet
               examData={examData}

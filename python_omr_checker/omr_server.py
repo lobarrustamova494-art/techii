@@ -89,6 +89,16 @@ except ImportError as e:
     QUALITY_CONTROL_AVAILABLE = False
     AdvancedQualityController = None
 
+# Safe import for OMR Sheet Analyzer
+try:
+    from omr_sheet_analyzer import OMRSheetAnalyzer
+    OMR_SHEET_ANALYZER_AVAILABLE = True
+    logger.info("✅ OMR Sheet Analyzer available")
+except ImportError as e:
+    logger.warning(f"OMR Sheet Analyzer not available: {e}")
+    OMR_SHEET_ANALYZER_AVAILABLE = False
+    OMRSheetAnalyzer = None
+
 # Safe import for GROQ AI OMR Analyzer
 try:
     from groq_ai_omr_analyzer import GroqAIOMRAnalyzer
@@ -98,7 +108,6 @@ except ImportError as e:
     logger.warning(f"GROQ AI OMR Analyzer not available: {e}")
     GROQ_AI_AVAILABLE = False
     GroqAIOMRAnalyzer = None
-
 # Safe import for Cloud Processor
 try:
     from cloud_processor import cloud_processor
@@ -108,23 +117,22 @@ except ImportError as e:
     logger.warning(f"Cloud Processor not available: {e}")
     CLOUD_PROCESSOR_AVAILABLE = False
     cloud_processor = None
+
 app = Flask(__name__)
 CORS(app)
-
 # Configuration
 app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # 16MB max file size
+
 UPLOAD_FOLDER = 'uploads'
 ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'tiff', 'bmp'}
 
 # Create upload directory
 Path(UPLOAD_FOLDER).mkdir(exist_ok=True)
 
+# Initialize OMR Sheet Analyzer
+omr_sheet_analyzer = OMRSheetAnalyzer() if OMR_SHEET_ANALYZER_AVAILABLE else None
 # Initialize OMR processors
 omr_processor = OMRProcessor()
-optimized_processor = OptimizedOMRProcessor()
-ultra_processor = UltraPrecisionOMRProcessor()
-ultra_v2_processor = UltraPrecisionOMRProcessorV2()
-perfect_processor = PerfectOMRProcessor()
 
 # Safe initialization of EvalBee engines
 evalbee_engine = EvalBeeOMREngine() if EVALBEE_ENGINE_AVAILABLE else None
@@ -902,6 +910,118 @@ def get_debug_image(filename):
             'success': False,
             'message': 'Debug image not found'
         }), 404
+
+@app.route('/api/omr/analyze_sheet', methods=['POST'])
+def analyze_omr_sheet():
+    """OMR varaqni AI bilan tahlil qilish (Langor + Piksel algoritmi)"""
+    try:
+        logger.info("🔍 OMR Sheet analysis request received")
+        
+        if not OMR_SHEET_ANALYZER_AVAILABLE or not omr_sheet_analyzer:
+            return jsonify({
+                'success': False,
+                'error': 'OMR Sheet Analyzer not available'
+            }), 503
+        
+        # Get uploaded file
+        if 'image' not in request.files:
+            return jsonify({'error': 'No image file provided'}), 400
+        
+        file = request.files['image']
+        if file.filename == '':
+            return jsonify({'error': 'No file selected'}), 400
+        
+        if not allowed_file(file.filename):
+            return jsonify({'error': 'Invalid file type'}), 400
+        
+        # Get answer key
+        answer_key_str = request.form.get('answerKey', '[]')
+        try:
+            answer_key = json.loads(answer_key_str)
+        except json.JSONDecodeError:
+            return jsonify({'error': 'Invalid answer key format'}), 400
+        
+        if not answer_key:
+            return jsonify({'error': 'Answer key is required'}), 400
+        
+        # Save uploaded file temporarily
+        filename = secure_filename(file.filename)
+        temp_path = os.path.join(UPLOAD_FOLDER, f"temp_sheet_analysis_{int(time.time())}_{filename}")
+        file.save(temp_path)
+        
+        try:
+            # Analyze OMR sheet
+            result = omr_sheet_analyzer.analyze_sheet(temp_path, answer_key)
+            
+            # Convert result to JSON-serializable format
+            response_data = {
+                'success': bool(result.success),
+                'message': 'OMR sheet analyzed successfully' if result.success else 'Analysis failed',
+                'data': {
+                    'processing_method': str(result.processing_method),
+                    'processing_time': float(result.processing_time),
+                    'detected_answers': [str(ans) for ans in result.detected_answers],
+                    'confidence': float(result.confidence),
+                    'analysis_details': {
+                        'anchors_found': int(len(result.anchor_points)),
+                        'bubbles_detected': int(len(result.bubble_regions)),
+                        'processing_time': float(result.processing_time),
+                        'image_quality': float(result.quality_metrics.overall_quality),
+                        'confidence': float(result.confidence)
+                    },
+                    'anchor_analysis': [
+                        {
+                            'question_number': int(ap.question_number),
+                            'anchor_position': {'x': int(ap.x), 'y': int(ap.y)},
+                            'confidence': float(ap.confidence),
+                            'text_detected': str(ap.text_detected)
+                        } for ap in result.anchor_points
+                    ],
+                    'bubble_analysis': [
+                        {
+                            'question_number': int(br.question_number),
+                            'option': str(br.option),
+                            'position': {'x': int(br.x), 'y': int(br.y)},
+                            'density': float(br.density),
+                            'is_filled': bool(br.is_filled),
+                            'confidence': float(br.confidence)
+                        } for br in result.bubble_regions
+                    ],
+                    'quality_metrics': {
+                        'sharpness': float(result.quality_metrics.sharpness),
+                        'contrast': float(result.quality_metrics.contrast),
+                        'brightness': float(result.quality_metrics.brightness),
+                        'noise_level': float(result.quality_metrics.noise_level),
+                        'alignment_score': float(result.quality_metrics.alignment_score)
+                    },
+                    'recommendations': [str(rec) for rec in result.recommendations],
+                    'error_flags': [str(flag) for flag in result.error_flags]
+                }
+            }
+            
+            # Convert numpy types to JSON-serializable types
+            response_data = convert_numpy_types(response_data)
+            
+            logger.info(f"✅ OMR Sheet analysis completed successfully")
+            logger.info(f"📊 Anchors: {len(result.anchor_points)}, Bubbles: {len(result.bubble_regions)}")
+            logger.info(f"🎯 Confidence: {result.confidence:.2f}, Time: {result.processing_time:.2f}s")
+            
+            return jsonify(response_data)
+            
+        finally:
+            # Clean up temporary file
+            if os.path.exists(temp_path):
+                os.remove(temp_path)
+                
+    except Exception as e:
+        logger.error(f"❌ OMR Sheet analysis error: {e}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({
+            'success': False,
+            'error': str(e),
+            'processing_method': 'OMR Sheet Analyzer'
+        }), 500
 
 # ===== GROQ AI OMR ENDPOINTS =====
 
