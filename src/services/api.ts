@@ -418,6 +418,44 @@ class ApiService {
   }
 
   /**
+   * Process OMR using Improved Layout Processor with intelligent structure detection
+   */
+  async processOMRWithImprovedLayout(
+    file: File,
+    examData: { total_questions: number; options_per_question: number }
+  ): Promise<ApiResponse> {
+    try {
+      console.log('🧠 Processing OMR with Improved Layout Processor')
+      
+      const formData = new FormData()
+      formData.append('image', file)
+      formData.append('examData', JSON.stringify(examData))
+
+      const response = await fetch(`${PYTHON_OMR_URL}/api/omr/process_improved_layout`, {
+        method: 'POST',
+        body: formData,
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ error: 'Network error' }))
+        throw new Error(errorData.error || `HTTP ${response.status}`)
+      }
+
+      const result = await response.json()
+      console.log('✅ Improved Layout processing successful:', result)
+      
+      return {
+        success: true,
+        message: 'OMR processed successfully with Improved Layout Processor',
+        data: result.data
+      }
+    } catch (error) {
+      console.error('❌ Improved Layout processing failed:', error)
+      throw error
+    }
+  }
+
+  /**
    * Process OMR using Anchor-Based Processor (Langor + Piksel tahlili)
    */
   async processOMRWithAnchorBased(

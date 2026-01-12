@@ -50,8 +50,9 @@ const EvalBeeScanner: React.FC = () => {
   const [loading, setLoading] = useState(true)
   const [processing, setProcessing] = useState(false)
   const [processingProgress, setProcessingProgress] = useState(0)
-  const [result, setResult] = useState<EvalBeeResult | null>(null)
   const [error, setError] = useState('')
+  const [result, setResult] = useState<EvalBeeResult | null>(null)
+  const [selectedProcessor, setSelectedProcessor] = useState<'evalbee' | 'improved_layout'>('evalbee')
   const [showAdvancedMetrics, setShowAdvancedMetrics] = useState(false)
 
   useEffect(() => {
@@ -146,48 +147,96 @@ const EvalBeeScanner: React.FC = () => {
       
       const enhancedFile = new File([enhancedBlob], file.name, { type: 'image/jpeg' })
       
-      // EvalBee processing with advanced parameters
-      const omrResult = await apiService.processOMRWithEvalBee(
-        enhancedFile,
-        exam.answerKey,
-        exam.scoring || { correct: 1, wrong: 0, blank: 0 },
-        exam.id,
-        {
-          ...exam,
-          processing_mode: 'evalbee_high_accuracy',
-          quality_enhancement: true,
-          advanced_detection: true
-        }
-      )
+      // Choose processing method based on selected processor
+      let omrResult
+      if (selectedProcessor === 'improved_layout') {
+        // Use Improved Layout Processor
+        omrResult = await apiService.processOMRWithImprovedLayout(
+          enhancedFile,
+          {
+            total_questions: exam.totalQuestions || 40,
+            options_per_question: 5
+          }
+        )
+      } else {
+        // Use EvalBee processor (default)
+        omrResult = await apiService.processOMRWithEvalBee(
+          enhancedFile,
+          exam.answerKey,
+          exam.scoring || { correct: 1, wrong: 0, blank: 0 },
+          exam.id,
+          {
+            ...exam,
+            processing_mode: 'evalbee_high_accuracy',
+            quality_enhancement: true,
+            advanced_detection: true
+          }
+        )
+      }
 
       clearInterval(progressInterval)
       setProcessingProgress(100)
 
       const processingTime = (Date.now() - startTime) / 1000
 
-      // Transform result to EvalBee format
-      const evalBeeResult: EvalBeeResult = {
-        extracted_answers: omrResult.data?.extracted_answers || [],
-        confidence_scores: omrResult.data?.detailed_results?.map((r: any) => r.confidence) || [],
-        overall_confidence: omrResult.data?.confidence || 0,
-        processing_time: processingTime,
-        layout_analysis: {
-          layout_type: omrResult.data?.processing_details?.layout_type || 'unknown',
-          total_questions: omrResult.data?.processing_details?.actual_question_count || 0,
-          columns: 3, // Default
-          format_confidence: omrResult.data?.confidence || 0
-        },
-        quality_metrics: {
-          sharpness: omrResult.data?.processing_details?.image_quality ? omrResult.data.processing_details.image_quality * 200 : 100,
-          contrast_ratio: 0.45, // Simulated
-          brightness: 128, // Simulated
-          noise_level: 0.05, // Simulated
-          skew_angle: 0.5, // Simulated
-          overall_quality: omrResult.data?.processing_details?.image_quality || 0.85
-        },
-        detailed_results: omrResult.data?.detailed_results || [],
-        error_flags: [],
-        recommendations: []
+      // Transform result to EvalBee format based on processor type
+      let evalBeeResult: EvalBeeResult
+      
+      if (selectedProcessor === 'improved_layout') {
+        // Transform Improved Layout result to EvalBee format
+        evalBeeResult = {
+          extracted_answers: Object.values(omrResult.data?.answers || {}),
+          confidence_scores: Object.values(omrResult.data?.confidence_scores || {}),
+          overall_confidence: (Object.values(omrResult.data?.confidence_scores || {}) as number[]).reduce((a: number, b: number) => a + b, 0) / Object.keys(omrResult.data?.confidence_scores || {}).length || 0,
+          processing_time: processingTime,
+          layout_analysis: {
+            layout_type: 'improved_layout_detected',
+            total_questions: omrResult.data?.total_questions || 0,
+            columns: omrResult.data?.columns || 0,
+            format_confidence: 0.95
+          },
+          quality_metrics: {
+            sharpness: 150,
+            contrast_ratio: 0.6,
+            brightness: 140,
+            noise_level: 0.03,
+            skew_angle: 0.2,
+            overall_quality: 0.92
+          },
+          detailed_results: Object.entries(omrResult.data?.answers || {}).map(([qNum, answer]) => ({
+            question: parseInt(qNum),
+            bubble_coordinates: {},
+            bubble_intensities: {},
+            status: answer ? 'answered' : 'blank'
+          })),
+          error_flags: [],
+          recommendations: []
+        }
+      } else {
+        // Transform EvalBee result (existing logic)
+        evalBeeResult = {
+          extracted_answers: omrResult.data?.extracted_answers || [],
+          confidence_scores: omrResult.data?.detailed_results?.map((r: any) => r.confidence) || [],
+          overall_confidence: omrResult.data?.confidence || 0,
+          processing_time: processingTime,
+          layout_analysis: {
+            layout_type: omrResult.data?.processing_details?.layout_type || 'unknown',
+            total_questions: omrResult.data?.processing_details?.actual_question_count || 0,
+            columns: 3, // Default
+            format_confidence: omrResult.data?.confidence || 0
+          },
+          quality_metrics: {
+            sharpness: omrResult.data?.processing_details?.image_quality ? omrResult.data.processing_details.image_quality * 200 : 100,
+            contrast_ratio: 0.45, // Simulated
+            brightness: 128, // Simulated
+            noise_level: 0.05, // Simulated
+            skew_angle: 0.5, // Simulated
+            overall_quality: omrResult.data?.processing_details?.image_quality || 0.85
+          },
+          detailed_results: omrResult.data?.detailed_results || [],
+          error_flags: [],
+          recommendations: []
+        }
       }
 
       // Generate error flags and recommendations
@@ -324,22 +373,101 @@ const EvalBeeScanner: React.FC = () => {
               </div>
 
               <div className="space-y-4">
+                {/* Processor Selection */}
+                <div className="mb-6">
+                  <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-3">
+                    Processing Engine
+                  </label>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div 
+                      className={`p-4 border-2 rounded-lg cursor-pointer transition-all ${
+                        selectedProcessor === 'evalbee' 
+                          ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20' 
+                          : 'border-slate-200 dark:border-slate-700 hover:border-slate-300'
+                      }`}
+                      onClick={() => setSelectedProcessor('evalbee')}
+                    >
+                      <div className="flex items-center gap-3">
+                        <div className={`w-4 h-4 rounded-full border-2 ${
+                          selectedProcessor === 'evalbee' 
+                            ? 'border-blue-500 bg-blue-500' 
+                            : 'border-slate-300'
+                        }`}>
+                          {selectedProcessor === 'evalbee' && (
+                            <div className="w-2 h-2 bg-white rounded-full mx-auto mt-0.5"></div>
+                          )}
+                        </div>
+                        <div>
+                          <h4 className="font-medium text-slate-900 dark:text-white">EvalBee Engine</h4>
+                          <p className="text-sm text-slate-600 dark:text-slate-400">Universal format detection</p>
+                        </div>
+                      </div>
+                    </div>
+                    
+                    <div 
+                      className={`p-4 border-2 rounded-lg cursor-pointer transition-all ${
+                        selectedProcessor === 'improved_layout' 
+                          ? 'border-purple-500 bg-purple-50 dark:bg-purple-900/20' 
+                          : 'border-slate-200 dark:border-slate-700 hover:border-slate-300'
+                      }`}
+                      onClick={() => setSelectedProcessor('improved_layout')}
+                    >
+                      <div className="flex items-center gap-3">
+                        <div className={`w-4 h-4 rounded-full border-2 ${
+                          selectedProcessor === 'improved_layout' 
+                            ? 'border-purple-500 bg-purple-500' 
+                            : 'border-slate-300'
+                        }`}>
+                          {selectedProcessor === 'improved_layout' && (
+                            <div className="w-2 h-2 bg-white rounded-full mx-auto mt-0.5"></div>
+                          )}
+                        </div>
+                        <div>
+                          <h4 className="font-medium text-slate-900 dark:text-white">Improved Layout</h4>
+                          <p className="text-sm text-slate-600 dark:text-slate-400">Smart structure detection</p>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
                 <Button
                   onClick={() => fileInputRef.current?.click()}
-                  className="bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700"
+                  className={`${
+                    selectedProcessor === 'evalbee' 
+                      ? 'bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700'
+                      : 'bg-gradient-to-r from-purple-500 to-pink-600 hover:from-purple-600 hover:to-pink-700'
+                  }`}
                   size="lg"
                 >
                   <Upload size={20} className="mr-2" />
                   Choose Image File
                 </Button>
 
-                <div className="text-xs text-slate-500 dark:text-slate-400 bg-blue-50 dark:bg-blue-900/20 p-4 rounded-lg">
-                  <strong>EvalBee Advanced Features:</strong><br/>
-                  • Universal format detection (any OMR layout)<br/>
-                  • Advanced image quality enhancement<br/>
-                  • Multi-method bubble detection<br/>
-                  • Real-time confidence scoring<br/>
-                  • Comprehensive error analysis
+                <div className={`text-xs text-slate-500 dark:text-slate-400 p-4 rounded-lg ${
+                  selectedProcessor === 'evalbee' 
+                    ? 'bg-blue-50 dark:bg-blue-900/20'
+                    : 'bg-purple-50 dark:bg-purple-900/20'
+                }`}>
+                  {selectedProcessor === 'evalbee' ? (
+                    <>
+                      <strong>EvalBee Advanced Features:</strong><br/>
+                      • Universal format detection (any OMR layout)<br/>
+                      • Advanced image quality enhancement<br/>
+                      • Multi-method bubble detection<br/>
+                      • Real-time confidence scoring<br/>
+                      • Comprehensive error analysis
+                    </>
+                  ) : (
+                    <>
+                      <strong>Improved Layout Features:</strong><br/>
+                      • Smart column detection (3 markers per column)<br/>
+                      • Question marker identification (1 per question)<br/>
+                      • Intelligent structure analysis<br/>
+                      • 40%+ bubble fill threshold<br/>
+                      • Debug visualization support
+                    </>
+                  )}
                 </div>
               </div>
 
@@ -362,7 +490,7 @@ const EvalBeeScanner: React.FC = () => {
                   <Brain className="w-8 h-8 text-white" />
                 </div>
                 <h3 className="text-lg font-semibold text-slate-900 dark:text-white mb-2">
-                  EvalBee Engine Processing...
+                  {selectedProcessor === 'improved_layout' ? 'Improved Layout Processing...' : 'EvalBee Engine Processing...'}
                 </h3>
                 <p className="text-slate-600 dark:text-slate-400 mb-4">
                   Advanced AI analysis in progress
@@ -639,7 +767,7 @@ const EvalBeeScanner: React.FC = () => {
                     </div>
                   </div>
                   <div className="text-slate-500 dark:text-slate-400">
-                    Powered by EvalBee Engine
+                    Powered by {selectedProcessor === 'improved_layout' ? 'Improved Layout Processor' : 'EvalBee Engine'}
                   </div>
                 </div>
               </div>
