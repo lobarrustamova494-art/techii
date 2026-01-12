@@ -5,7 +5,7 @@ const getApiBaseUrl = () => {
     // Production URL (will be set during deployment)
     return import.meta.env.VITE_API_BASE_URL || 'https://ultra-precision-omr-backend.onrender.com/api'
   }
-  
+
   // Development URL - Backend runs on port 10000
   return import.meta.env.VITE_API_BASE_URL || 'http://localhost:10000/api'
 }
@@ -16,7 +16,7 @@ const getPythonOMRUrl = () => {
     // Production URL for Python OMR service
     return import.meta.env.VITE_PYTHON_OMR_URL || 'https://ultra-precision-python-omr.onrender.com'
   }
-  
+
   // Development URL - Python OMR runs on port 5000
   return import.meta.env.VITE_PYTHON_OMR_URL || 'http://localhost:5000'
 }
@@ -56,7 +56,7 @@ class ApiService {
     options: RequestInit = {}
   ): Promise<ApiResponse<T>> {
     const url = `${API_BASE_URL}${endpoint}`
-    
+
     const headers: Record<string, string> = {
       ...(options.headers as Record<string, string> || {}),
     }
@@ -181,8 +181,8 @@ class ApiService {
   }
 
   async analyzeOMRSheet(
-    imageBase64: string, 
-    answerKey: string[], 
+    imageBase64: string,
+    answerKey: string[],
     scoring: { correct: number; wrong: number; blank: number },
     examId?: string
   ) {
@@ -204,8 +204,8 @@ class ApiService {
   }
 
   async uploadOMRImage(
-    file: File, 
-    answerKey: string[], 
+    file: File,
+    answerKey: string[],
     scoring: { correct: number; wrong: number; blank: number },
     examId?: string
   ) {
@@ -213,7 +213,7 @@ class ApiService {
     formData.append('image', file)
     formData.append('answerKey', JSON.stringify(answerKey))
     formData.append('scoring', JSON.stringify(scoring))
-    
+
     if (examId) {
       formData.append('examId', examId)
     }
@@ -243,7 +243,7 @@ class ApiService {
   }
 
   // OpenCV-based OMR methods
-  
+
   /**
    * Process OMR using Anchor-Based Processor (Langor + Piksel tahlili)
    */
@@ -255,7 +255,7 @@ class ApiService {
     examData?: any
   ) {
     console.log('🎯 Anchor-Based OMR processing started')
-    
+
     try {
       const formData = new FormData()
       formData.append('image', file)
@@ -263,11 +263,11 @@ class ApiService {
       formData.append('scoring', JSON.stringify(scoring))
       formData.append('anchor_based', 'true')
       formData.append('debug', 'true')
-      
+
       if (examId) {
         formData.append('examId', examId)
       }
-      
+
       if (examData) {
         formData.append('examData', JSON.stringify({
           ...examData,
@@ -314,7 +314,7 @@ class ApiService {
       }
 
       const result = await response.json()
-      
+
       if (!result.success) {
         throw new Error(result.message || 'Anchor-Based processing failed')
       }
@@ -337,45 +337,48 @@ class ApiService {
     scoring: { correct: number; wrong: number; blank: number }
   ) {
     const data = result.data || result
-    
+
     // Calculate scoring
     const extractedAnswers = data.extracted_answers || []
     const scoreResults = this.calculateScore(extractedAnswers, answerKey, scoring)
-    
+
     return {
-      extractedAnswers,
-      confidence: data.confidence || 0,
-      processingDetails: {
-        alignmentMarksFound: data.anchor_points?.length || 0,
-        bubbleDetectionAccuracy: data.confidence || 0,
-        imageQuality: 0.8, // Default for anchor-based
-        processingMethod: data.processing_method || 'Anchor-Based OMR Processor (Langor + Piksel tahlili)',
-        imageInfo: {
-          width: data.processing_details?.image_dimensions?.[1] || 2000,
-          height: data.processing_details?.image_dimensions?.[0] || 3000,
-          format: 'JPEG',
-          size: 0
+      success: true,
+      data: {
+        extractedAnswers,
+        confidence: data.confidence || 0,
+        processingDetails: {
+          alignmentMarksFound: data.anchor_points?.length || 0,
+          bubbleDetectionAccuracy: data.confidence || 0,
+          imageQuality: 0.8, // Default for anchor-based
+          processingMethod: data.processing_method || 'Anchor-Based OMR Processor (Langor + Piksel tahlili)',
+          imageInfo: {
+            width: data.processing_details?.image_dimensions?.[1] || 2000,
+            height: data.processing_details?.image_dimensions?.[0] || 3000,
+            format: 'JPEG',
+            size: 0
+          },
+          actualQuestionCount: data.processing_details?.bubbles_analyzed || extractedAnswers.length,
+          expectedQuestionCount: answerKey.length,
+          processingTime: data.processing_time || 0,
+          // Anchor-based specific details
+          anchorsFound: data.processing_details?.anchors_found || 0,
+          bubblesAnalyzed: data.processing_details?.bubbles_analyzed || 0,
+          preprocessingApplied: data.processing_details?.preprocessing_applied || false,
+          anchorPoints: data.anchor_points || [],
+          bubbleRegions: data.bubble_regions || []
         },
-        actualQuestionCount: data.processing_details?.bubbles_analyzed || extractedAnswers.length,
-        expectedQuestionCount: answerKey.length,
-        processingTime: data.processing_time || 0,
-        // Anchor-based specific details
-        anchorsFound: data.processing_details?.anchors_found || 0,
-        bubblesAnalyzed: data.processing_details?.bubbles_analyzed || 0,
-        preprocessingApplied: data.processing_details?.preprocessing_applied || false,
-        anchorPoints: data.anchor_points || [],
-        bubbleRegions: data.bubble_regions || []
-      },
-      detailedResults: (data.detailed_results || []).map((dr: any) => ({
-        question: dr.question,
-        detectedAnswer: dr.detected_answer,
-        confidence: dr.confidence,
-        bubbleIntensities: dr.bubble_intensities || {},
-        bubbleCoordinates: dr.bubble_coordinates || {},
-        // Anchor-based specific fields
-        processingMethod: dr.processing_method || 'anchor_based_density_analysis'
-      })),
-      scoring: scoreResults
+        detailedResults: (data.detailed_results || []).map((dr: any) => ({
+          question: dr.question,
+          detectedAnswer: dr.detected_answer,
+          confidence: dr.confidence,
+          bubbleIntensities: dr.bubble_intensities || {},
+          bubbleCoordinates: dr.bubble_coordinates || {},
+          // Anchor-based specific fields
+          processingMethod: dr.processing_method || 'anchor_based_density_analysis'
+        })),
+        scoring: scoreResults
+      }
     }
   }
 
@@ -390,7 +393,7 @@ class ApiService {
     examData?: any
   ) {
     console.log('🚀 EvalBee Professional OMR processing started')
-    
+
     try {
       const formData = new FormData()
       formData.append('image', file)
@@ -398,11 +401,11 @@ class ApiService {
       formData.append('scoring', JSON.stringify(scoring))
       formData.append('professional', 'true')
       formData.append('debug', 'true')
-      
+
       if (examId) {
         formData.append('examId', examId)
       }
-      
+
       if (examData) {
         formData.append('examData', JSON.stringify({
           ...examData,
@@ -450,7 +453,7 @@ class ApiService {
       }
 
       const result = await response.json()
-      
+
       if (!result.success) {
         throw new Error(result.message || 'EvalBee Professional processing failed')
       }
@@ -475,16 +478,16 @@ class ApiService {
     let correctCount = 0
     let wrongCount = 0
     let blankCount = 0
-    
+
     const results = []
-    
+
     for (let i = 0; i < Math.max(extractedAnswers.length, answerKey.length); i++) {
       const studentAnswer = extractedAnswers[i] || 'BLANK'
       const correctAnswer = answerKey[i] || ''
-      
+
       let isCorrect = false
       let points = 0
-      
+
       if (studentAnswer === 'BLANK' || studentAnswer === '') {
         blankCount++
         points = scoring.blank
@@ -496,7 +499,7 @@ class ApiService {
         wrongCount++
         points = scoring.wrong
       }
-      
+
       results.push({
         question: i + 1,
         studentAnswer,
@@ -505,13 +508,13 @@ class ApiService {
         points
       })
     }
-    
-    const totalScore = (correctCount * scoring.correct + 
-                       wrongCount * scoring.wrong + 
-                       blankCount * scoring.blank)
-    
+
+    const totalScore = (correctCount * scoring.correct +
+      wrongCount * scoring.wrong +
+      blankCount * scoring.blank)
+
     const percentage = answerKey.length > 0 ? (correctCount / answerKey.length * 100) : 0
-    
+
     return {
       results,
       summary: {
@@ -534,11 +537,11 @@ class ApiService {
     scoring: { correct: number; wrong: number; blank: number }
   ) {
     const data = result.data || result
-    
+
     // Calculate scoring
     const extractedAnswers = data.extracted_answers || []
     const scoreResults = this.calculateScore(extractedAnswers, answerKey, scoring)
-    
+
     return {
       success: true, // Add success flag for compatibility
       data: {
@@ -604,11 +607,11 @@ class ApiService {
     formData.append('image', file)
     formData.append('answerKey', JSON.stringify(answerKey))
     formData.append('scoring', JSON.stringify(scoring))
-    
+
     if (examId) {
       formData.append('examId', examId)
     }
-    
+
     if (examData) {
       formData.append('examData', JSON.stringify({
         ...examData,
@@ -645,13 +648,13 @@ class ApiService {
     formData.append('image', file)
     formData.append('answerKey', JSON.stringify(answerKey))
     formData.append('processing_mode', processingMode)
-    
+
     // EvalBee processing parameters
     formData.append('evalbee', 'true')        // Use EvalBee engine
     formData.append('ultra', 'true')          // Ultra precision
     formData.append('universal', 'true')      // Universal coordinates
     formData.append('debug', 'true')          // Debug mode
-    
+
     if (examId) {
       formData.append('exam_id', examId)
     }
@@ -665,7 +668,7 @@ class ApiService {
     for (let attempt = 1; attempt <= maxRetries; attempt++) {
       try {
         console.log(`🔄 Attempt ${attempt}/${maxRetries} - Connecting to Python OMR service...`)
-        
+
         const response = await fetch(`${PYTHON_OMR_URL}/api/omr/process`, {
           method: 'POST',
           body: formData,
@@ -675,7 +678,7 @@ class ApiService {
 
         if (!response.ok) {
           const errorText = await response.text()
-          
+
           // Handle specific HTTP errors
           if (response.status === 503) {
             throw new Error('EvalBee xizmati vaqtincha ishlamayapti. Iltimos, biroz kutib qayta urinib ko\'ring.')
@@ -691,20 +694,20 @@ class ApiService {
         const result = await response.json()
         console.log('✅ Direct Python OMR processing completed')
         return result  // Python server already returns { success: true, data: {...} }
-        
+
       } catch (error: any) {
         lastError = error
         console.error(`❌ Attempt ${attempt} failed:`, error.message)
-        
+
         // Don't retry on certain errors
         if (error.name === 'AbortError') {
           throw new Error('EvalBee xizmati juda sekin javob bermoqda. Iltimos, qayta urinib ko\'ring.')
         }
-        
+
         if (error.message.includes('EvalBee xizmati') || error.message.includes('serverida ichki')) {
           throw error // Don't retry service-specific errors
         }
-        
+
         // Wait before retry (except on last attempt)
         if (attempt < maxRetries) {
           console.log(`⏳ Waiting 2 seconds before retry...`)
@@ -712,7 +715,7 @@ class ApiService {
         }
       }
     }
-    
+
     // All attempts failed
     console.error('❌ All retry attempts failed')
     throw lastError || new Error('EvalBee xizmatiga ulanishda muammo')
@@ -742,7 +745,7 @@ class ApiService {
     examData?: any
   ) {
     console.log('🤖 GROQ AI OMR processing started')
-    
+
     try {
       const formData = new FormData()
       formData.append('image', file)
@@ -750,11 +753,11 @@ class ApiService {
       formData.append('scoring', JSON.stringify(scoring))
       formData.append('groq_ai', 'true')
       formData.append('debug', 'true')
-      
+
       if (examId) {
         formData.append('examId', examId)
       }
-      
+
       if (examData) {
         formData.append('examData', JSON.stringify({
           ...examData,
@@ -801,7 +804,7 @@ class ApiService {
       }
 
       const result = await response.json()
-      
+
       if (!result.success) {
         throw new Error(result.error || 'GROQ AI processing failed')
       }
@@ -824,11 +827,11 @@ class ApiService {
     scoring: { correct: number; wrong: number; blank: number }
   ) {
     const data = result.data || result
-    
+
     // Calculate scoring
     const extractedAnswers = data.extracted_answers || []
     const scoreResults = this.calculateScore(extractedAnswers, answerKey, scoring)
-    
+
     return {
       success: true,
       data: {
@@ -863,24 +866,24 @@ class ApiService {
     priority: number = 5
   ) {
     console.log('☁️ Cloud OMR processing started')
-    
+
     try {
       // Convert file to base64
       const base64 = await this.fileToBase64(file)
-      
+
       // Submit job to cloud processor
       const jobId = await this.submitCloudJob(base64, answerKey, 'professional', priority)
-      
+
       // Wait for result
       const result = await this.waitForCloudResult(jobId, 60) // 60 second timeout
-      
+
       if (result.success) {
         console.log('✅ Cloud processing successful')
         return this.transformCloudResult(result, answerKey, scoring)
       } else {
         throw new Error(result.error || 'Cloud processing failed')
       }
-      
+
     } catch (error) {
       console.error('❌ Cloud OMR processing failed:', error)
       throw new Error(`Cloud processing failed: ${error instanceof Error ? error.message : 'Unknown error'}`)
@@ -900,9 +903,9 @@ class ApiService {
   }
 
   private async submitCloudJob(
-    imageBase64: string, 
-    answerKey: string[], 
-    processingMode: string, 
+    imageBase64: string,
+    answerKey: string[],
+    processingMode: string,
     priority: number
   ): Promise<string> {
     const response = await fetch(`${PYTHON_OMR_URL}/api/cloud/submit`, {
@@ -937,22 +940,22 @@ class ApiService {
     while (Date.now() - startTime < timeout) {
       try {
         const response = await fetch(`${PYTHON_OMR_URL}/api/cloud/status/${jobId}`)
-        
+
         if (!response.ok) {
           throw new Error(`Failed to check job status: ${response.status}`)
         }
 
         const status = await response.json()
-        
+
         if (status.status === 'completed') {
           return { success: true, data: status.result }
         } else if (status.status === 'failed') {
           return { success: false, error: status.error }
         }
-        
+
         // Wait before next check
         await new Promise(resolve => setTimeout(resolve, 1000))
-        
+
       } catch (error) {
         console.warn('Error checking cloud job status:', error)
         await new Promise(resolve => setTimeout(resolve, 2000))
@@ -970,7 +973,7 @@ class ApiService {
     const data = result.data || result
     const extractedAnswers = data.extracted_answers || []
     const scoreResults = this.calculateScore(extractedAnswers, answerKey, scoring)
-    
+
     return {
       success: true,
       data: {
@@ -993,12 +996,12 @@ class ApiService {
     examData?: any
   ) {
     console.log('🔍 OMR Sheet AI Analysis started')
-    
+
     try {
       const formData = new FormData()
       formData.append('image', file)
       formData.append('answerKey', JSON.stringify(answerKey))
-      
+
       if (examData) {
         formData.append('examData', JSON.stringify({
           ...examData,
@@ -1023,7 +1026,7 @@ class ApiService {
       }
 
       const result = await response.json()
-      
+
       if (!result.success) {
         throw new Error(result.error || 'OMR Sheet analysis failed')
       }
@@ -1050,14 +1053,14 @@ class ApiService {
     useCloud: boolean = false
   ) {
     console.log('🔄 Hybrid OMR processing started')
-    
+
     let professionalError: any = null
     let anchorError: any = null
     let groqAIError: any = null
     let cloudError: any = null
     let directError: any = null
     let backendError: any = null
-    
+
     // Try EvalBee Professional engine first (most stable for production)
     if (useProfessional) {
       try {
@@ -1070,7 +1073,7 @@ class ApiService {
         console.log('⚠️ EvalBee Professional failed, falling back:', error?.message || 'Failed to fetch')
       }
     }
-    
+
     // Try Anchor-Based processor if requested
     if (useAnchorBased) {
       try {
@@ -1083,7 +1086,7 @@ class ApiService {
         console.log('⚠️ Anchor-Based failed, falling back:', error?.message || 'Failed to fetch')
       }
     }
-    
+
     // Try GROQ AI if requested (only if enabled)
     if (useGroqAI) {
       try {
@@ -1096,7 +1099,7 @@ class ApiService {
         console.log('⚠️ GROQ AI failed, falling back:', error?.message || 'Failed to fetch')
       }
     }
-    
+
     // Try Cloud processing if requested
     if (useCloud) {
       try {
@@ -1109,7 +1112,7 @@ class ApiService {
         console.log('⚠️ Cloud processing failed, falling back:', error?.message || 'Failed to fetch')
       }
     }
-    
+
     try {
       // Try direct Python OMR service
       console.log('🐍 Trying direct Python OMR service')
@@ -1119,7 +1122,7 @@ class ApiService {
     } catch (error: any) {
       directError = error
       console.log('⚠️ Direct Python failed, falling back to Node.js backend:', error?.message || 'Failed to fetch')
-      
+
       try {
         // Fallback to Node.js backend
         console.log('🚀 Trying Node.js backend')
@@ -1129,7 +1132,7 @@ class ApiService {
       } catch (error: any) {
         backendError = error
         console.error('❌ All processing methods failed')
-        
+
         // Create detailed error message
         const professionalMsg = professionalError?.message || 'Not attempted'
         const anchorMsg = anchorError?.message || 'Not attempted'
@@ -1137,17 +1140,17 @@ class ApiService {
         const cloudMsg = cloudError?.message || 'Not attempted'
         const directMsg = directError?.message || 'Failed to fetch'
         const backendMsg = backendError?.message || 'Failed to fetch'
-        
+
         // Check if it's a network connectivity issue
         if (directMsg.includes('Failed to fetch') && backendMsg.includes('Failed to fetch')) {
           throw new Error('Internetga ulanishda muammo. Iltimos, internet aloqangizni tekshiring va qayta urinib ko\'ring.')
         }
-        
+
         // Check if services are down
         if (directMsg.includes('503') || directMsg.includes('502') || directMsg.includes('500')) {
           throw new Error('EvalBee xizmatlari vaqtincha ishlamayapti. Iltimos, biroz kutib qayta urinib ko\'ring.')
         }
-        
+
         let errorMessage = 'OMR qayta ishlashda xatolik.'
         if (useProfessional) {
           errorMessage += ` Professional: ${professionalMsg},`
@@ -1162,7 +1165,7 @@ class ApiService {
           errorMessage += ` Cloud: ${cloudMsg},`
         }
         errorMessage += ` Python: ${directMsg}, Backend: ${backendMsg}`
-        
+
         throw new Error(errorMessage)
       }
     }
