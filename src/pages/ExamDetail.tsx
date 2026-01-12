@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { Calendar, Clock, FileText, Users, Key, ScanLine, Download, ChevronDown, Camera } from 'lucide-react'
+import { Calendar, Clock, FileText, Users, Key, ScanLine, Download, ChevronDown, Camera, Brain } from 'lucide-react'
 import Header from '@/components/layout/Header'
 import Button from '@/components/ui/Button'
 import Card from '@/components/ui/Card'
@@ -99,6 +99,10 @@ const ExamDetail: React.FC = () => {
     navigate(`/exam-scanner/${id}/evalbee-camera`)
   }
 
+  const handleAICheck = () => {
+    navigate(`/exam-scanner/${id}/ai-check`)
+  }
+
   const handleDownloadPDF = async () => {
     if (!examContentRef.current || !exam) return
 
@@ -131,7 +135,7 @@ const ExamDetail: React.FC = () => {
     try {
       // Get only the first OMR sheet element (single sheet)
       const omrElement = omrSheetsRef.current.querySelector('.omr-sheet') as HTMLElement
-      
+
       if (omrElement) {
         await exportToPDF(omrElement, {
           filename: `${exam.name}_OMR_varaq`,
@@ -163,7 +167,7 @@ const ExamDetail: React.FC = () => {
   // Priority: 1. answerKey (from exam-keys page), 2. subjects.questions.correctAnswer
   const getCorrectAnswers = (exam: Exam): string[] => {
     const correctAnswers: string[] = []
-    
+
     // First priority: Use answerKey if it exists and is properly set
     if (exam.answerKey && exam.answerKey.length > 0) {
       console.log('Using answerKey from exam-keys page:', exam.answerKey)
@@ -175,7 +179,7 @@ const ExamDetail: React.FC = () => {
         return key || 'A'
       })
     }
-    
+
     // Second priority: Extract from exam subjects structure
     console.log('Using correctAnswers from exam subjects structure')
     if (exam.subjects) {
@@ -196,7 +200,7 @@ const ExamDetail: React.FC = () => {
         }
       })
     }
-    
+
     return correctAnswers
   }
 
@@ -275,294 +279,304 @@ const ExamDetail: React.FC = () => {
         <div ref={examContentRef} className="space-y-6">
           {/* Imtihon asosiy ma'lumotlari */}
           <Card className="mb-6">
-          <div className="flex items-start gap-4">
-            <div className="p-3 bg-primary/10 rounded-lg">
-              <FileText size={24} className="text-primary" />
-            </div>
-            <div className="flex-1">
-              <h1 className="text-2xl font-bold text-slate-900 dark:text-white mb-2">
-                {exam.name}
-              </h1>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="flex items-center gap-2 text-slate-600 dark:text-slate-400">
-                  <Calendar size={16} />
-                  <span>{formatDate(exam.date)}</span>
-                </div>
-                <div className="flex items-center gap-2 text-slate-600 dark:text-slate-400">
-                  <Clock size={16} />
-                  <span>{exam.duration || 90} daqiqa</span>
-                </div>
-                <div className="flex items-center gap-2 text-slate-600 dark:text-slate-400">
-                  <FileText size={16} />
-                  <span>{exam.totalQuestions || getTotalQuestions()} ta savol</span>
-                </div>
-                <div className="flex items-center gap-2 text-slate-600 dark:text-slate-400">
-                  <Users size={16} />
-                  <span>{exam.examSets} ta to'plam</span>
+            <div className="flex items-start gap-4">
+              <div className="p-3 bg-primary/10 rounded-lg">
+                <FileText size={24} className="text-primary" />
+              </div>
+              <div className="flex-1">
+                <h1 className="text-2xl font-bold text-slate-900 dark:text-white mb-2">
+                  {exam.name}
+                </h1>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="flex items-center gap-2 text-slate-600 dark:text-slate-400">
+                    <Calendar size={16} />
+                    <span>{formatDate(exam.date)}</span>
+                  </div>
+                  <div className="flex items-center gap-2 text-slate-600 dark:text-slate-400">
+                    <Clock size={16} />
+                    <span>{exam.duration || 90} daqiqa</span>
+                  </div>
+                  <div className="flex items-center gap-2 text-slate-600 dark:text-slate-400">
+                    <FileText size={16} />
+                    <span>{exam.totalQuestions || getTotalQuestions()} ta savol</span>
+                  </div>
+                  <div className="flex items-center gap-2 text-slate-600 dark:text-slate-400">
+                    <Users size={16} />
+                    <span>{exam.examSets} ta to'plam</span>
+                  </div>
                 </div>
               </div>
             </div>
-          </div>
-        </Card>
+          </Card>
 
-        {/* Kalitlar holati */}
-        <Card className="mb-6">
-          <h2 className="text-lg font-semibold text-slate-900 dark:text-white mb-4">
-            Imtihon holati
-          </h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="flex items-center gap-3">
-              <div className={`p-2 rounded-lg ${exam.answerKey && exam.answerKey.length > 0 ? 'bg-green-100 dark:bg-green-900/30' : 'bg-yellow-100 dark:bg-yellow-900/30'}`}>
-                <Key size={20} className={exam.answerKey && exam.answerKey.length > 0 ? 'text-green-600 dark:text-green-400' : 'text-yellow-600 dark:text-yellow-400'} />
-              </div>
-              <div>
-                <div className="font-medium text-slate-900 dark:text-white">
-                  Kalitlar
+          {/* Kalitlar holati */}
+          <Card className="mb-6">
+            <h2 className="text-lg font-semibold text-slate-900 dark:text-white mb-4">
+              Imtihon holati
+            </h2>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="flex items-center gap-3">
+                <div className={`p-2 rounded-lg ${exam.answerKey && exam.answerKey.length > 0 ? 'bg-green-100 dark:bg-green-900/30' : 'bg-yellow-100 dark:bg-yellow-900/30'}`}>
+                  <Key size={20} className={exam.answerKey && exam.answerKey.length > 0 ? 'text-green-600 dark:text-green-400' : 'text-yellow-600 dark:text-yellow-400'} />
                 </div>
-                <div className={`text-sm ${exam.answerKey && exam.answerKey.length > 0 ? 'text-green-600 dark:text-green-400' : 'text-yellow-600 dark:text-yellow-400'}`}>
-                  {exam.answerKey && exam.answerKey.length > 0 ? 'Belgilangan' : 'Belgilanmagan'}
+                <div>
+                  <div className="font-medium text-slate-900 dark:text-white">
+                    Kalitlar
+                  </div>
+                  <div className={`text-sm ${exam.answerKey && exam.answerKey.length > 0 ? 'text-green-600 dark:text-green-400' : 'text-yellow-600 dark:text-yellow-400'}`}>
+                    {exam.answerKey && exam.answerKey.length > 0 ? 'Belgilangan' : 'Belgilanmagan'}
+                  </div>
+                </div>
+              </div>
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-blue-100 dark:bg-blue-900/30 rounded-lg">
+                  <ScanLine size={20} className="text-blue-600 dark:text-blue-400" />
+                </div>
+                <div>
+                  <div className="font-medium text-slate-900 dark:text-white">
+                    Tekshirishga tayyor
+                  </div>
+                  <div className={`text-sm ${exam.answerKey && exam.answerKey.length > 0 ? 'text-green-600 dark:text-green-400' : 'text-slate-500 dark:text-slate-400'}`}>
+                    {exam.answerKey && exam.answerKey.length > 0 ? 'Ha' : 'Kalitlar kerak'}
+                  </div>
                 </div>
               </div>
             </div>
-            <div className="flex items-center gap-3">
-              <div className="p-2 bg-blue-100 dark:bg-blue-900/30 rounded-lg">
-                <ScanLine size={20} className="text-blue-600 dark:text-blue-400" />
-              </div>
-              <div>
-                <div className="font-medium text-slate-900 dark:text-white">
-                  Tekshirishga tayyor
-                </div>
-                <div className={`text-sm ${exam.answerKey && exam.answerKey.length > 0 ? 'text-green-600 dark:text-green-400' : 'text-slate-500 dark:text-slate-400'}`}>
-                  {exam.answerKey && exam.answerKey.length > 0 ? 'Ha' : 'Kalitlar kerak'}
-                </div>
-              </div>
-            </div>
-          </div>
-        </Card>
-        {/* Mavzular */}
-        <Card className="mb-6">
-          <h2 className="text-lg font-semibold text-slate-900 dark:text-white mb-4">
-            Imtihon mavzulari
-          </h2>
-          <div className="space-y-4">
-            {exam.subjects && exam.subjects.map((subject: any, index: number) => (
-              <div key={subject.id || index} className="border border-slate-200 dark:border-slate-700 rounded-lg p-4">
-                <h3 className="font-medium text-slate-900 dark:text-white mb-3">
-                  {subject.name}
-                </h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-                  {subject.sections && subject.sections.map((section: any, sectionIndex: number) => (
-                    <div key={section.id || sectionIndex} className="bg-slate-50 dark:bg-slate-800 rounded-lg p-3">
-                      <div className="text-sm font-medium text-slate-900 dark:text-white">
-                        {section.name}
+          </Card>
+          {/* Mavzular */}
+          <Card className="mb-6">
+            <h2 className="text-lg font-semibold text-slate-900 dark:text-white mb-4">
+              Imtihon mavzulari
+            </h2>
+            <div className="space-y-4">
+              {exam.subjects && exam.subjects.map((subject: any, index: number) => (
+                <div key={subject.id || index} className="border border-slate-200 dark:border-slate-700 rounded-lg p-4">
+                  <h3 className="font-medium text-slate-900 dark:text-white mb-3">
+                    {subject.name}
+                  </h3>
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                    {subject.sections && subject.sections.map((section: any, sectionIndex: number) => (
+                      <div key={section.id || sectionIndex} className="bg-slate-50 dark:bg-slate-800 rounded-lg p-3">
+                        <div className="text-sm font-medium text-slate-900 dark:text-white">
+                          {section.name}
+                        </div>
+                        <div className="text-xs text-slate-500 dark:text-slate-400 mt-1">
+                          {section.questionCount} ta savol
+                        </div>
+                        <div className="text-xs text-slate-500 dark:text-slate-400">
+                          To'g'ri: +{section.correctScore}, Noto'g'ri: {section.wrongScore}
+                        </div>
                       </div>
-                      <div className="text-xs text-slate-500 dark:text-slate-400 mt-1">
-                        {section.questionCount} ta savol
-                      </div>
-                      <div className="text-xs text-slate-500 dark:text-slate-400">
-                        To'g'ri: +{section.correctScore}, Noto'g'ri: {section.wrongScore}
-                      </div>
-                    </div>
-                  ))}
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </Card>
+
+          {/* Sozlamalar */}
+          <Card className="mb-6">
+            <h2 className="text-lg font-semibold text-slate-900 dark:text-white mb-4">
+              Imtihon sozlamalari
+            </h2>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <div className="text-sm text-slate-600 dark:text-slate-400">Tuzilish</div>
+                <div className="text-sm font-medium text-slate-900 dark:text-white">
+                  {exam.structure === 'continuous' ? 'Ketma-ket' : 'Mavzu bo\'yicha ustunlar'}
                 </div>
               </div>
-            ))}
-          </div>
-        </Card>
-
-        {/* Sozlamalar */}
-        <Card className="mb-6">
-          <h2 className="text-lg font-semibold text-slate-900 dark:text-white mb-4">
-            Imtihon sozlamalari
-          </h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <div className="text-sm text-slate-600 dark:text-slate-400">Tuzilish</div>
-              <div className="text-sm font-medium text-slate-900 dark:text-white">
-                {exam.structure === 'continuous' ? 'Ketma-ket' : 'Mavzu bo\'yicha ustunlar'}
+              <div className="space-y-2">
+                <div className="text-sm text-slate-600 dark:text-slate-400">Qog'oz o'lchami</div>
+                <div className="text-sm font-medium text-slate-900 dark:text-white">
+                  {exam.paperSize === 'a4' ? 'A4' : 'Letter'}
+                </div>
+              </div>
+              <div className="space-y-2">
+                <div className="text-sm text-slate-600 dark:text-slate-400">Logo</div>
+                <div className="text-sm font-medium text-slate-900 dark:text-white">
+                  {exam.includeLogo ? 'Ha' : 'Yo\'q'}
+                </div>
+              </div>
+              <div className="space-y-2">
+                <div className="text-sm text-slate-600 dark:text-slate-400">Ixcham tartib</div>
+                <div className="text-sm font-medium text-slate-900 dark:text-white">
+                  {exam.compactLayout ? 'Ha' : 'Yo\'q'}
+                </div>
               </div>
             </div>
-            <div className="space-y-2">
-              <div className="text-sm text-slate-600 dark:text-slate-400">Qog'oz o'lchami</div>
-              <div className="text-sm font-medium text-slate-900 dark:text-white">
-                {exam.paperSize === 'a4' ? 'A4' : 'Letter'}
-              </div>
-            </div>
-            <div className="space-y-2">
-              <div className="text-sm text-slate-600 dark:text-slate-400">Logo</div>
-              <div className="text-sm font-medium text-slate-900 dark:text-white">
-                {exam.includeLogo ? 'Ha' : 'Yo\'q'}
-              </div>
-            </div>
-            <div className="space-y-2">
-              <div className="text-sm text-slate-600 dark:text-slate-400">Ixcham tartib</div>
-              <div className="text-sm font-medium text-slate-900 dark:text-white">
-                {exam.compactLayout ? 'Ha' : 'Yo\'q'}
-              </div>
-            </div>
-          </div>
-        </Card>
+          </Card>
 
-        {/* Asosiy tugmalar */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-          <Button
-            onClick={handleSetKeys}
-            className="flex items-center justify-center gap-3 h-16"
-            variant="outline"
-          >
-            <Key size={24} />
-            <div className="text-left">
-              <div className="font-semibold">Kalitlarni belgilash</div>
-              <div className="text-xs opacity-75">To'g'ri javoblarni kiritish</div>
-            </div>
-          </Button>
-
-          <Button
-            onClick={handleScanExam}
-            className="flex items-center justify-center gap-3 h-16"
-          >
-            <ScanLine size={24} />
-            <div className="text-left">
-              <div className="font-semibold">Imtihonni tekshirish</div>
-              <div className="text-xs opacity-75">Javob varaqlarini skanerlash</div>
-            </div>
-          </Button>
-
-          <Button
-            onClick={handleEvalBeeCamera}
-            className="flex items-center justify-center gap-3 h-16 bg-gradient-to-r from-green-500 to-blue-600 hover:from-green-600 hover:to-blue-700"
-          >
-            <Camera size={24} />
-            <div className="text-left">
-              <div className="font-semibold">EvalBee Camera</div>
-              <div className="text-xs opacity-75">Real-time quality control</div>
-            </div>
-          </Button>
-
-          <Button
-            onClick={() => setShowCorrectAnswers(!showCorrectAnswers)}
-            className={`flex items-center justify-center gap-3 h-16 ${
-              showCorrectAnswers 
-                ? 'bg-green-500 hover:bg-green-600 text-white' 
-                : 'bg-gray-100 hover:bg-gray-200 text-gray-700'
-            }`}
-          >
-            <div className="w-6 h-6 border-2 border-current rounded flex items-center justify-center">
-              {showCorrectAnswers && <div className="w-3 h-3 bg-current rounded-sm"></div>}
-            </div>
-            <div className="text-left">
-              <div className="font-semibold">To'g'ri javoblar</div>
-              <div className="text-xs opacity-75">Yashil to'rtburchak bilan ko'rsatish</div>
-            </div>
-          </Button>
-
-          <div className="relative">
-            <LoadingButton
-              onClick={(e) => {
-                e.stopPropagation()
-                setShowDownloadOptions(!showDownloadOptions)
-              }}
-              loading={downloading}
-              loadingText="Yuklanmoqda..."
-              className="flex items-center justify-center gap-3 h-16 w-full"
+          {/* Asosiy tugmalar */}
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <Button
+              onClick={handleSetKeys}
+              className="flex items-center justify-center gap-3 h-16"
               variant="outline"
-              icon={<Download size={24} />}
             >
+              <Key size={24} />
               <div className="text-left">
-                <div className="font-semibold">Yuklab olish</div>
-                <div className="text-xs opacity-75">PDF yoki OMR varaq</div>
+                <div className="font-semibold">Kalitlarni belgilash</div>
+                <div className="text-xs opacity-75">To'g'ri javoblarni kiritish</div>
               </div>
-              <ChevronDown size={16} className={`transition-transform ${showDownloadOptions ? 'rotate-180' : ''}`} />
-            </LoadingButton>
+            </Button>
 
-            {downloading && downloadProgress > 0 && (
-              <div className="mt-2">
-                <ProgressBar 
-                  value={downloadProgress} 
-                  size="sm" 
-                  variant="default"
-                  showLabel={true}
-                  label="Yuklanish jarayoni"
-                />
+            <Button
+              onClick={handleScanExam}
+              className="flex items-center justify-center gap-3 h-16"
+            >
+              <ScanLine size={24} />
+              <div className="text-left">
+                <div className="font-semibold">Imtihonni tekshirish</div>
+                <div className="text-xs opacity-75">Javob varaqlarini skanerlash</div>
               </div>
-            )}
+            </Button>
 
-            {showDownloadOptions && (
-              <div 
-                className="absolute top-full left-0 right-0 mt-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg shadow-lg z-10"
-                onClick={(e) => e.stopPropagation()}
+            <Button
+              onClick={handleEvalBeeCamera}
+              className="flex items-center justify-center gap-3 h-16 bg-gradient-to-r from-green-500 to-blue-600 hover:from-green-600 hover:to-blue-700"
+            >
+              <Camera size={24} />
+              <div className="text-left">
+                <div className="font-semibold">EvalBee Camera</div>
+                <div className="text-xs opacity-75">Real-time quality control</div>
+              </div>
+            </Button>
+
+            <Button
+              onClick={handleAICheck}
+              className="flex items-center justify-center gap-3 h-16 bg-gradient-to-r from-purple-500 to-indigo-600 hover:from-purple-600 hover:to-indigo-700"
+            >
+              <Brain size={24} />
+              <div className="text-left">
+                <div className="font-semibold">AI Tekshiruv</div>
+                <div className="text-xs opacity-75">Langor + Piksel tahlili</div>
+              </div>
+            </Button>
+
+            <Button
+              onClick={() => setShowCorrectAnswers(!showCorrectAnswers)}
+              className={`flex items-center justify-center gap-3 h-16 ${showCorrectAnswers
+                ? 'bg-green-500 hover:bg-green-600 text-white'
+                : 'bg-gray-100 hover:bg-gray-200 text-gray-700'
+                }`}
+            >
+              <div className="w-6 h-6 border-2 border-current rounded flex items-center justify-center">
+                {showCorrectAnswers && <div className="w-3 h-3 bg-current rounded-sm"></div>}
+              </div>
+              <div className="text-left">
+                <div className="font-semibold">To'g'ri javoblar</div>
+                <div className="text-xs opacity-75">Yashil to'rtburchak bilan ko'rsatish</div>
+              </div>
+            </Button>
+
+            <div className="relative">
+              <LoadingButton
+                onClick={(e) => {
+                  e.stopPropagation()
+                  setShowDownloadOptions(!showDownloadOptions)
+                }}
+                loading={downloading}
+                loadingText="Yuklanmoqda..."
+                className="flex items-center justify-center gap-3 h-16 w-full"
+                variant="outline"
+                icon={<Download size={24} />}
               >
-                <button
-                  onClick={() => {
-                    handleDownloadPDF()
-                    setShowDownloadOptions(false)
-                  }}
-                  className="w-full px-4 py-3 text-left hover:bg-slate-50 dark:hover:bg-slate-700 rounded-t-lg"
-                >
-                  <div className="font-medium">Imtihon tafsilotlari</div>
-                  <div className="text-xs text-slate-500 dark:text-slate-400">Ma'lumotlar va sozlamalar</div>
-                </button>
-                <button
-                  onClick={() => {
-                    handleDownloadOMRSheets()
-                    setShowDownloadOptions(false)
-                  }}
-                  className="w-full px-4 py-3 text-left hover:bg-slate-50 dark:hover:bg-slate-700 rounded-b-lg border-t border-slate-200 dark:border-slate-700"
-                >
-                  <div className="font-medium">OMR varaq</div>
-                  <div className="text-xs text-slate-500 dark:text-slate-400">Javob varaqini chop etish uchun</div>
-                </button>
-              </div>
-            )}
-          </div>
-        </div>
+                <div className="text-left">
+                  <div className="font-semibold">Yuklab olish</div>
+                  <div className="text-xs opacity-75">PDF yoki OMR varaq</div>
+                </div>
+                <ChevronDown size={16} className={`transition-transform ${showDownloadOptions ? 'rotate-180' : ''}`} />
+              </LoadingButton>
 
-        {/* OMR Sheet Preview */}
-        {exam.subjects && exam.subjects.length > 0 && (
-          <div className="mt-8">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-semibold text-slate-900 dark:text-white">
-                OMR Varaq Preview
-              </h3>
-              {showCorrectAnswers && (
-                <div className="flex items-center gap-2 text-sm text-green-600 dark:text-green-400">
-                  <div className="w-3 h-3 border border-green-500 bg-green-200 bg-opacity-30 rounded"></div>
-                  To'g'ri javoblar ko'rsatilmoqda
+              {downloading && downloadProgress > 0 && (
+                <div className="mt-2">
+                  <ProgressBar
+                    value={downloadProgress}
+                    size="sm"
+                    variant="default"
+                    showLabel={true}
+                    label="Yuklanish jarayoni"
+                  />
+                </div>
+              )}
+
+              {showDownloadOptions && (
+                <div
+                  className="absolute top-full left-0 right-0 mt-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg shadow-lg z-10"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <button
+                    onClick={() => {
+                      handleDownloadPDF()
+                      setShowDownloadOptions(false)
+                    }}
+                    className="w-full px-4 py-3 text-left hover:bg-slate-50 dark:hover:bg-slate-700 rounded-t-lg"
+                  >
+                    <div className="font-medium">Imtihon tafsilotlari</div>
+                    <div className="text-xs text-slate-500 dark:text-slate-400">Ma'lumotlar va sozlamalar</div>
+                  </button>
+                  <button
+                    onClick={() => {
+                      handleDownloadOMRSheets()
+                      setShowDownloadOptions(false)
+                    }}
+                    className="w-full px-4 py-3 text-left hover:bg-slate-50 dark:hover:bg-slate-700 rounded-b-lg border-t border-slate-200 dark:border-slate-700"
+                  >
+                    <div className="font-medium">OMR varaq</div>
+                    <div className="text-xs text-slate-500 dark:text-slate-400">Javob varaqini chop etish uchun</div>
+                  </button>
                 </div>
               )}
             </div>
-            <div className="bg-white dark:bg-slate-800 rounded-lg shadow-lg overflow-hidden">
-              <div className="transform scale-50 origin-top-left" style={{ width: '200%', height: '200%' }}>
-                <OMRSheet
-                  examData={convertExamToExamData(exam)}
-                  structure={exam.structure || 'continuous'}
-                  includeLogo={exam.includeLogo || false}
-                  prefillStudentId={exam.prefillStudentId || false}
-                  compactLayout={exam.compactLayout || false}
-                  paperSize={exam.paperSize || 'a4'}
-                  correctAnswers={getCorrectAnswers(exam)}
-                  showCorrectAnswers={showCorrectAnswers}
-                />
+          </div>
+
+          {/* OMR Sheet Preview */}
+          {exam.subjects && exam.subjects.length > 0 && (
+            <div className="mt-8">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-lg font-semibold text-slate-900 dark:text-white">
+                  OMR Varaq Preview
+                </h3>
+                {showCorrectAnswers && (
+                  <div className="flex items-center gap-2 text-sm text-green-600 dark:text-green-400">
+                    <div className="w-3 h-3 border border-green-500 bg-green-200 bg-opacity-30 rounded"></div>
+                    To'g'ri javoblar ko'rsatilmoqda
+                  </div>
+                )}
+              </div>
+              <div className="bg-white dark:bg-slate-800 rounded-lg shadow-lg overflow-hidden">
+                <div className="transform scale-50 origin-top-left" style={{ width: '200%', height: '200%' }}>
+                  <OMRSheet
+                    examData={convertExamToExamData(exam)}
+                    structure={exam.structure || 'continuous'}
+                    includeLogo={exam.includeLogo || false}
+                    prefillStudentId={exam.prefillStudentId || false}
+                    compactLayout={exam.compactLayout || false}
+                    paperSize={exam.paperSize || 'a4'}
+                    correctAnswers={getCorrectAnswers(exam)}
+                    showCorrectAnswers={showCorrectAnswers}
+                  />
+                </div>
               </div>
             </div>
-          </div>
-        )}
+          )}
 
-        {/* Hidden OMR Sheet for PDF generation - Single sheet only */}
-        {exam.subjects && exam.subjects.length > 0 && (
-          <div ref={omrSheetsRef} style={{ position: 'absolute', left: '-9999px', top: '0' }}>
-            <OMRSheet
-              examData={convertExamToExamData(exam)}
-              structure={exam.structure || 'continuous'}
-              includeLogo={exam.includeLogo || false}
-              prefillStudentId={exam.prefillStudentId || false}
-              compactLayout={exam.compactLayout || false}
-              paperSize={exam.paperSize || 'a4'}
-              correctAnswers={getCorrectAnswers(exam)}
-              showCorrectAnswers={showCorrectAnswers}
-            />
-          </div>
-        )}
+          {/* Hidden OMR Sheet for PDF generation - Single sheet only */}
+          {exam.subjects && exam.subjects.length > 0 && (
+            <div ref={omrSheetsRef} style={{ position: 'absolute', left: '-9999px', top: '0' }}>
+              <OMRSheet
+                examData={convertExamToExamData(exam)}
+                structure={exam.structure || 'continuous'}
+                includeLogo={exam.includeLogo || false}
+                prefillStudentId={exam.prefillStudentId || false}
+                compactLayout={exam.compactLayout || false}
+                paperSize={exam.paperSize || 'a4'}
+                correctAnswers={getCorrectAnswers(exam)}
+                showCorrectAnswers={showCorrectAnswers}
+              />
+            </div>
+          )}
         </div>
       </div>
     </div>

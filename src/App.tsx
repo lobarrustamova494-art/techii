@@ -16,6 +16,7 @@ const ExamKeys = lazy(() => import('./pages/ExamKeys'))
 const ExamScanner = lazy(() => import('./pages/ExamScanner'))
 const EvalBeeScanner = lazy(() => import('./pages/EvalBeeScanner'))
 const EvalBeeCameraScannerPage = lazy(() => import('./pages/EvalBeeCameraScanner'))
+const AIScannerPage = lazy(() => import('./pages/AIScannerPage'))
 const OMRGeneration = lazy(() => import('./pages/OMRGeneration'))
 const ScanUpload = lazy(() => import('./pages/ScanUpload'))
 const LoadingDemo = lazy(() => import('./pages/LoadingDemo'))
@@ -40,7 +41,7 @@ function App() {
             {/* Public routes */}
             <Route path="/login" element={<Login />} />
             <Route path="/register" element={<Register />} />
-            
+
             {/* Protected routes */}
             <Route path="/" element={
               <ProtectedRoute>
@@ -89,6 +90,13 @@ function App() {
                 </Suspense>
               </ProtectedRoute>
             } />
+            <Route path="/exam-scanner/:id/ai-check" element={
+              <ProtectedRoute>
+                <Suspense fallback={<PageLoader />}>
+                  <AIScannerPage />
+                </Suspense>
+              </ProtectedRoute>
+            } />
             <Route path="/omr-generation" element={
               <ProtectedRoute>
                 <Suspense fallback={<PageLoader />}>
@@ -117,7 +125,7 @@ function App() {
                 </Suspense>
               </ProtectedRoute>
             } />
-            
+
             {/* Redirect any unknown routes to dashboard */}
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
